@@ -1,0 +1,34 @@
+{
+  "name": "intellicampus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Governed AI Academic Intelligence Platform for Universities",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:backend": "pnpm --filter @intellicampus/backend dev",
+    "dev:frontend": "pnpm --filter @intellicampus/frontend dev",
+    "dev:ai": "pnpm --filter @intellicampus/ai-services dev",
+    "build": "pnpm -r build",
+    "build:backend": "pnpm --filter @intellicampus/backend build",
+    "build:frontend": "pnpm --filter @intellicampus/frontend build",
+    "lint": "pnpm -r lint",
+    "db:migrate": "pnpm --filter @intellicampus/backend prisma:migrate",
+    "db:generate": "pnpm --filter @intellicampus/backend prisma:generate",
+    "db:seed": "pnpm --filter @intellicampus/backend prisma:seed",
+    "db:studio": "pnpm --filter @intellicampus/backend prisma:studio",
+    "clean": "pnpm -r exec -- rm -rf node_modules dist .next .turbo"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma", "sharp"]
+  }
+}
