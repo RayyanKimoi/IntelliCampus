@@ -1,50 +1,47 @@
-import { Response } from 'express';
+import { NextResponse } from 'next/server';
 import { ApiResponse } from '@intellicampus/shared';
 import { PAGINATION } from '@intellicampus/shared';
 
 /**
- * Standardized success response
+ * Standardized success response for Next.js API routes
  */
-export function sendSuccess<T>(
-  res: Response,
+export function createSuccessResponse<T>(
   data: T,
   message?: string,
   statusCode = 200
-): void {
+): NextResponse {
   const response: ApiResponse<T> = {
     success: true,
     data,
     message,
   };
-  res.status(statusCode).json(response);
+  return NextResponse.json(response, { status: statusCode });
 }
 
 /**
- * Standardized error response
+ * Standardized error response for Next.js API routes
  */
-export function sendError(
-  res: Response,
+export function createErrorResponse(
   error: string,
   statusCode = 400
-): void {
+): NextResponse {
   const response: ApiResponse = {
     success: false,
     error,
   };
-  res.status(statusCode).json(response);
+  return NextResponse.json(response, { status: statusCode });
 }
 
 /**
- * Paginated response helper
+ * Paginated response helper for Next.js API routes
  */
-export function sendPaginated<T>(
-  res: Response,
+export function createPaginatedResponse<T>(
   data: T[],
   total: number,
   page: number,
   limit: number
-): void {
-  res.status(200).json({
+): NextResponse {
+  return NextResponse.json({
     success: true,
     data,
     pagination: {
@@ -53,7 +50,7 @@ export function sendPaginated<T>(
       total,
       totalPages: Math.ceil(total / limit),
     },
-  });
+  }, { status: 200 });
 }
 
 /**
@@ -75,12 +72,19 @@ export function parsePagination(query: Record<string, unknown>): {
 }
 
 /**
- * Async handler wrapper to catch errors in route handlers
+ * Parse pagination from URL search params (Next.js)
  */
-export function asyncHandler(
-  fn: (req: any, res: Response, next: any) => Promise<any>
-) {
-  return (req: any, res: Response, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
+export function parsePaginationFromSearchParams(searchParams: URLSearchParams): {
+  page: number;
+  limit: number;
+  skip: number;
+} {
+  const page = Math.max(1, Number(searchParams.get('page')) || PAGINATION.DEFAULT_PAGE);
+  const limit = Math.min(
+    PAGINATION.MAX_LIMIT,
+    Math.max(1, Number(searchParams.get('limit')) || PAGINATION.DEFAULT_LIMIT)
+  );
+  const skip = (page - 1) * limit;
+
+  return { page, limit, skip };
 }
