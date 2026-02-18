@@ -40,7 +40,7 @@ export default function AdminDashboard() {
         if (statsRes.status === 'fulfilled') {
           setStats(statsRes.value);
         } else {
-          console.error('Failed to fetch stats:', statsRes.reason);
+          console.error('Failed to fetch stats:', statsRes.status === 'rejected' ? statsRes.reason : 'Unknown error');
           // Mock stats for display if service fails
           setStats({
             totalUsers: 1250,
@@ -53,10 +53,10 @@ export default function AdminDashboard() {
         }
 
         // Handle Users
-        if (usersRes.status === 'fulfilled') {
+        if (usersRes.status === 'fulfilled' && usersRes.value?.users) {
           setUsers(usersRes.value.users);
         } else {
-          console.error('Failed to fetch users:', usersRes.reason);
+          console.error('Failed to fetch users:', usersRes.status === 'rejected' ? usersRes.reason : 'Unknown error');
           // Mock users
           setUsers([
             { id: '1', name: 'Alice Smith', email: 'alice@example.com', role: 'student', institutionId: 'inst1', createdAt: '2023-10-01', status: 'active' },
@@ -71,7 +71,7 @@ export default function AdminDashboard() {
         if (policyRes.status === 'fulfilled') {
           setPolicy(policyRes.value);
         } else {
-          console.error('Failed to fetch policy:', policyRes.reason);
+          console.error('Failed to fetch policy:', policyRes.status === 'rejected' ? policyRes.reason : 'Unknown error');
           // Mock policy
           setPolicy({
             institutionId: 'inst1',
@@ -129,12 +129,12 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Database:</span>
-              <Activity className={`h-4 w-4 ${getStatusColor(stats?.systemHealth.database || 'healthy')}`} />
+              <Activity className={`h-4 w-4 ${getStatusColor(stats?.systemHealth?.database || 'healthy')}`} />
             </div>
             <div className="w-px h-4 bg-border"></div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">AI Service:</span>
-              <Cpu className={`h-4 w-4 ${getStatusColor(stats?.systemHealth.aiService || 'healthy')}`} />
+              <Cpu className={`h-4 w-4 ${getStatusColor(stats?.systemHealth?.aiService || 'healthy')}`} />
             </div>
           </div>
         </div>
@@ -147,9 +147,9 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalUsers.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{(stats?.totalUsers ?? 0).toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                {stats?.totalStudents} Students, {stats?.totalTeachers} Teachers
+                {stats?.totalStudents ?? 0} Students, {stats?.totalTeachers ?? 0} Teachers
               </p>
             </CardContent>
           </Card>
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalCourses}</div>
+              <div className="text-2xl font-bold">{stats?.totalCourses ?? 0}</div>
               <p className="text-xs text-muted-foreground">Across all departments</p>
             </CardContent>
           </Card>
@@ -171,7 +171,7 @@ export default function AdminDashboard() {
               <Cpu className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.aiUsage.totalRequests.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{(stats?.aiUsage?.totalRequests ?? 0).toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Last 30 days</p>
             </CardContent>
           </Card>
@@ -182,8 +182,8 @@ export default function AdminDashboard() {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{((stats?.aiUsage.tokensUsed || 0) / 1000000).toFixed(1)}M</div>
-              <p className="text-xs text-muted-foreground">Est. cost: ${((stats?.aiUsage.tokensUsed || 0) * 0.000002).toFixed(2)}</p>
+              <div className="text-2xl font-bold">{((stats?.aiUsage?.tokensUsed ?? 0) / 1000000).toFixed(1)}M</div>
+              <p className="text-xs text-muted-foreground">Est. cost: ${((stats?.aiUsage?.tokensUsed ?? 0) * 0.000002).toFixed(2)}</p>
             </CardContent>
           </Card>
         </div>
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {(users || []).map((user) => (
                       <tr key={user.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="px-4 py-3 font-medium">
                           <div>{user.name}</div>

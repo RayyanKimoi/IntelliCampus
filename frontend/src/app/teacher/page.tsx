@@ -242,21 +242,21 @@ export default function TeacherDashboardPage() {
   const stats = [
     {
       label: 'Total Students',
-      value: dashboard.totalStudents.toLocaleString(),
+      value: (dashboard?.totalStudents ?? 0).toLocaleString(),
       sub: 'Across all active courses',
       icon: <Users className="h-5 w-5 text-blue-500" />,
       color: 'bg-blue-500/10',
     },
     {
       label: 'Avg. Mastery',
-      value: `${dashboard.avgMastery}%`,
+      value: `${dashboard?.avgMastery ?? 0}%`,
       sub: '+2.5% from last month',
       icon: <GraduationCap className="h-5 w-5 text-emerald-500" />,
       color: 'bg-emerald-500/10',
     },
     {
       label: 'Active Courses',
-      value: dashboard.activeCoursesCount,
+      value: dashboard?.activeCoursesCount ?? 0,
       sub: 'Currently in progress',
       icon: <BookOpen className="h-5 w-5 text-purple-500" />,
       color: 'bg-purple-500/10',
@@ -377,8 +377,8 @@ export default function TeacherDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dashboard.performanceTrend.length > 0 ? (
-                  <TeacherPerformanceChart data={dashboard.performanceTrend} />
+                {(dashboard?.performanceTrend?.length ?? 0) > 0 ? (
+                  <TeacherPerformanceChart data={dashboard?.performanceTrend || []} />
                 ) : (
                   <div className="flex h-[280px] items-center justify-center text-muted-foreground text-sm">
                     No data available.
@@ -441,9 +441,9 @@ export default function TeacherDashboardPage() {
                     <div key={i} className="h-16 w-full animate-pulse rounded bg-muted" />
                   ))}
                 </div>
-              ) : dashboard.courses.length > 0 ? (
+              ) : (dashboard?.courses?.length ?? 0) > 0 ? (
                 <div className="space-y-4">
-                  {dashboard.courses.map((course) => (
+                  {dashboard?.courses?.map((course) => (
                     <div
                       key={course.id}
                       className="flex items-center justify-between rounded-lg border p-4 shadow-sm"
@@ -515,9 +515,9 @@ export default function TeacherDashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : dashboard.atRiskStudents.length > 0 ? (
+              ) : (dashboard?.atRiskStudents?.length ?? 0) > 0 ? (
                 <div className="space-y-4">
-                  {dashboard.atRiskStudents.map((student) => (
+                  {dashboard?.atRiskStudents?.map((student) => (
                     <div
                       key={student.id}
                       className="flex items-center gap-4"
