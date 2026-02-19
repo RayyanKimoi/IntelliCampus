@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Bot, User } from 'lucide-react';
+import { Bot, User, Volume2 } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: {
@@ -11,9 +11,10 @@ interface MessageBubbleProps {
     responseType?: string;
     timestamp: Date;
   };
+  onSpeak?: () => void;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onSpeak }: MessageBubbleProps) {
   const isAI = message.sender === 'ai';
 
   return (
@@ -45,15 +46,27 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </span>
         )}
         <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-        <span className={cn(
-          'text-[10px] mt-1 block',
-          isAI ? 'text-muted-foreground' : 'text-primary-foreground/70'
-        )}>
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </span>
+        <div className="flex items-center justify-between mt-1">
+          <span className={cn(
+            'text-[10px]',
+            isAI ? 'text-muted-foreground' : 'text-primary-foreground/70'
+          )}>
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+          {isAI && onSpeak && (
+            <button
+              onClick={onSpeak}
+              className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+              title="Read aloud"
+              type="button"
+            >
+              <Volume2 className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {!isAI && (

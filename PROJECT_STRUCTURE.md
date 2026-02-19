@@ -124,7 +124,7 @@ frontend/
     │   │   └── 📁 settings/
     │   │       └── 📄 page.tsx      # Student settings
     │   │
-    │   ├── 📁 teacher/              # Teacher role pages
+    │   ├── 📁 teacher/              
     │   │   ├── 📄 page.tsx          # Teacher dashboard
     │   │   ├── 📄 layout.tsx        # Teacher layout
     │   │   ├── 📄 error.tsx         # Teacher error boundary

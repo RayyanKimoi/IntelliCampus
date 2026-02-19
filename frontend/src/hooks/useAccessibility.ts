@@ -59,7 +59,7 @@ export function useAccessibility() {
     body.classList.toggle('dyslexia-font', settings.dyslexiaFont);
     body.classList.toggle('focus-mode', settings.focusMode);
     body.classList.toggle('adhd-mode', settings.adhdMode);
-    body.classList.toggle('dark', settings.highContrast);
+    body.classList.toggle('high-contrast', settings.highContrast);
 
     document.documentElement.style.fontSize = `${settings.fontScale * 100}%`;
   }, [settings, isLoaded]);

@@ -3,20 +3,21 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { adminService, AdminDashboardStats, UserSummary, AIPolicy } from '@/services/adminService';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Panel } from '@/components/panels/Panel';
+import { MetricCard } from '@/components/panels/MetricCard';
+import { ActionCard } from '@/components/panels/ActionCard';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   Users,
   BookOpen,
   Cpu,
-  CheckCircle,
-  AlertTriangle,
+  Activity,
+  Shield,
   Plus,
   FileText,
-  Shield,
-  Activity,
-  GraduationCap
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -29,35 +30,26 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Execute all promises in parallel
         const [statsRes, usersRes, policyRes] = await Promise.allSettled([
           adminService.getDashboardStats(),
           adminService.getUsers({ limit: 5 }),
           adminService.getAIPolicy()
         ]);
 
-        // Handle Stats
         if (statsRes.status === 'fulfilled') {
           setStats(statsRes.value);
         } else {
-          console.error('Failed to fetch stats:', statsRes.status === 'rejected' ? statsRes.reason : 'Unknown error');
-          // Mock stats for display if service fails
           setStats({
-            totalUsers: 1250,
-            totalStudents: 1100,
-            totalTeachers: 150,
+            totalUsers: 1250, totalStudents: 1100, totalTeachers: 150,
             totalCourses: 45,
             aiUsage: { totalRequests: 15420, tokensUsed: 4500000 },
             systemHealth: { database: 'healthy', aiService: 'healthy' }
           });
         }
 
-        // Handle Users
         if (usersRes.status === 'fulfilled' && usersRes.value?.users) {
           setUsers(usersRes.value.users);
         } else {
-          console.error('Failed to fetch users:', usersRes.status === 'rejected' ? usersRes.reason : 'Unknown error');
-          // Mock users
           setUsers([
             { id: '1', name: 'Alice Smith', email: 'alice@example.com', role: 'student', institutionId: 'inst1', createdAt: '2023-10-01', status: 'active' },
             { id: '2', name: 'Bob Johnson', email: 'bob@example.com', role: 'teacher', institutionId: 'inst1', createdAt: '2023-09-15', status: 'active' },
@@ -67,18 +59,10 @@ export default function AdminDashboard() {
           ]);
         }
 
-        // Handle Policy
         if (policyRes.status === 'fulfilled') {
           setPolicy(policyRes.value);
         } else {
-          console.error('Failed to fetch policy:', policyRes.status === 'rejected' ? policyRes.reason : 'Unknown error');
-          // Mock policy
-          setPolicy({
-            institutionId: 'inst1',
-            hintModeOnly: false,
-            strictExamMode: false,
-            maxTokens: 1000
-          });
+          setPolicy({ institutionId: 'inst1', hintModeOnly: false, strictExamMode: false, maxTokens: 1000 });
         }
       } catch (err) {
         console.error('Unexpected error fetching admin data:', err);
@@ -86,224 +70,169 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
   const handlePolicyChange = async (key: keyof AIPolicy, value: boolean) => {
     if (!policy) return;
-
-    // Optimistic update
     const oldPolicy = { ...policy };
     setPolicy({ ...policy, [key]: value });
-
     try {
       await adminService.updateAIPolicy({ [key]: value });
-    } catch (error) {
-      console.error('Failed to update policy:', error);
-      // Revert on failure
+    } catch {
       setPolicy(oldPolicy);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy': return 'text-green-500';
-      case 'degraded': return 'text-yellow-500';
-      case 'down': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
+  const healthColor = (status: string) =>
+    status === 'healthy' ? 'text-success' : status === 'degraded' ? 'text-warning' : 'text-danger';
 
   return (
     <DashboardLayout requiredRole="admin">
-      <div className="flex flex-col gap-6">
-        
-        {/* Header Section */}
+      <div className="space-y-6">
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage users, monitor system health, and configure AI policies.</p>
+            <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Manage users, monitor system health, and configure AI policies.
+            </p>
           </div>
-          
-          <div className="flex items-center gap-4 bg-card p-3 rounded-lg border shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Database:</span>
-              <Activity className={`h-4 w-4 ${getStatusColor(stats?.systemHealth?.database || 'healthy')}`} />
-            </div>
-            <div className="w-px h-4 bg-border"></div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">AI Service:</span>
-              <Cpu className={`h-4 w-4 ${getStatusColor(stats?.systemHealth?.aiService || 'healthy')}`} />
-            </div>
+
+          <div className="flex items-center gap-4 rounded-lg border bg-card px-4 py-2 text-sm">
+            <span className="flex items-center gap-1.5">
+              <Activity className={cn('h-4 w-4', healthColor(stats?.systemHealth?.database || 'healthy'))} />
+              Database
+            </span>
+            <span className="h-4 w-px bg-border" />
+            <span className="flex items-center gap-1.5">
+              <Cpu className={cn('h-4 w-4', healthColor(stats?.systemHealth?.aiService || 'healthy'))} />
+              AI Service
+            </span>
           </div>
         </div>
 
-        {/* Overview Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{(stats?.totalUsers ?? 0).toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.totalStudents ?? 0} Students, {stats?.totalTeachers ?? 0} Teachers
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Courses</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalCourses ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Across all departments</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">AI Requests</CardTitle>
-              <Cpu className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{(stats?.aiUsage?.totalRequests ?? 0).toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Last 30 days</p>
-            </CardContent>
-          </Card>
-
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tokens Used</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{((stats?.aiUsage?.tokensUsed ?? 0) / 1000000).toFixed(1)}M</div>
-              <p className="text-xs text-muted-foreground">Est. cost: ${((stats?.aiUsage?.tokensUsed ?? 0) * 0.000002).toFixed(2)}</p>
-            </CardContent>
-          </Card>
+        {/* ── Metric Cards ────────────────────────────────────── */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            label="Total Users"
+            value={(stats?.totalUsers ?? 0).toLocaleString()}
+            accentColor="info"
+            icon={<Users className="h-5 w-5" />}
+            trend={{ direction: 'up', value: `${stats?.totalStudents ?? 0} students` }}
+          />
+          <MetricCard
+            label="Active Courses"
+            value={stats?.totalCourses ?? 0}
+            accentColor="success"
+            icon={<BookOpen className="h-5 w-5" />}
+            trend={{ direction: 'up', value: 'All departments' }}
+          />
+          <MetricCard
+            label="AI Requests"
+            value={(stats?.aiUsage?.totalRequests ?? 0).toLocaleString()}
+            accentColor="warning"
+            icon={<Cpu className="h-5 w-5" />}
+            trend={{ direction: 'up', value: 'Last 30 days' }}
+          />
+          <MetricCard
+            label="Tokens Used"
+            value={`${((stats?.aiUsage?.tokensUsed ?? 0) / 1000000).toFixed(1)}M`}
+            accentColor="danger"
+            icon={<Activity className="h-5 w-5" />}
+            trend={{ direction: 'up', value: `$${((stats?.aiUsage?.tokensUsed ?? 0) * 0.000002).toFixed(2)} est.` }}
+          />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          
-          {/* User Management Table */}
-          <Card className="col-span-4">
-            <CardHeader>
-              <CardTitle>Recent Users</CardTitle>
-              <CardDescription>Latest registered users on the platform.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3">User</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Action</th>
+        {/* ── Users + Policy ──────────────────────────────────── */}
+        <div className="grid gap-6 lg:grid-cols-7">
+          {/* User Table */}
+          <Panel title="Recent Users" description="Latest registered users" className="lg:col-span-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-2xs text-muted-foreground uppercase tracking-wider bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(users || []).map((u) => (
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'text-2xs',
+                            u.role === 'admin' && 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+                            u.role === 'teacher' && 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                          )}
+                        >
+                          {u.role}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant={u.status === 'active' ? 'secondary' : 'destructive'}
+                          className="text-2xs"
+                        >
+                          {u.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="sm" className="text-xs">Edit</Button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {(users || []).map((user) => (
-                      <tr key={user.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium">
-                          <div>{user.name}</div>
-                          <div className="text-xs text-muted-foreground">{user.email}</div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                            user.role === 'teacher' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                          }`}>
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                            'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                          }`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
 
-          {/* AI Policy & Quick Actions */}
-          <div className="col-span-3 space-y-4">
-            
-            {/* AI Policy Control */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  AI Policy Control
-                </CardTitle>
-                <CardDescription>Global settings for AI assistance.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between space-x-2">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Strict Exam Mode
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      Disable all AI assistance during exam hours.
-                    </p>
+          {/* Right column: Policy + Quick Actions */}
+          <div className="lg:col-span-3 space-y-6">
+            <Panel
+              title="AI Policy Control"
+              description="Global settings for AI assistance"
+              action={<Shield className="h-4 w-4 text-muted-foreground" />}
+            >
+              <div className="space-y-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Strict Exam Mode</p>
+                    <p className="text-xs text-muted-foreground">Disable all AI during exams</p>
                   </div>
                   <Switch
                     checked={policy?.strictExamMode || false}
                     onCheckedChange={(checked) => handlePolicyChange('strictExamMode', checked)}
                   />
                 </div>
-                <div className="flex items-center justify-between space-x-2">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      Hint Only Mode
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      AI provides hints instead of full solutions.
-                    </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Hint Only Mode</p>
+                    <p className="text-xs text-muted-foreground">AI provides hints, not full solutions</p>
                   </div>
                   <Switch
                     checked={policy?.hintModeOnly || false}
                     onCheckedChange={(checked) => handlePolicyChange('hintModeOnly', checked)}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </Panel>
 
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-2">
-                <Button className="w-full justify-start" variant="outline">
-                  <Plus className="mr-2 h-4 w-4" /> Add New User
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <BookOpen className="mr-2 h-4 w-4" /> Create Course
-                </Button>
-                <Button className="w-full justify-start" variant="outline">
-                  <FileText className="mr-2 h-4 w-4" /> View System Logs
-                </Button>
-              </CardContent>
-            </Card>
-
+            <Panel title="Quick Actions">
+              <div className="space-y-3">
+                <ActionCard title="Add New User" description="Create user account" icon={<Plus className="h-5 w-5" />} href="/admin/users" />
+                <ActionCard title="Create Course" description="New course template" icon={<BookOpen className="h-5 w-5" />} href="/admin/ai-policy" />
+                <ActionCard title="System Logs" description="View audit trail" icon={<FileText className="h-5 w-5" />} href="/admin/usage" />
+              </div>
+            </Panel>
           </div>
         </div>
       </div>

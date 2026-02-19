@@ -1,16 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Zap, Timer, Flame, CheckCircle2, XCircle, ArrowLeft, Loader2, Trophy } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { gamificationService } from '@/services/gamificationService';
 import { curriculumService } from '@/services/curriculumService';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 
 interface SprintQuestion {
   id: string;
@@ -23,30 +17,58 @@ interface SprintQuestion {
 
 type View = 'setup' | 'quiz' | 'result';
 
+const DURATION = 120; // 2 minutes
+
+function getISOWeekS(): string {
+  const d = new Date();
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+function markWeeklyComplete(key: string) {
+  try {
+    const wk = getISOWeekS();
+    const raw = localStorage.getItem('ic-week-progress');
+    const parsed = raw ? JSON.parse(raw) : { week: wk, completed: [] };
+    if (parsed.week !== wk) parsed.completed = [];
+    parsed.week = wk;
+    if (!parsed.completed.includes(key)) parsed.completed.push(key);
+    localStorage.setItem('ic-week-progress', JSON.stringify(parsed));
+  } catch {}
+}
+
 export default function SprintQuizPage() {
+  const router = useRouter();
   const [view, setView] = useState<View>('setup');
   const [topics, setTopics] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [questions, setQuestions] = useState<SprintQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(DURATION);
   const [loading, setLoading] = useState(false);
   const [xpEarned, setXpEarned] = useState(0);
-  const [answers, setAnswers] = useState<{ correct: number; wrong: number }>({ correct: 0, wrong: 0 });
+  const [answered, setAnswered] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [wasCorrect, setWasCorrect] = useState(false);
+  const [highScore, setHighScore] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setHighScore(parseInt(localStorage.getItem('sprint-high-score') || '0'));
+    }
     loadTopics();
   }, []);
 
   useEffect(() => {
-    if (view === 'quiz' && timeLeft > 0) {
-      timerRef.current = setTimeout(() => setTimeLeft(t => t - 1), 1000);
-    } else if (view === 'quiz' && timeLeft <= 0) {
-      endSprint();
-    }
+    if (view !== 'quiz') return;
+    if (timeLeft <= 0) { endSprint(); return; }
+    timerRef.current = setTimeout(() => setTimeLeft(t => t - 1), 1000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [view, timeLeft]);
 
@@ -54,19 +76,20 @@ export default function SprintQuizPage() {
     try {
       const courses = await curriculumService.getCourses();
       const courseList = (courses as any)?.data || courses || [];
-      const allTopics: any[] = [];
+      const all: any[] = [];
       for (const c of (Array.isArray(courseList) ? courseList : [])) {
         try {
-          const subjects = await curriculumService.getSubjects(c.id);
-          for (const s of (Array.isArray((subjects as any)?.data || subjects || []) ? ((subjects as any)?.data || subjects || []) : [])) {
+          const subs = await curriculumService.getSubjects(c.id);
+          for (const s of (Array.isArray((subs as any)?.data || subs || []) ? ((subs as any)?.data || subs || []) : [])) {
             try {
-              const topics = await curriculumService.getTopics(s.id);
-              allTopics.push(...(Array.isArray((topics as any)?.data || topics || []) ? ((topics as any)?.data || topics || []) : []));
+              const tops = await curriculumService.getTopics(s.id);
+              all.push(...(Array.isArray((tops as any)?.data || tops || []) ? ((tops as any)?.data || tops || []) : []));
             } catch {}
           }
         } catch {}
       }
-      setTopics(allTopics);
+      setTopics(all);
+      if (all.length) setSelectedTopic(all[0].id);
     } catch {}
   };
 
@@ -78,203 +101,202 @@ export default function SprintQuizPage() {
       const d = res?.data || res;
       const qs = d?.questions || d || [];
       setQuestions(Array.isArray(qs) ? qs : []);
-      setCurrentIdx(0);
-      setScore(0);
-      setXpEarned(0);
-      setAnswers({ correct: 0, wrong: 0 });
-      setTimeLeft(60);
+      setCurrentIdx(0); setScore(0); setXpEarned(0);
+      setTimeLeft(DURATION); setAnswered(false); setSelected('');
       startTimeRef.current = Date.now();
       setView('quiz');
-    } catch (err: any) {
-      alert(err.message || 'Failed to start sprint');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setView('quiz'); }
+    finally { setLoading(false); }
   };
 
-  const answerQuestion = async (option: string) => {
+  const pickAnswer = async (opt: string) => {
+    if (answered || !questions[currentIdx]) return;
+    setSelected(opt); setAnswered(true);
     const q = questions[currentIdx];
-    if (!q) return;
-    const timeTaken = Math.round((Date.now() - startTimeRef.current) / 1000);
-    startTimeRef.current = Date.now();
-
     try {
       const res = await gamificationService.submitSprintAnswer({
-        questionId: q.id,
-        selectedOption: option,
-        timeTaken,
+        questionId: q.id, selectedOption: opt,
+        timeTaken: Math.round((Date.now() - startTimeRef.current) / 1000),
       });
       const d = res?.data || res;
-      if (d.correct) {
-        setScore(s => s + 1);
-        setAnswers(a => ({ ...a, correct: a.correct + 1 }));
-        setXpEarned(x => x + (d.xpAwarded || 10));
-      } else {
-        setAnswers(a => ({ ...a, wrong: a.wrong + 1 }));
-      }
-    } catch {
-      // Continue even if API fails
-    }
-
-    if (currentIdx + 1 < questions.length) {
-      setCurrentIdx(i => i + 1);
-    } else {
-      endSprint();
-    }
+      setWasCorrect(d?.correct ?? false);
+      if (d?.correct) { setScore(s => s + 1); setXpEarned(x => x + (d?.xpAwarded ?? 10)); }
+    } catch {}
+    startTimeRef.current = Date.now();
+    setTimeout(() => {
+      if (currentIdx + 1 < questions.length) { setCurrentIdx(i => i + 1); setAnswered(false); setSelected(''); }
+      else endSprint();
+    }, 700);
   };
 
-  const endSprint = () => {
+  const endSprint = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setView('result');
-  };
+    setScore(s => {
+      if (s > highScore) {
+        setHighScore(s);
+        localStorage.setItem('sprint-high-score', String(s));
+      }
+      markWeeklyComplete('sprint');
+      return s;
+    });
+  }, [highScore]);
 
-  const resetView = () => {
-    setView('setup');
-    setQuestions([]);
-    setCurrentIdx(0);
-    setScore(0);
-    setTimeLeft(60);
-  };
+  const mm = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+  const ss = String(timeLeft % 60).padStart(2, '0');
+  const q = questions[currentIdx];
+  const opts = q ? [
+    { key: 'A', label: q.optionA }, { key: 'B', label: q.optionB },
+    { key: 'C', label: q.optionC }, { key: 'D', label: q.optionD },
+  ] : [];
 
   return (
     <DashboardLayout requiredRole="student">
-      <div className="mx-auto max-w-5xl space-y-8">
+      <style>{`
+        .sprint-bg {
+          min-height:calc(100vh - 64px); background:#c8a876;
+          background-image: radial-gradient(circle at 30% 20%,#d4b88a 0%,transparent 60%),
+            radial-gradient(circle at 70% 80%,#b8935a 0%,transparent 60%);
+          display:flex; flex-direction:column; align-items:center;
+          padding:12px 16px; font-family:'Segoe UI',system-ui,sans-serif;
+        }
+        .sprint-card { width:100%; max-width:400px; background:#f5d99a; border-radius:16px;
+          border:3px solid #8b6914; box-shadow:0 6px 24px rgba(0,0,0,0.25); overflow:hidden; }
+        .sprint-header { background:#e67e22; padding:8px 16px; display:flex; align-items:center;
+          justify-content:space-between; border-bottom:3px solid #8b4a00; }
+        .sprint-icon { width:40px; height:40px; background:#f39c12; border:3px solid #8b6914;
+          border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; }
+        .hi-score { background:#c0392b; color:#fff; font-size:11px; font-weight:900;
+          letter-spacing:1px; padding:4px 12px; border-radius:4px; border:2px solid #922b21; }
+        .timer-d { font-size:40px; font-weight:900; font-family:'Courier New',monospace;
+          letter-spacing:4px; padding:16px 24px 8px;
+          color:${timeLeft > 30 ? '#196f3d' : '#c0392b'};
+          text-shadow:0 2px 0 rgba(0,0,0,0.15); }
+        .timer-d.urgent { animation:tflash 0.5s infinite; }
+        @keyframes tflash { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .sprog { height:6px; background:rgba(0,0,0,0.15); margin:0 16px 12px; border-radius:3px; overflow:hidden; }
+        .sprog-fill { height:100%; background:linear-gradient(90deg,#27ae60,#f1c40f); border-radius:3px; transition:width 0.4s ease; }
+        .sprint-q { background:#f1c40f; margin:0 12px 12px; border-radius:10px; padding:14px 16px;
+          font-size:14px; font-weight:700; color:#2c3e50; min-height:60px; border:2px solid #d4ac0d; line-height:1.4; }
+        .ans-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 12px 16px; }
+        .ans-btn { background:#e67e22; border:3px solid #8b4a00; border-radius:10px;
+          padding:12px 8px; font-size:12px; font-weight:700; color:#fff;
+          cursor:pointer; transition:transform 0.1s,background 0.15s;
+          text-align:center; min-height:48px; display:flex; align-items:center;
+          justify-content:center; line-height:1.3; }
+        .ans-btn:hover:not(:disabled) { transform:scale(1.04); background:#d35400; }
+        .ans-btn:disabled { cursor:default; }
+        .ans-btn.correct { background:#27ae60; border-color:#1a7a40; }
+        .ans-btn.wrong   { background:#c0392b; border-color:#922b21; }
+        .back-btn { background:none; border:none; cursor:pointer; font-size:13px;
+          font-weight:700; color:#8b4a00; padding:8px 16px 12px; }
+        .back-btn:hover { color:#5d3000; }
+        .res-box { margin:8px 12px; border-radius:12px; padding:20px; text-align:center;
+          border:5px solid #1b5e20; position:relative; overflow:hidden;
+          background-color:#4caf50;
+          background-image:linear-gradient(45deg,rgba(0,0,0,.08) 25%,transparent 25%),
+            linear-gradient(-45deg,rgba(0,0,0,.08) 25%,transparent 25%),
+            linear-gradient(45deg,transparent 75%,rgba(0,0,0,.08) 75%),
+            linear-gradient(-45deg,transparent 75%,rgba(0,0,0,.08) 75%);
+          background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0; }
+        .res-title { font-family:'Courier New',monospace; font-size:36px; font-weight:900;
+          color:#fff; text-shadow:3px 3px 0 rgba(0,0,0,0.4); line-height:1; letter-spacing:2px; }
+        .score-badge { display:inline-flex; align-items:center; justify-content:center;
+          width:64px; height:64px; background:radial-gradient(circle,#f1c40f 60%,#f39c12 100%);
+          border-radius:50%; font-size:28px; font-weight:900; color:#2c3e50;
+          box-shadow:0 0 0 4px #fff,0 0 0 6px #f39c12,0 4px 12px rgba(0,0,0,.3);
+          margin:12px auto 0; }
+        .xp-txt { font-size:12px; font-weight:700; color:rgba(255,255,255,.85); margin-top:6px; }
+        .play-again { background:none; border:none; cursor:pointer; font-size:14px;
+          font-weight:900; color:#f1c40f; letter-spacing:1px; padding:8px 16px 16px;
+          display:block; text-align:right; width:100%; text-transform:uppercase; }
+        .play-again:hover { color:#fff; }
+        .topic-select { width:100%; background:#f5d99a; border:3px solid #8b6914;
+          border-radius:10px; padding:10px 14px; font-size:14px; font-weight:600; color:#2c3e50; }
+        .start-btn { background:#e67e22; border:3px solid #8b4a00; border-radius:12px;
+          padding:14px; font-size:18px; font-weight:900; color:#fff; cursor:pointer;
+          letter-spacing:1px; transition:transform 0.1s,background 0.15s;
+          text-transform:uppercase; width:100%; }
+        .start-btn:hover:not(:disabled) { background:#d35400; transform:scale(1.02); }
+        .start-btn:disabled { opacity:.6; cursor:default; }
+      `}</style>
+
+      <div className="sprint-bg">
+        {/* SETUP */}
         {view === 'setup' && (
-          <>
-            <div className="flex flex-col gap-4">
-              <h1 className="text-3xl font-bold tracking-tight">Sprint Quiz</h1>
-              <p className="text-muted-foreground">
-                Race against the clock! Answer as many questions as you can in 60 seconds.
-              </p>
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <button className="back-btn" onClick={() => router.push('/student/gamification')}>◀ Back</button>
+            <div className="sprint-card" style={{ padding: 20 }}>
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 52 }}>🏆</div>
+                <div style={{ fontFamily: "'Courier New',monospace", fontSize: 24, fontWeight: 900, color: '#8b4a00', letterSpacing: 2 }}>SPRINT QUIZ</div>
+                <div style={{ fontSize: 12, color: '#5d3000', fontWeight: 600, marginTop: 4 }}>Answer as many as you can in 2 minutes!</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16, fontSize: 13, fontWeight: 600, color: '#5d3000' }}>
+                <span>⏱ 2 minute timer</span>
+                <span>✅ +10 XP per correct answer</span>
+                <span>🎯 Beat your High Score! (Current: {highScore})</span>
+              </div>
+              <select className="topic-select" value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)}>
+                {topics.length === 0 && <option value="">Loading topics…</option>}
+                {topics.map(t => <option key={t.id} value={t.id}>{t.name || t.title}</option>)}
+              </select>
+              <div style={{ height: 12 }} />
+              <button className="start-btn" onClick={startSprint} disabled={loading || !selectedTopic}>
+                {loading ? 'Loading…' : '▶  START SPRINT'}
+              </button>
             </div>
+          </div>
+        )}
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className="bg-gradient-to-br from-card to-yellow-500/10 border-yellow-500/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-yellow-500" />
-                    Start Sprint
-                  </CardTitle>
-                  <CardDescription>Select a topic and start your speed challenge.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a topic..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {topics.map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex items-center justify-around text-center">
-                    <div>
-                      <div className="text-2xl font-bold flex items-center justify-center gap-1">
-                        <Timer className="h-5 w-5 text-muted-foreground" /> 60s
-                      </div>
-                      <div className="text-xs text-muted-foreground">Time Limit</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold flex items-center justify-center gap-1">
-                        <Flame className="h-5 w-5 text-orange-500" /> 2x
-                      </div>
-                      <div className="text-xs text-muted-foreground">XP Multiplier</div>
-                    </div>
+        {/* QUIZ */}
+        {view === 'quiz' && (
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <div className="sprint-card">
+              <div className="sprint-header">
+                <div className="sprint-icon">🏆</div>
+                <div className="hi-score">HIGH SCORE : {highScore}S</div>
+              </div>
+              <div className={`timer-d${timeLeft <= 30 ? ' urgent' : ''}`}>{mm} : {ss}</div>
+              <div style={{ padding: '0 24px 4px', fontSize: 11, color: '#8b4a00', fontWeight: 700 }}>
+                Q{currentIdx + 1}/{questions.length} &nbsp;·&nbsp; Score: {score}
+              </div>
+              <div className="sprog"><div className="sprog-fill" style={{ width: `${(timeLeft / DURATION) * 100}%` }} /></div>
+              {q ? (
+                <>
+                  <div className="sprint-q">{q.questionText}</div>
+                  <div className="ans-grid">
+                    {opts.map(o => {
+                      let cls = 'ans-btn';
+                      if (answered) { if (o.key === selected && wasCorrect) cls += ' correct'; else if (o.key === selected) cls += ' wrong'; }
+                      return <button key={o.key} className={cls} disabled={answered} onClick={() => pickAnswer(o.key)}>{o.label}</button>;
+                    })}
                   </div>
-                  <Button
-                    size="lg"
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                    onClick={startSprint}
-                    disabled={!selectedTopic || loading}
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
-                    Start Sprint
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>How It Works</CardTitle>
-                  <CardDescription>Sprint quiz rules</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <p>1. You get 60 seconds to answer as many MCQs as possible.</p>
-                  <p>2. Each correct answer earns you XP with a 2x streak multiplier.</p>
-                  <p>3. Wrong answers don&apos;t deduct XP, but break your streak.</p>
-                  <p>4. Your mastery for the topic is updated based on performance.</p>
-                </CardContent>
-              </Card>
+                </>
+              ) : (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#5d3000', fontWeight: 700 }}>No questions available.</div>
+              )}
+              <button className="back-btn" onClick={() => setView('setup')}>◀ Back</button>
             </div>
-          </>
+          </div>
         )}
 
-        {view === 'quiz' && questions[currentIdx] && (
-          <>
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={endSprint}>
-                <ArrowLeft className="h-4 w-4 mr-2" /> End Early
-              </Button>
-              <div className="flex items-center gap-4">
-                <Badge variant="outline" className="text-lg px-3 py-1 font-mono">
-                  <Timer className="h-4 w-4 mr-1" /> {timeLeft}s
-                </Badge>
-                <Badge className="text-lg px-3 py-1">
-                  Score: {score}
-                </Badge>
-              </div>
-            </div>
-
-            <Progress value={(timeLeft / 60) * 100} className="h-2" />
-
-            <Card>
-              <CardHeader>
-                <CardDescription>Question {currentIdx + 1} of {questions.length}</CardDescription>
-                <CardTitle className="text-lg">{questions[currentIdx].questionText}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(['A', 'B', 'C', 'D'] as const).map(opt => (
-                    <Button
-                      key={opt}
-                      variant="outline"
-                      className="h-auto p-4 text-left justify-start whitespace-normal"
-                      onClick={() => answerQuestion(opt)}
-                    >
-                      <span className="mr-3 font-bold text-primary">{opt}.</span>
-                      {questions[currentIdx][`option${opt}` as keyof SprintQuestion]}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
+        {/* RESULT */}
         {view === 'result' && (
-          <div className="flex flex-col items-center gap-6 py-12">
-            <div className="h-24 w-24 rounded-full bg-yellow-500/20 flex items-center justify-center">
-              <Trophy className="h-12 w-12 text-yellow-500" />
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <button className="back-btn" onClick={() => router.push('/student/gamification')}>◀ Back</button>
+            <div className="sprint-card">
+              <div className="sprint-header"><div className="sprint-icon">🏆</div></div>
+              <div style={{ textAlign: 'center', padding: '24px 16px 8px', fontSize: 56 }}>
+                {score >= highScore && score > 0 ? '🏆' : '🥈'}
+              </div>
+              <div className="res-box">
+                <div className="res-title">{score >= highScore && score > 0 ? 'HIGH\nSCORE!' : 'TIME-\nOUT!'}</div>
+                <div className="score-badge">{score}</div>
+                <div className="xp-txt">{xpEarned} XP gained</div>
+              </div>
+              <button className="play-again" onClick={() => setView('setup')}>▶ PLAY AGAIN</button>
             </div>
-            <h1 className="text-3xl font-bold">Sprint Complete!</h1>
-            <div className="grid grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-green-600">{answers.correct}</div>
-                <div className="text-sm text-muted-foreground">Correct</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-red-500">{answers.wrong}</div>
-                <div className="text-sm text-muted-foreground">Wrong</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-yellow-600">+{xpEarned}</div>
-                <div className="text-sm text-muted-foreground">XP Earned</div>
-              </div>
-            </div>
-            <Button onClick={resetView} size="lg">
-              Try Again
-            </Button>
           </div>
         )}
       </div>

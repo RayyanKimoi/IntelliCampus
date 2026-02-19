@@ -11,7 +11,7 @@ module.exports = {
       center: true,
       padding: '2rem',
       screens: {
-        '2xl': '1400px',
+        '2xl': '1440px',
       },
     },
     extend: {
@@ -49,30 +49,39 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // IntelliCampus custom colors
-        campus: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+        // IntelliCampus brand
+        'ic-brand': 'hsl(var(--ic-brand))',
+        'ic-brand-light': 'hsl(var(--ic-brand-light))',
+        sidebar: {
+          bg: 'hsl(var(--sidebar-bg))',
+          fg: 'hsl(var(--sidebar-fg))',
+          active: 'hsl(var(--sidebar-active))',
+          hover: 'hsl(var(--sidebar-hover))',
         },
+        // Semantic status
         success: {
-          DEFAULT: '#22c55e',
+          DEFAULT: 'hsl(var(--status-success))',
           foreground: '#ffffff',
         },
         warning: {
-          DEFAULT: '#f59e0b',
+          DEFAULT: 'hsl(var(--status-warning))',
           foreground: '#ffffff',
         },
         danger: {
-          DEFAULT: '#ef4444',
+          DEFAULT: 'hsl(var(--status-danger))',
           foreground: '#ffffff',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--status-info))',
+          foreground: '#ffffff',
+        },
+        // Mastery gradient
+        mastery: {
+          0: '#DC4848',
+          25: '#E8A830',
+          50: '#EAB308',
+          75: '#2BA870',
+          100: '#2563EB',
         },
       },
       borderRadius: {
@@ -82,6 +91,10 @@ module.exports = {
       },
       fontFamily: {
         sans: ['var(--font-sans)', ...fontFamily.sans],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      fontSize: {
+        '2xs': ['0.625rem', { lineHeight: '1rem' }],
       },
       keyframes: {
         'accordion-down': {
@@ -98,8 +111,8 @@ module.exports = {
           '75%': { transform: 'translateX(5px)' },
         },
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' },
-          '50%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' },
+          '0%, 100%': { boxShadow: '0 0 5px rgba(37, 99, 235, 0.5)' },
+          '50%': { boxShadow: '0 0 20px rgba(37, 99, 235, 0.8)' },
         },
         'float': {
           '0%, 100%': { transform: 'translateY(0)' },

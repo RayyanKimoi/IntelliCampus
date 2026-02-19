@@ -142,8 +142,8 @@ export default function HomePage() {
               {
                 icon: BookOpen,
                 role: 'Students',
-                color: 'text-campus-500',
-                bg: 'bg-campus-50',
+                color: 'text-primary',
+                bg: 'bg-primary/5',
                 items: [
                   'AI-powered tutoring',
                   'Mastery-based learning',

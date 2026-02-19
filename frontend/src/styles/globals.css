@@ -4,48 +4,72 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* IntelliCampus Institutional Design System */
+    --background: 210 20% 97%;
+    --foreground: 210 50% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 50% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --popover-foreground: 210 50% 12%;
+    --primary: 210 80% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 93%;
+    --secondary-foreground: 210 50% 12%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 210 30% 90%;
+    --accent-foreground: 210 50% 12%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 12% 88%;
+    --input: 210 12% 88%;
+    --ring: 210 80% 30%;
     --radius: 0.5rem;
+
+    /* Brand */
+    --ic-brand: 210 80% 20%;
+    --ic-brand-light: 210 60% 30%;
+
+    /* Semantic */
+    --status-success: 160 60% 42%;
+    --status-warning: 36 90% 55%;
+    --status-danger: 0 72% 55%;
+    --status-info: 210 80% 55%;
+
+    /* Sidebar */
+    --sidebar-bg: 210 80% 20%;
+    --sidebar-fg: 210 20% 85%;
+    --sidebar-active: 210 60% 30%;
+    --sidebar-hover: 210 60% 25%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background: 222 40% 6%;
+    --foreground: 210 20% 92%;
+    --card: 222 40% 8%;
+    --card-foreground: 210 20% 92%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 20% 92%;
+    --primary: 210 80% 55%;
+    --primary-foreground: 210 50% 10%;
+    --secondary: 222 30% 14%;
+    --secondary-foreground: 210 20% 92%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 15% 60%;
+    --accent: 222 30% 14%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 60% 40%;
+    --destructive-foreground: 210 20% 92%;
+    --border: 222 20% 16%;
+    --input: 222 20% 16%;
+    --ring: 210 80% 55%;
+
+    --ic-brand: 210 80% 12%;
+    --ic-brand-light: 210 60% 22%;
+    --sidebar-bg: 222 40% 6%;
+    --sidebar-fg: 210 20% 75%;
+    --sidebar-active: 210 60% 22%;
+    --sidebar-hover: 222 30% 12%;
   }
 }
 
@@ -60,20 +84,54 @@
 
 /* Accessibility: Dyslexia-friendly font */
 .dyslexia-font {
-  font-family: 'OpenDyslexic', 'Comic Sans MS', sans-serif;
+  font-family: 'Cascadia Mono', 'Courier New', monospace !important;
+  letter-spacing: 0.05em;
+  line-height: 1.7;
+  word-spacing: 0.1em;
 }
 
-/* Accessibility: Focus mode */
+/* Accessibility: Focus mode — collapse sidebar, hide distractions */
+.focus-mode aside {
+  max-width: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+}
+.focus-mode [data-focus-hide],
 .focus-mode .non-essential {
-  @apply hidden;
+  display: none !important;
 }
 
-/* Accessibility: ADHD mode - simplified UI */
-.adhd-mode {
-  @apply [&_*]:transition-none;
+/* Accessibility: High contrast */
+.high-contrast {
+  filter: contrast(1.4);
 }
-.adhd-mode .decorative {
-  @apply hidden;
+.high-contrast {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --border: 0 0% 0%;
+  --muted: 0 0% 88%;
+  --muted-foreground: 0 0% 5%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 0%;
+}
+
+/* Accessibility: Simple UI (ADHD mode) */
+.adhd-mode * {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  background-image: none !important;
+  transition: none !important;
+}
+.adhd-mode .rounded-xl,
+.adhd-mode .rounded-lg,
+.adhd-mode .rounded-full {
+  border-radius: 4px !important;
+}
+.adhd-mode .decorative,
+.adhd-mode [data-decorative] {
+  display: none !important;
 }
 
 /* Custom scrollbar */

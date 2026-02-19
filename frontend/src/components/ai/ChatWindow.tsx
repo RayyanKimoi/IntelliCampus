@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { MessageBubble } from './MessageBubble';
 import { VoiceInput } from './VoiceInput';
 import { aiService } from '@/services/aiService';
-import { Send, Loader2, BookOpen } from 'lucide-react';
+import { useVoice } from '@/hooks/useVoice';
+import { Send, Loader2, BookOpen, Volume2, VolumeX } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -29,7 +30,9 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { speak, stopSpeaking, isSpeaking } = useVoice();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +79,10 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
         };
 
         setMessages((prev) => [...prev, aiMessage]);
+
+        if (autoSpeak) {
+          speak(response.data.message);
+        }
       }
     } catch (error: any) {
       const errorMessage: Message = {
@@ -104,7 +111,7 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
     mode === 'practice' ? 'Practice Mode' : 'Learning Mode';
 
   const modeBadgeColor = mode === 'assessment' ? 'bg-warning/20 text-warning' :
-    mode === 'practice' ? 'bg-campus-100 text-campus-700' :
+    mode === 'practice' ? 'bg-primary/10 text-primary' :
     'bg-success/20 text-success';
 
   return (
@@ -115,9 +122,20 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
             <BookOpen className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">{topicName}</CardTitle>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full ${modeBadgeColor}`}>
-            {modeLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title={autoSpeak ? 'Auto-speak on (click to disable)' : 'Auto-speak off (click to enable)'}
+              onClick={() => { if (isSpeaking) stopSpeaking(); setAutoSpeak(v => !v); }}
+            >
+              {autoSpeak ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+            </Button>
+            <span className={`text-xs px-2 py-1 rounded-full ${modeBadgeColor}`}>
+              {modeLabel}
+            </span>
+          </div>
         </div>
       </CardHeader>
 
@@ -135,7 +153,11 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
         )}
 
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onSpeak={msg.sender === 'ai' ? () => speak(msg.text) : undefined}
+          />
         ))}
 
         {isLoading && (
