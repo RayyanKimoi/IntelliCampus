@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @intellicampus/frontend... build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs"
+}
