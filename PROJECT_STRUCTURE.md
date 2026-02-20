@@ -158,7 +158,7 @@ frontend/
     │       ├── 📁 accessibility/
     │       │   └── 📄 page.tsx      # Accessibility settings
     │       └── 📁 settings/
-    │           └── 📄 page.tsx      # System settings
+    │           └── 📄 page.tsx      # System 
     │
     ├── 📁 components/               # React components
     │   ├── 📁 ui/                   # shadcn/ui components
