@@ -14,11 +14,14 @@ const nextConfig = {
   // Set BACKEND_URL on Vercel (or any host) to point at your deployed backend.
   // Falls back to localhost:4000 for local development.
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+    // Only proxy to backend when BACKEND_URL is explicitly set.
+    // Without it (e.g. Vercel demo deploy), all /api/* requests are handled
+    // by Next.js route handlers in src/app/api/.
+    if (!process.env.BACKEND_URL) return [];
     return [
       {
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
+        destination: `${process.env.BACKEND_URL}/api/:path*`,
       },
     ];
   },
