@@ -132,7 +132,7 @@ export default function TeacherDashboardPage() {
     try {
       const res = await analyticsService.getTeacherDashboard();
       if (res?.data) {
-        setDashboard(res.data);
+        setDashboard({ ...DEFAULT_DASHBOARD, ...res.data });
       } else {
         setDashboard(generateMockDashboard());
       }
@@ -178,21 +178,21 @@ export default function TeacherDashboardPage() {
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           <MetricCard
             label="Total Students"
-            value={(dashboard.totalStudents).toLocaleString()}
+            value={(dashboard.totalStudents ?? 0).toLocaleString()}
             accentColor="info"
             icon={<Users className="h-5 w-5" />}
             trend={{ direction: 'up', value: 'All courses' }}
           />
           <MetricCard
             label="Avg. Mastery"
-            value={`${dashboard.avgMastery}%`}
+            value={`${dashboard.avgMastery ?? 0}%`}
             accentColor="success"
             icon={<GraduationCap className="h-5 w-5" />}
             trend={{ direction: 'up', value: '+2.5% this month' }}
           />
           <MetricCard
             label="Active Courses"
-            value={dashboard.activeCoursesCount}
+            value={dashboard.activeCoursesCount ?? 0}
             accentColor="warning"
             icon={<BookOpen className="h-5 w-5" />}
             trend={{ direction: 'up', value: 'In progress' }}

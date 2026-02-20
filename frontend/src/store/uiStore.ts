@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ActiveMode = 'learning' | 'assessment' | 'insights';
+export type ActiveMode = 'learning' | 'assessment';
 
 interface UIState {
   sidebarOpen: boolean;

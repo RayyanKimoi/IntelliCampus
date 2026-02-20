@@ -29,7 +29,6 @@ import type { ActiveMode } from '@/store/uiStore';
 const modes: { value: ActiveMode; label: string }[] = [
   { value: 'learning', label: 'LEARNING' },
   { value: 'assessment', label: 'ASSESSMENT' },
-  { value: 'insights', label: 'INSIGHTS' },
 ];
 
 export function TopBar() {
@@ -67,7 +66,7 @@ export function TopBar() {
             <div
               className="absolute top-1 bottom-1 rounded-full bg-primary shadow-md"
               style={{
-                width: `calc((100% - 8px) / 3)`,
+                width: `calc((100% - 8px) / 2)`,
                 left: 4,
                 transform: `translateX(${pillIndex * 100}%)`,
                 transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',

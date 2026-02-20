@@ -57,6 +57,7 @@ interface AnswerRecord {
 }
 
 type View = 'select' | 'quiz' | 'results' | 'adaptive';
+type PracticeMode = 'curriculum' | 'adaptive';
 
 const OPTIONS: { key: string; label: string }[] = [
   { key: 'A', label: 'optionA' },
@@ -180,7 +181,10 @@ function HintPanel({ question, topicId }: { question: Question; topicId: string 
 
 export default function PracticePage() {
   const [view, setView] = useState<View>('select');
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>('curriculum');
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [weakTopicsAdaptive, setWeakTopicsAdaptive] = useState<Topic[]>([]);
+  const [loadingAdaptive, setLoadingAdaptive] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [loadingTopics, setLoadingTopics] = useState(true);
 
@@ -201,6 +205,35 @@ export default function PracticePage() {
   useEffect(() => {
     loadTopics();
   }, []);
+
+  // Load weak topics when adaptive mode selected
+  useEffect(() => {
+    if (practiceMode !== 'adaptive' || weakTopicsAdaptive.length > 0) return;
+    let cancelled = false;
+    async function load() {
+      setLoadingAdaptive(true);
+      try {
+        const res = await masteryService.getWeakTopics() as any;
+        const raw: any[] = res?.data ?? res ?? [];
+        if (!cancelled && Array.isArray(raw)) {
+          setWeakTopicsAdaptive(
+            raw.map((t) => ({
+              id: t.topicId ?? t.id,
+              name: t.topicName ?? t.name,
+              subjectName: t.subjectName,
+              courseName: t.courseName,
+            }))
+          );
+        }
+      } catch {
+        if (!cancelled) setWeakTopicsAdaptive([]);
+      } finally {
+        if (!cancelled) setLoadingAdaptive(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [practiceMode]);
 
   const loadTopics = async () => {
     setLoadingTopics(true);
@@ -338,6 +371,8 @@ export default function PracticePage() {
 
   // ─── VIEW: SELECT ──────────────────────────────────────────────
   if (view === 'select') {
+    const adaptiveTopicList = weakTopicsAdaptive.length > 0 ? weakTopicsAdaptive : topics.slice(0, 6);
+
     return (
       <DashboardLayout requiredRole="student">
         <div className="space-y-6 max-w-3xl mx-auto">
@@ -351,60 +386,155 @@ export default function PracticePage() {
             </p>
           </div>
 
+          {/* Mode toggle */}
+          <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1 w-fit">
+            {([
+              { id: 'curriculum', label: 'Curriculum Quiz', icon: BookOpen },
+              { id: 'adaptive', label: 'Adaptive Quiz', icon: Brain },
+            ] as { id: PracticeMode; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setPracticeMode(id)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+                  practiceMode === id
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Info banner */}
           <div className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 flex gap-3">
             <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-semibold text-primary">How it works</p>
-              <p className="text-muted-foreground mt-0.5">
-                Pick a topic, answer questions at your own pace, use AI hints anytime.
-                When you finish, you&apos;ll get a full breakdown and an adaptive quiz on your weak spots.
-              </p>
+              {practiceMode === 'curriculum' ? (
+                <>
+                  <p className="font-semibold text-primary">Curriculum Quiz</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    Pick any topic from your curriculum and practice at your own pace. AI hints available anytime.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-primary">Adaptive Quiz</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    AI-selected topics based on your weakest areas. Targeted practice to close your knowledge gaps fastest.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
-          <Panel title="Choose a Topic">
-            {loadingTopics ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
-                ))}
-              </div>
-            ) : topics.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                <p className="text-sm">No topics available yet. Enroll in a course first.</p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {topics.map((topic) => (
-                  <button
-                    key={topic.id}
-                    onClick={() => startQuiz(topic)}
-                    disabled={loadingQuiz}
-                    className="group relative flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left
-                               transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <div className="flex items-center justify-between">
-                      <BookOpen className="h-4 w-4 text-primary" />
-                      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <p className="text-sm font-semibold mt-1">{topic.name}</p>
-                    {(topic.subjectName || topic.courseName) && (
-                      <p className="text-xs text-muted-foreground">
-                        {topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}
-                      </p>
-                    )}
-                    {loadingQuiz && selectedTopic?.id === topic.id && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/80">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          {practiceMode === 'curriculum' ? (
+            <Panel title="Choose a Topic">
+              {loadingTopics ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : topics.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">No topics available yet. Enroll in a course first.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {topics.map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => startQuiz(topic)}
+                      disabled={loadingQuiz}
+                      className="group relative flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left
+                                 transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                      <div className="flex items-center justify-between">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Panel>
+                      <p className="text-sm font-semibold mt-1">{topic.name}</p>
+                      {(topic.subjectName || topic.courseName) && (
+                        <p className="text-xs text-muted-foreground">
+                          {topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}
+                        </p>
+                      )}
+                      {loadingQuiz && selectedTopic?.id === topic.id && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/80">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          ) : (
+            <Panel title="Adaptive Topics — Your Weakest Areas">
+              {loadingAdaptive ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : adaptiveTopicList.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-400" />
+                  <p className="text-sm font-medium">No weak topics detected!</p>
+                  <p className="text-xs mt-1">Switch to Curriculum Quiz to practice any topic.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {weakTopicsAdaptive.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic">
+                      No mastery data yet — showing curriculum topics. Practice more to unlock adaptive recommendations.
+                    </p>
+                  )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {adaptiveTopicList.map((topic, idx) => (
+                      <button
+                        key={topic.id}
+                        onClick={() => startQuiz(topic, true)}
+                        disabled={loadingQuiz}
+                        className="group relative flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left
+                                   transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{topic.name}</p>
+                          {(topic.subjectName || topic.courseName) && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                        {loadingQuiz && selectedTopic?.id === topic.id && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/80">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => startQuiz(adaptiveTopicList[0], true)}
+                    disabled={loadingQuiz}
+                  >
+                    {loadingQuiz ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Start Adaptive Quiz on &ldquo;{adaptiveTopicList[0]?.name}&rdquo;
+                  </Button>
+                </div>
+              )}
+            </Panel>
+          )}
         </div>
       </DashboardLayout>
     );
