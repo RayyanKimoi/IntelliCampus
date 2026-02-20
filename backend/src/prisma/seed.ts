@@ -265,8 +265,8 @@ async function main() {
     create: {
       id: 'asn-sorting-seed', title: 'Sorting Algorithms Quiz',
       description: 'Test your knowledge of sorting algorithms and their complexities.',
-      type: 'quiz', courseId: course.id, teacherId: teacher.id,
-      dueDate: new Date(Date.now() + 7 * 86400000), totalPoints: 50, isPublished: true,
+      courseId: course.id, teacherId: teacher.id,
+      dueDate: new Date(Date.now() + 7 * 86400000),
     },
   });
 
@@ -276,8 +276,8 @@ async function main() {
     create: {
       id: 'asn-searching-seed', title: 'Searching Algorithms Assignment',
       description: 'Binary and linear search problems.',
-      type: 'assignment', courseId: course.id, teacherId: teacher.id,
-      dueDate: new Date(Date.now() + 14 * 86400000), totalPoints: 40, isPublished: true,
+      courseId: course.id, teacherId: teacher.id,
+      dueDate: new Date(Date.now() + 14 * 86400000),
     },
   });
 
@@ -287,8 +287,8 @@ async function main() {
     create: {
       id: 'asn-oop-seed', title: 'OOP Concepts Quiz',
       description: 'Polymorphism, inheritance and encapsulation.',
-      type: 'quiz', courseId: course.id, teacherId: teacher2.id,
-      dueDate: new Date(Date.now() + 10 * 86400000), totalPoints: 30, isPublished: true,
+      courseId: course.id, teacherId: teacher2.id,
+      dueDate: new Date(Date.now() + 10 * 86400000),
     },
   });
 
@@ -298,8 +298,8 @@ async function main() {
     create: {
       id: 'asn-graphs-seed', title: 'Graph Traversal Exam',
       description: 'BFS, DFS and shortest-path problems.',
-      type: 'exam', courseId: course2.id, teacherId: teacher2.id,
-      dueDate: new Date(Date.now() + 21 * 86400000), totalPoints: 100, isPublished: true,
+      courseId: course2.id, teacherId: teacher2.id,
+      dueDate: new Date(Date.now() + 21 * 86400000),
     },
   });
 
@@ -309,8 +309,8 @@ async function main() {
     create: {
       id: 'asn-bst-seed', title: 'BST Implementation Project',
       description: 'Implement insert, delete and search for a BST.',
-      type: 'project', courseId: course3.id, teacherId: teacher.id,
-      dueDate: new Date(Date.now() + 30 * 86400000), totalPoints: 100, isPublished: false,
+      courseId: course3.id, teacherId: teacher.id,
+      dueDate: new Date(Date.now() + 30 * 86400000),
     },
   });
 
@@ -319,30 +319,29 @@ async function main() {
   // ── 7. Student Attempts & Submissions ───────────────────────
   const attemptDefs = [
     // student - assignment1
-    { id: 'att-alice-sort', userId: student.id, assignmentId: assignment1.id, score: 85, completedAt: new Date(Date.now() - 3 * 86400000), teacherComment: 'Good understanding of merge sort!', gradedAt: new Date(Date.now() - 2 * 86400000) },
+    { id: 'att-alice-sort', studentId: student.id, assignmentId: assignment1.id, score: 85, submittedAt: new Date(Date.now() - 3 * 86400000) },
     // student2 - assignment1
-    { id: 'att-bob-sort', userId: student2.id, assignmentId: assignment1.id, score: 60, completedAt: new Date(Date.now() - 2 * 86400000), teacherComment: 'Review quicksort complexity.', gradedAt: new Date(Date.now() - 86400000) },
+    { id: 'att-bob-sort', studentId: student2.id, assignmentId: assignment1.id, score: 60, submittedAt: new Date(Date.now() - 2 * 86400000) },
     // student3 - assignment1
-    { id: 'att-carol-sort', userId: student3.id, assignmentId: assignment1.id, score: 95, completedAt: new Date(Date.now() - 86400000), teacherComment: 'Excellent work!', gradedAt: new Date(Date.now() - 3600000) },
+    { id: 'att-carol-sort', studentId: student3.id, assignmentId: assignment1.id, score: 95, submittedAt: new Date(Date.now() - 86400000) },
     // student4 - assignment1 (suspicious timing)
-    { id: 'att-david-sort', userId: student4.id, assignmentId: assignment1.id, score: 100, completedAt: new Date(Date.now() - 43200000), teacherComment: null, gradedAt: null },
+    { id: 'att-david-sort', studentId: student4.id, assignmentId: assignment1.id, score: 100, submittedAt: new Date(Date.now() - 43200000) },
     // student - assignment2
-    { id: 'att-alice-search', userId: student.id, assignmentId: assignment2.id, score: 78, completedAt: new Date(Date.now() - 86400000), teacherComment: 'Binary search was correct.', gradedAt: new Date(Date.now() - 3600000) },
+    { id: 'att-alice-search', studentId: student.id, assignmentId: assignment2.id, score: 78, submittedAt: new Date(Date.now() - 86400000) },
     // student2 - assignment3
-    { id: 'att-bob-oop', userId: student2.id, assignmentId: assignment3.id, score: 72, completedAt: new Date(Date.now() - 5 * 86400000), teacherComment: null, gradedAt: null },
+    { id: 'att-bob-oop', studentId: student2.id, assignmentId: assignment3.id, score: 72, submittedAt: new Date(Date.now() - 5 * 86400000) },
     // student - assignment3 (in progress / not submitted yet)
-    { id: 'att-alice-oop', userId: student.id, assignmentId: assignment3.id, score: null, completedAt: null, teacherComment: null, gradedAt: null },
+    { id: 'att-alice-oop', studentId: student.id, assignmentId: assignment3.id, score: undefined, submittedAt: undefined },
     // student3 - assignment4
-    { id: 'att-carol-graph', userId: student3.id, assignmentId: assignment4.id, score: 88, completedAt: new Date(Date.now() - 4 * 86400000), teacherComment: 'Great BFS explanation.', gradedAt: new Date(Date.now() - 3 * 86400000) },
+    { id: 'att-carol-graph', studentId: student3.id, assignmentId: assignment4.id, score: 88, submittedAt: new Date(Date.now() - 4 * 86400000) },
   ];
 
   for (const a of attemptDefs) {
     await prisma.studentAttempt.upsert({
       where: { id: a.id }, update: {},
       create: {
-        id: a.id, userId: a.userId, assignmentId: a.assignmentId,
-        score: a.score, completedAt: a.completedAt,
-        teacherComment: a.teacherComment, gradedAt: a.gradedAt,
+        id: a.id, studentId: a.studentId, assignmentId: a.assignmentId,
+        score: a.score ?? undefined, submittedAt: a.submittedAt,
       },
     });
   }

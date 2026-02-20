@@ -44,14 +44,14 @@ router.get('/courses/:courseId', getCourseDetail);
 router.get('/courses/:courseId/subjects', async (req, res) => {
   const { curriculumService } = await import('../services/curriculum.service');
   const { sendSuccess } = await import('../utils/helpers');
-  const subjects = await curriculumService.getSubjectsByCourse(req.params.courseId);
+  const subjects = await curriculumService.getSubjects(req.params.courseId);
   sendSuccess(res, subjects);
 });
 router.post('/subjects', createSubject);
 router.get('/subjects/:subjectId/topics', async (req, res) => {
   const { curriculumService } = await import('../services/curriculum.service');
   const { sendSuccess } = await import('../utils/helpers');
-  const topics = await curriculumService.getTopicsBySubject(req.params.subjectId);
+  const topics = await curriculumService.getTopics(req.params.subjectId);
   sendSuccess(res, topics);
 });
 router.post('/topics', createTopic);
