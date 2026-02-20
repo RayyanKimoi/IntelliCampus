@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { userService } from '@/services/user.service';
 import { loginSchema } from '@/utils/validators';
+import { signToken } from '@/lib/jwt';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// ─── Demo accounts (used when no database is connected) ──────────────────────
+const DEMO_USERS: Record<string, { id: string; name: string; email: string; password: string; role: 'student' | 'teacher' | 'admin'; institutionId: string }> = {
+  'student@campus.edu': { id: 'demo-student-1', name: 'Alex Johnson',  email: 'student@campus.edu', password: 'student123', role: 'student', institutionId: 'demo-inst' },
+  'teacher@campus.edu': { id: 'demo-teacher-1', name: 'Dr. Sarah Chen', email: 'teacher@campus.edu', password: 'teacher123', role: 'teacher', institutionId: 'demo-inst' },
+  'admin@campus.edu':   { id: 'demo-admin-1',   name: 'Admin User',    email: 'admin@campus.edu',   password: 'admin123',   role: 'admin',   institutionId: 'demo-inst' },
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,10 +25,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await userService.login(parsed.data.email, parsed.data.password);
+    const { email, password } = parsed.data;
+
+    // ── 1. Try real database first ────────────────────────────────────────────
+    try {
+      const result = await userService.login(email, password);
+      return NextResponse.json(
+        { success: true, data: result, message: 'Login successful' },
+        { status: 200 }
+      );
+    } catch (dbError: any) {
+      // If it's a wrong-password error from a real DB user, propagate it
+      if (dbError.message === 'Invalid email or password' && process.env.DATABASE_URL) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid email or password' },
+          { status: 401 }
+        );
+      }
+      // Otherwise DB is unavailable — fall through to demo credentials
+    }
+
+    // ── 2. Demo credential fallback (no live database) ────────────────────────
+    const demo = DEMO_USERS[email.toLowerCase()];
+    if (demo && demo.password === password) {
+      const token = signToken({ userId: demo.id, email: demo.email, role: demo.role as any, institutionId: demo.institutionId });
+      const { password: _pw, ...user } = demo;
+      return NextResponse.json(
+        { success: true, data: { user, token }, message: 'Login successful' },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json(
-      { success: true, data: result, message: 'Login successful' },
-      { status: 200 }
+      { success: false, error: 'Invalid email or password' },
+      { status: 401 }
     );
   } catch (error: any) {
     return NextResponse.json(
