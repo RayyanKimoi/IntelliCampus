@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userService } from '@/services/user.service';
 import { loginSchema } from '@/utils/validators';
 import { signToken } from '@/lib/jwt';
 
@@ -46,6 +45,7 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Real database for non-demo accounts ────────────────────────────────
     try {
+      const { userService } = await import('@/services/user.service');
       const result = await userService.login(email, password);
       return NextResponse.json(
         { success: true, data: result, message: 'Login successful' },

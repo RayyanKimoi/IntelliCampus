@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { userService } from '@/services/user.service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +17,7 @@ export async function GET(req: NextRequest) {
 
     // ── 1. Try real database ──────────────────────────────────────────────────
     try {
+      const { userService } = await import('@/services/user.service');
       const userData = await userService.getUserById(authPayload.userId);
       if (userData) {
         return NextResponse.json({ success: true, data: userData }, { status: 200 });

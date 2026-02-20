@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userService } from '@/services/user.service';
 import { registerSchema } from '@/utils/validators';
 
 export const runtime = 'nodejs';
@@ -17,6 +16,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { userService } = await import('@/services/user.service');
     const result = await userService.register(parsed.data);
     return NextResponse.json(
       { success: true, data: result, message: 'Registration successful' },
