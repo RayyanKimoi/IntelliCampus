@@ -45,6 +45,12 @@ class ApiClient {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
+    // Guard against HTML error pages (e.g. Next.js 404 for missing API routes)
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`API route not available: ${endpoint} (HTTP ${response.status})`);
+    }
+
     const data = await response.json();
 
     if (!response.ok) {

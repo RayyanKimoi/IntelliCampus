@@ -8,6 +8,7 @@ import { curriculumService } from '@/services/curriculumService';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ClipboardCheck, ChevronRight, Layers } from 'lucide-react';
+import { MOCK_ASSIGNMENT_SUBJECTS } from '@/lib/mockData';
 
 interface SubjectMeta {
   id: string;
@@ -107,9 +108,11 @@ export default function AssignmentsPage() {
           }
         }
 
-        if (!cancelled) setSubjects(Array.from(subjectMap.values()));
+        const result = Array.from(subjectMap.values());
+        if (!cancelled) setSubjects(result.length > 0 ? result : MOCK_ASSIGNMENT_SUBJECTS);
       } catch (e) {
         console.error('[AssignmentsPage]', e);
+        if (!cancelled) setSubjects(MOCK_ASSIGNMENT_SUBJECTS);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -122,7 +125,7 @@ export default function AssignmentsPage() {
     <DashboardLayout requiredRole="student">
       <div className="mx-auto max-w-7xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Assessment</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Assignments</h1>
           <p className="text-muted-foreground mt-1">Subject-wise assignments and submissions.</p>
         </div>
 

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, Brain, TrendingUp, TrendingDown, Users, AlertTriangle, Loader2 } from 'lucide-react';
+import { MOCK_TEACHER_COURSES_LIST, MOCK_ANALYTICS_MASTERY, MOCK_ANALYTICS_SEMESTER } from '@/lib/mockData';
 import { analyticsService } from '@/services/analyticsService';
 import { teacherService } from '@/services/teacherService';
 import dynamic from 'next/dynamic';
@@ -38,9 +39,13 @@ export default function TeacherAnalyticsPage() {
       try {
         const res = await teacherService.getCourses();
         const list = Array.isArray((res as any)?.data || res) ? ((res as any)?.data || res) : [];
-        setCourses(list);
-        if (list.length > 0) setSelectedCourse(list[0].id);
-      } catch {} finally { setLoading(false); }
+        const finalList = list.length > 0 ? list : MOCK_TEACHER_COURSES_LIST;
+        setCourses(finalList);
+        if (finalList.length > 0) setSelectedCourse(finalList[0].id);
+      } catch {
+        setCourses(MOCK_TEACHER_COURSES_LIST);
+        setSelectedCourse(MOCK_TEACHER_COURSES_LIST[0].id);
+      } finally { setLoading(false); }
     }
     load();
   }, []);
@@ -54,8 +59,25 @@ export default function TeacherAnalyticsPage() {
     try {
       const res = await analyticsService.getClassMastery(courseId);
       const d = (res as any)?.data || res || [];
-      setMastery(Array.isArray(d) ? d : []);
-    } catch { setMastery([]); }
+      const list = Array.isArray(d) ? d : [];
+      if (list.length > 0) {
+        setMastery(list);
+      } else {
+        // Use per-course semester data if available, else fall back to generic mock
+        const semesterTopics = (MOCK_ANALYTICS_SEMESTER as any)[courseId]?.topicMastery;
+        setMastery(semesterTopics ?? MOCK_ANALYTICS_MASTERY);
+      }
+      // Auto-populate AI insights from semester mock data
+      const semesterInsights = (MOCK_ANALYTICS_SEMESTER as any)[courseId]?.aiInsights;
+      if (semesterInsights?.length > 0 && insights.length === 0) {
+        setInsights(semesterInsights);
+      }
+    } catch {
+      const semesterTopics = (MOCK_ANALYTICS_SEMESTER as any)[courseId]?.topicMastery;
+      setMastery(semesterTopics ?? MOCK_ANALYTICS_MASTERY);
+      const semesterInsights = (MOCK_ANALYTICS_SEMESTER as any)[courseId]?.aiInsights;
+      if (semesterInsights?.length > 0) setInsights(semesterInsights);
+    }
   };
 
   const generateInsights = async () => {

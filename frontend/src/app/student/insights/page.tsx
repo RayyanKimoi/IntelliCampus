@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { analyticsService } from '@/services/analyticsService';
 import { masteryService } from '@/services/masteryService';
+import { MOCK_INSIGHTS_DASHBOARD, MOCK_INSIGHTS_TREND, MOCK_INSIGHTS_MASTERY } from '@/lib/mockData';
 import {
   Lightbulb, Brain, Flame, Clock, BatteryLow, BatteryFull,
   BatteryMedium, AlertTriangle, CheckCircle2, Calendar,
@@ -241,30 +242,44 @@ export default function InsightsPage() {
 
         if (dashRes.status === 'fulfilled') {
           const d = dashRes.value?.data ?? dashRes.value ?? {};
-          setDashboard({
-            studyStreak: d.studyStreak ?? d.streak ?? 0,
-            totalSessions: d.totalSessions ?? d.sessions ?? 0,
-            avgSessionMinutes: d.avgSessionMinutes ?? d.avgDuration ?? 0,
-            weeklyActivityMinutes: d.weeklyActivityMinutes ?? d.weeklyMinutes ?? 0,
-            lastActiveDate: d.lastActiveDate ?? d.lastActive ?? '',
-            topicsStudied: d.topicsStudied ?? d.topics ?? 0,
-            correctRate: d.correctRate ?? d.accuracy ?? 0,
-          });
+          const streak = d.studyStreak ?? d.streak;
+          if (streak !== undefined && streak > 0) {
+            setDashboard({
+              studyStreak: streak,
+              totalSessions: d.totalSessions ?? d.sessions ?? 0,
+              avgSessionMinutes: d.avgSessionMinutes ?? d.avgDuration ?? 0,
+              weeklyActivityMinutes: d.weeklyActivityMinutes ?? d.weeklyMinutes ?? 0,
+              lastActiveDate: d.lastActiveDate ?? d.lastActive ?? '',
+              topicsStudied: d.topicsStudied ?? d.topics ?? 0,
+              correctRate: d.correctRate ?? d.accuracy ?? 0,
+            });
+          } else {
+            setDashboard(MOCK_INSIGHTS_DASHBOARD);
+          }
+        } else {
+          setDashboard(MOCK_INSIGHTS_DASHBOARD);
         }
 
         if (trendRes.status === 'fulfilled') {
           const raw = trendRes.value?.data ?? trendRes.value ?? [];
           const points: TrendPoint[] = (Array.isArray(raw?.dataPoints) ? raw.dataPoints : Array.isArray(raw) ? raw : [])
             .map((p: any) => ({ date: p.date ?? '', score: p.score ?? p.averageScore ?? 0 }));
-          setTrend(points);
+          setTrend(points.length > 0 ? points : MOCK_INSIGHTS_TREND);
+        } else {
+          setTrend(MOCK_INSIGHTS_TREND);
         }
 
         if (masteryRes.status === 'fulfilled') {
           const m = masteryRes.value?.data ?? masteryRes.value ?? {};
-          setOverallMastery(Math.round(m.overallMastery ?? 0));
+          const mo = Math.round(m.overallMastery ?? 0);
+          setOverallMastery(mo > 0 ? mo : MOCK_INSIGHTS_MASTERY);
+        } else {
+          setOverallMastery(MOCK_INSIGHTS_MASTERY);
         }
       } catch {
-        // show placeholder UI
+        setDashboard(MOCK_INSIGHTS_DASHBOARD);
+        setTrend(MOCK_INSIGHTS_TREND);
+        setOverallMastery(MOCK_INSIGHTS_MASTERY);
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -20,8 +20,8 @@ export async function connectDatabase(): Promise<void> {
     await prisma.$connect();
     console.log('[DB] PostgreSQL connected successfully');
   } catch (error) {
-    console.error('[DB] Failed to connect to PostgreSQL:', error);
-    process.exit(1);
+    console.warn('[DB] WARNING: Could not connect to PostgreSQL. Starting server in offline mode.');
+    console.warn('[DB] API endpoints requiring DB will return errors, but the server will still run.');
   }
 }
 

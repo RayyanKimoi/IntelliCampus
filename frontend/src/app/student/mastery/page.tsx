@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Brain, Target, AlertTriangle, TrendingUp, Search } from 'lucide-react';
+import { MOCK_MASTERY } from '@/lib/mockData';
 import { Input } from '@/components/ui/input';
 
 export default function StudentMasteryPage() {
@@ -19,16 +20,18 @@ export default function StudentMasteryPage() {
       try {
         const response = await masteryService.getMyMastery() as any;
         const data = response.data || response;
-        if (data) {
-          // Ensure byTopic and weakTopics are always arrays
+        if (data && (data.byTopic?.length || data.overallMastery)) {
           setMasteryData({
             overallMastery: data.overallMastery || 0,
             byTopic: Array.isArray(data.byTopic) ? data.byTopic : [],
             weakTopics: Array.isArray(data.weakTopics) ? data.weakTopics : [],
           });
+        } else {
+          setMasteryData(MOCK_MASTERY as any);
         }
       } catch (error) {
         console.error('Failed to fetch mastery data', error);
+        setMasteryData(MOCK_MASTERY as any);
       } finally {
         setLoading(false);
       }

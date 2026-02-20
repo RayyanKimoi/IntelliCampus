@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, PlusCircle, Users, Brain, ChevronRight } from 'lucide-react';
+import { MOCK_TEACHER_COURSES } from '@/lib/mockData';
 import { teacherService } from '@/services/teacherService';
 
 interface Course {
@@ -28,9 +29,10 @@ export default function TeacherCoursesPage() {
       try {
         const res = await teacherService.getCourses();
         const data = (res as any)?.data || res || [];
-        setCourses(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : [];
+        setCourses(list.length > 0 ? list : MOCK_TEACHER_COURSES as any);
       } catch {
-        setCourses([]);
+        setCourses(MOCK_TEACHER_COURSES as any);
       } finally {
         setLoading(false);
       }

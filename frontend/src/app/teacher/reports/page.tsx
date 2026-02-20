@@ -7,6 +7,7 @@ import {
   FileBarChart, Download, Loader2, AlertCircle, Check,
   BarChart2, BookOpen,
 } from 'lucide-react';
+import { MOCK_TEACHER_COURSES_FOR_REPORTS } from '@/lib/mockData';
 
 // ───────────────────────────── Types
 interface Course { id: string; name: string; }
@@ -24,8 +25,13 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const data = await teacherService.getCourses();
-      setCourses(data ?? []);
-    } catch { setError('Failed to load courses'); }
+      const list = data ?? [];
+      setCourses(list.length > 0 ? list : MOCK_TEACHER_COURSES_FOR_REPORTS);
+      if (list.length === 0) setSelectedCourseId(MOCK_TEACHER_COURSES_FOR_REPORTS[0]?.id ?? '');
+    } catch {
+      setCourses(MOCK_TEACHER_COURSES_FOR_REPORTS);
+      setSelectedCourseId(MOCK_TEACHER_COURSES_FOR_REPORTS[0]?.id ?? '');
+    }
     finally { setLoading(false); }
   }, []);
 

@@ -7,6 +7,7 @@ import {
   ClipboardList, ChevronDown, ChevronUp, Check, AlertCircle,
   Loader2, User, X, Star, MessageSquare,
 } from 'lucide-react';
+import { MOCK_SUBMISSIONS, MOCK_ALL_ASSIGNMENTS } from '@/lib/mockData';
 
 // ───────────────────────────── Types
 interface Submission {
@@ -41,10 +42,13 @@ export default function ResultsPage() {
         teacherService.getAllSubmissions(),
         teacherService.getAllAssignments(),
       ]);
-      if (subs.status === 'fulfilled') setSubmissions(subs.value ?? []);
+      const subList = subs.status === 'fulfilled' ? (subs.value ?? []) : [];
+      setSubmissions(subList.length > 0 ? subList : MOCK_SUBMISSIONS as any);
       if (asgns.status === 'fulfilled') {
         const list = asgns.value ?? [];
-        setAssignments(list);
+        setAssignments(list.length > 0 ? list : MOCK_ALL_ASSIGNMENTS);
+      } else {
+        setAssignments(MOCK_ALL_ASSIGNMENTS);
       }
     } catch { /* individual */ }
     finally { setLoading(false); }

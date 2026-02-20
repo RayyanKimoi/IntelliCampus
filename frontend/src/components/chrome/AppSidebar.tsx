@@ -103,10 +103,17 @@ export function AppSidebar() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {navItems.map((item) => {
-            const isActive =
-              item.href === `/${user.role}`
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
+            const isActive = (() => {
+              // Use exact match when this item is a parent of other nav items
+              // (prevents /student/assessment highlighting while on /student/assessment/results)
+              const isParentOfSibling = navItems.some(
+                other => other.href !== item.href && other.href.startsWith(item.href + '/')
+              );
+              if (isParentOfSibling || item.href === `/${user.role}`) {
+                return pathname === item.href;
+              }
+              return pathname.startsWith(item.href);
+            })();
 
             const Icon = item.icon;
 
