@@ -239,7 +239,7 @@ frontend/
     │   └── 📄 globals.css           # Tailwind imports + custom CSS
     │
     └── 📁 utils/                    # Helper utilities
-        ├── 📄 helpers.ts            # General helper functions
+        ├── 📄 helpers.ts            # General helper function
         ├── 📄 logger.ts             # Logging utility
         └── 📄 validators.ts         # Validation functions
 ```
