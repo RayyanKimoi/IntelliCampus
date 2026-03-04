@@ -54,9 +54,12 @@ export function useAccessibility() {
   useEffect(() => {
     if (!isLoaded) return;
 
+    const html = document.documentElement;
     const body = document.body;
 
-    body.classList.toggle('dyslexia-font', settings.dyslexiaFont);
+    // Apply dyslexia-mode on <html> so CSS selectors like html.dyslexia-mode work globally
+    html.classList.toggle('dyslexia-mode', settings.dyslexiaFont);
+
     body.classList.toggle('focus-mode', settings.focusMode);
     body.classList.toggle('adhd-mode', settings.adhdMode);
     body.classList.toggle('high-contrast', settings.highContrast);

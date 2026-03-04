@@ -82,12 +82,62 @@
   }
 }
 
-/* Accessibility: Dyslexia-friendly font */
-.dyslexia-font {
-  font-family: 'Cascadia Mono', 'Courier New', monospace !important;
-  letter-spacing: 0.05em;
-  line-height: 1.7;
-  word-spacing: 0.1em;
+/* ============================================================
+   Accessibility: Dyslexia Mode
+   Applied as: html.dyslexia-mode
+   Font: Lexend Peta (loaded via next/font/google as --font-dyslexia)
+   ============================================================ */
+html.dyslexia-mode {
+  --dyslexia-font: var(--font-dyslexia, 'Lexend Peta', 'Lexend', sans-serif);
+  --dyslexia-letter-spacing: 0.07em;
+  --dyslexia-word-spacing: 0.12em;
+  --dyslexia-line-height: 1.75;
+}
+
+html.dyslexia-mode body,
+html.dyslexia-mode h1,
+html.dyslexia-mode h2,
+html.dyslexia-mode h3,
+html.dyslexia-mode h4,
+html.dyslexia-mode h5,
+html.dyslexia-mode h6,
+html.dyslexia-mode p,
+html.dyslexia-mode span,
+html.dyslexia-mode li,
+html.dyslexia-mode a,
+html.dyslexia-mode button,
+html.dyslexia-mode label,
+html.dyslexia-mode input,
+html.dyslexia-mode textarea,
+html.dyslexia-mode select,
+html.dyslexia-mode td,
+html.dyslexia-mode th,
+html.dyslexia-mode caption,
+html.dyslexia-mode blockquote,
+html.dyslexia-mode nav,
+html.dyslexia-mode header,
+html.dyslexia-mode footer,
+html.dyslexia-mode main,
+html.dyslexia-mode aside,
+html.dyslexia-mode div {
+  font-family: var(--dyslexia-font) !important;
+  letter-spacing: var(--dyslexia-letter-spacing) !important;
+  word-spacing: var(--dyslexia-word-spacing) !important;
+  line-height: var(--dyslexia-line-height) !important;
+  transition:
+    font-family 0.25s ease,
+    letter-spacing 0.25s ease,
+    word-spacing 0.25s ease,
+    line-height 0.25s ease;
+}
+
+/* Ensure icon-only elements and SVGs are not distorted */
+html.dyslexia-mode svg,
+html.dyslexia-mode img,
+html.dyslexia-mode [data-icon] {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  line-height: normal !important;
 }
 
 /* Accessibility: Focus mode — collapse sidebar, hide distractions */
