@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { DM_Sans, Lexend_Peta } from 'next/font/google';
+import { DM_Sans, Lexend_Peta, Instrument_Serif } from 'next/font/google';
 import '@/styles/globals.css';
 
 const dmSans = DM_Sans({
@@ -14,6 +14,13 @@ const lexendPeta = Lexend_Peta({
   variable: '--font-dyslexia',
 });
 
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
+});
+
 export const metadata: Metadata = {
   title: 'IntelliCampus - AI Academic Intelligence Platform',
   description: 'Governed AI-powered academic intelligence platform for universities',
@@ -26,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${lexendPeta.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className={`${dmSans.variable} ${lexendPeta.variable} ${instrumentSerif.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
       </body>
     </html>

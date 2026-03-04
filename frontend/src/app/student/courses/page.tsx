@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, ChevronRight, Layers, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { MOCK_COURSES } from '@/lib/mockData';
 import { cn } from '@/lib/utils';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -46,45 +47,58 @@ function SubjectCard({ course }: { course: CourseWithMeta }) {
   const label = masteryLabel(course.mastery);
 
   return (
-    <Link href={`/student/courses/${course.id}`} className="group block">
-      <div className="relative rounded-xl border border-border bg-card p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5">
-        <div className="absolute inset-x-0 top-0 h-1 rounded-t-xl bg-gradient-to-r from-primary/60 to-primary/20" />
-        <div className="flex items-start justify-between mb-4 mt-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <BookOpen className="h-5 w-5 text-primary" />
-          </div>
-          <Badge variant="outline" className={cn('text-xs font-medium border', label.bg, label.color)}>
-            {label.text}
-          </Badge>
-        </div>
-        <h3 className="text-base font-semibold text-card-foreground leading-tight mb-1 group-hover:text-primary transition-colors">
-          {course.name}
-        </h3>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-4 min-h-[32px]">
-          {course.description || 'No description provided.'}
-        </p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
-          <div className="flex items-center gap-1">
-            <Layers className="h-3.5 w-3.5" />
-            <span>{course.subjectCount} {course.subjectCount === 1 ? 'chapter' : 'chapters'}</span>
-          </div>
-          {course.mastery > 0 && (
-            <div className="flex items-center gap-1 ml-auto">
-              {course.mastery >= 80
-                ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                : <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
-              <span className={label.color}>{Math.round(course.mastery)}% mastery</span>
+    <Link href={`/student/courses/${course.id}`} className="group block h-full">
+      {/* Outer shell — GlowingEffect tracks this border */}
+      <div className="relative h-full rounded-xl border border-border p-[3px] transition-all duration-200 hover:-translate-y-0.5">
+        <GlowingEffect
+          spread={40}
+          glow={false}
+          disabled={false}
+          proximity={80}
+          inactiveZone={0.05}
+          borderWidth={2}
+          variant="ic-blue"
+        />
+        {/* Inner card — actual visual background */}
+        <div className="relative h-full rounded-[calc(0.75rem-3px)] bg-card p-5 shadow-sm flex flex-col overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-1 rounded-t-[calc(0.75rem-3px)] bg-gradient-to-r from-[#006EB2]/60 to-[#5BB8FF]/20" />
+          <div className="flex items-start justify-between mb-4 mt-1">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
-          )}
-        </div>
-        <Progress value={course.mastery} className={cn('h-1.5', masteryBarColor(course.mastery))} />
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {course.mastery === 0 ? 'Not started' : `${Math.round(course.mastery)}% complete`}
-          </span>
-          <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-            Open <ChevronRight className="h-3.5 w-3.5" />
-          </span>
+            <Badge variant="outline" className={cn('text-xs font-medium border', label.bg, label.color)}>
+              {label.text}
+            </Badge>
+          </div>
+          <h3 className="text-base font-semibold text-card-foreground leading-tight mb-1 group-hover:text-primary transition-colors">
+            {course.name}
+          </h3>
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-4 min-h-[32px]">
+            {course.description || 'No description provided.'}
+          </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
+            <div className="flex items-center gap-1">
+              <Layers className="h-3.5 w-3.5" />
+              <span>{course.subjectCount} {course.subjectCount === 1 ? 'chapter' : 'chapters'}</span>
+            </div>
+            {course.mastery > 0 && (
+              <div className="flex items-center gap-1 ml-auto">
+                {course.mastery >= 80
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  : <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+                <span className={label.color}>{Math.round(course.mastery)}% mastery</span>
+              </div>
+            )}
+          </div>
+          <Progress value={course.mastery} className={cn('h-1.5', masteryBarColor(course.mastery))} />
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {course.mastery === 0 ? 'Not started' : `${Math.round(course.mastery)}% complete`}
+            </span>
+            <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+              Open <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+          </div>
         </div>
       </div>
     </Link>
@@ -195,7 +209,7 @@ export default function StudentCoursesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
             {coursesWithMeta.map((course) => (
               <SubjectCard key={course.id} course={course} />
             ))}

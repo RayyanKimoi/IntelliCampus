@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { analyticsService } from '@/services/analyticsService';
 import { gamificationService } from '@/services/gamificationService';
 import { Panel } from '@/components/panels/Panel';
-import { MetricCard } from '@/components/panels/MetricCard';
 import { StatRing } from '@/components/panels/StatRing';
 import { ActionCard } from '@/components/panels/ActionCard';
 import { Button } from '@/components/ui/button';
@@ -17,16 +16,13 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import {
   Zap,
-  Trophy,
-  Flame,
   Brain,
   BookOpen,
   MessageSquare,
   Swords,
-  Target,
-  Clock,
   ChevronRight,
   AlertTriangle,
+  Clock,
   RefreshCw,
 } from 'lucide-react';
 import { MOCK_STUDENT_DASHBOARD, MOCK_XP_PROFILE, MOCK_PERFORMANCE_TREND, MOCK_INSIGHTS_DASHBOARD } from '@/lib/mockData';
@@ -104,6 +100,208 @@ const DEFAULT_XP_PROFILE: XPProfile = {
 // ------------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------------
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Pixel Art Icons
+// ──────────────────────────────────────────────────────────────────────────────
+
+type PC = [number, number];
+function PixelIcon({ pixels, color, size = 20 }: { pixels: PC[]; color: string; size?: number }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 20 20" fill={color}
+      style={{ imageRendering: 'pixelated', shapeRendering: 'crispEdges' } as React.CSSProperties}
+    >
+      {pixels.map(([c, r]) => <rect key={`${c},${r}`} x={c * 2} y={r * 2} width={2} height={2} />)}
+    </svg>
+  );
+}
+
+// --- flame: narrow tip → jagged middle → wide base ---
+const IC_FLAME: PC[] = [
+  [4,0],
+  [3,1],[4,1],[5,1],
+  [2,2],[3,2],[4,2],[5,2],[6,2],
+  [1,3],[3,3],[4,3],[5,3],[6,3],[7,3],       // skip col2 = jagged left tongue
+  [1,4],[4,4],[5,4],[6,4],[7,4],[8,4],       // skip col2,3 = deeper jagged
+  [0,5],[1,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],  // gap at col2
+  [0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],[8,6],[9,6],
+  [0,7],[1,7],[2,7],[3,7],[4,7],[5,7],[6,7],[7,7],[8,7],
+  [1,8],[2,8],[3,8],[4,8],[5,8],[6,8],[7,8],
+  [2,9],[3,9],[4,9],[5,9],[6,9],
+];
+
+// --- clock: 10-wide circle outline + hour hand right + minute hand up ---
+const IC_CLOCK: PC[] = [
+  [3,0],[4,0],[5,0],[6,0],
+  [1,1],[2,1],[5,1],[7,1],[8,1],
+  [0,2],[5,2],[9,2],
+  [0,3],[5,3],[9,3],
+  [0,4],[5,4],[6,4],[7,4],[9,4],
+  [0,5],[9,5],
+  [0,6],[9,6],
+  [0,7],[9,7],
+  [1,8],[2,8],[7,8],[8,8],
+  [3,9],[4,9],[5,9],[6,9],
+];
+
+// --- target: 3 concentric rings + centre dot ---
+const IC_TARGET: PC[] = [
+  [2,0],[3,0],[4,0],[5,0],[6,0],[7,0],
+  [1,1],[8,1],
+  [0,2],[3,2],[4,2],[5,2],[6,2],[9,2],
+  [0,3],[2,3],[7,3],[9,3],
+  [0,4],[2,4],[4,4],[5,4],[7,4],[9,4],
+  [0,5],[2,5],[4,5],[5,5],[7,5],[9,5],
+  [0,6],[2,6],[7,6],[9,6],
+  [0,7],[3,7],[4,7],[5,7],[6,7],[9,7],
+  [1,8],[8,8],
+  [2,9],[3,9],[4,9],[5,9],[6,9],[7,9],
+];
+
+// --- brain: two-lobe shape + centre crease + stem ---
+const IC_BRAIN: PC[] = [
+  [1,0],[2,0],[6,0],[7,0],[8,0],
+  [0,1],[1,1],[2,1],[3,1],[6,1],[7,1],[8,1],[9,1],
+  [0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[8,2],[9,2],
+  [0,3],[1,3],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[9,3],
+  [0,4],[1,4],[2,4],[3,4],[4,4],[5,4],[6,4],[7,4],[8,4],
+  [0,5],[1,5],[2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],
+  [1,6],[2,6],[3,6],[4,6],[5,6],[6,6],[7,6],
+  [3,7],[6,7],
+  [3,8],[4,8],[5,8],[6,8],
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Animated Insight Cards
+// ──────────────────────────────────────────────────────────────────────────────
+
+function useCountUp(target: number, duration = 1100, active = true) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    setValue(0);
+    let start: number | null = null;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+      setValue(Math.round(ease * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    const raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration, active]);
+  return value;
+}
+
+interface InsightCardProps {
+  label: string;
+  rawValue: number;
+  suffix?: string;
+  icon: React.ReactNode;
+  trendText: string;
+  glowColor: string;
+  borderColor: string;
+  iconBg: string;
+  delay?: number;
+}
+
+function AnimatedInsightCard({
+  label, rawValue, suffix = '', icon, trendText,
+  glowColor, borderColor, iconBg, delay = 0,
+}: InsightCardProps) {
+  const [visible, setVisible] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const count = useCountUp(rawValue, 1100, visible);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), delay + 120);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderLeft: `3px solid ${borderColor}`,
+        boxShadow: hovered
+          ? `0 0 0 1px ${glowColor}33, 0 8px 28px ${glowColor}28, inset 0 0 20px ${glowColor}0A`
+          : '0 1px 3px rgba(0,0,0,0.07)',
+        transform: visible
+          ? hovered ? 'translateY(-4px) scale(1.01)' : 'translateY(0) scale(1)'
+          : 'translateY(18px) scale(0.98)',
+        opacity: visible ? 1 : 0,
+        transition: `transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.45s ease, box-shadow 0.25s ease`,
+        transitionDelay: visible ? '0ms' : `${delay}ms`,
+      }}
+      className="relative rounded-lg border border-border bg-card p-4 overflow-hidden cursor-default"
+    >
+      {/* Radial glow blob top-right */}
+      <div
+        style={{
+          background: `radial-gradient(ellipse 70% 55% at 105% -5%, ${glowColor}22, transparent 65%)`,
+          opacity: hovered ? 1 : 0.55,
+          transition: 'opacity 0.3s ease',
+        }}
+        className="absolute inset-0 pointer-events-none"
+      />
+      {/* Corner shimmer */}
+      <div
+        style={{
+          background: `conic-gradient(from 200deg at 100% 0%, ${glowColor}18 0deg, transparent 80deg)`,
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.35s ease',
+        }}
+        className="absolute inset-0 pointer-events-none rounded-lg"
+      />
+
+      <div className="relative flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p
+            style={{ color: hovered ? borderColor : undefined, transition: 'color 0.3s ease' }}
+            className="mt-1 font-mono text-3xl font-semibold text-card-foreground"
+          >
+            {count}{suffix}
+          </p>
+          <p className="mt-1 text-xs font-medium text-success">↑ {trendText}</p>
+        </div>
+
+        {/* Icon — glows on hover */}
+        <div
+          style={{
+            background: hovered ? `${glowColor}22` : iconBg,
+            boxShadow: hovered
+              ? `0 0 0 3px ${glowColor}1A, 0 0 18px ${glowColor}35`
+              : 'none',
+            color: glowColor,
+            transition: 'background 0.3s ease, box-shadow 0.3s ease',
+          }}
+          className="rounded-lg p-2"
+        >
+          {icon}
+        </div>
+      </div>
+
+      {/* Animated bottom accent bar */}
+      <div
+        style={{
+          background: `linear-gradient(90deg, ${glowColor}, ${glowColor}50)`,
+          transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
+          transformOrigin: 'left',
+          transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1)',
+        }}
+        className="absolute bottom-0 left-0 right-0 h-[2px]"
+      />
+    </div>
+  );
+}
 
 function generatePlaceholderTrend(): PerformanceTrendPoint[] {
   const points: PerformanceTrendPoint[] = [];
@@ -231,35 +429,50 @@ export default function StudentDashboardPage() {
           </Button>
         </div>
 
-        {/* ── Row 1: Metric Cards ─────────────────────────────── */}
+        {/* ── Row 1: Animated Insight Cards ───────────────────── */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="Overall Mastery"
-            value={`${dashboard.overallMastery}%`}
-            accentColor="success"
-            icon={<Brain className="h-5 w-5" />}
-            trend={dashboard.overallMastery > 0 ? { direction: 'up', value: `${dashboard.coursesEnrolled} courses` } : undefined}
+          <AnimatedInsightCard
+            label="Study Streak"
+            rawValue={MOCK_INSIGHTS_DASHBOARD.studyStreak}
+            suffix=" days"
+            icon={<PixelIcon pixels={IC_FLAME} color="#F97316" />}
+            trendText="Keep going!"
+            glowColor="#F97316"
+            borderColor="#F97316"
+            iconBg="rgba(249,115,22,0.08)"
+            delay={0}
           />
-          <MetricCard
-            label="Total XP"
-            value={dashboard.totalXP.toLocaleString()}
-            accentColor="warning"
-            icon={<Zap className="h-5 w-5" />}
-            trend={{ direction: 'up', value: `Level ${xpProfile.level}` }}
+          <AnimatedInsightCard
+            label="Avg Session"
+            rawValue={MOCK_INSIGHTS_DASHBOARD.avgSessionMinutes}
+            suffix=" min"
+            icon={<PixelIcon pixels={IC_CLOCK} color="#3B82F6" />}
+            trendText="Per session"
+            glowColor="#3B82F6"
+            borderColor="#3B82F6"
+            iconBg="rgba(59,130,246,0.08)"
+            delay={80}
           />
-          <MetricCard
-            label="Streak"
-            value={`${dashboard.streakDays}d`}
-            accentColor="danger"
-            icon={<Flame className="h-5 w-5" />}
-            trend={dashboard.streakDays > 0 ? { direction: 'up', value: 'Keep going!' } : undefined}
+          <AnimatedInsightCard
+            label="Correct Rate"
+            rawValue={MOCK_INSIGHTS_DASHBOARD.correctRate}
+            suffix="%"
+            icon={<PixelIcon pixels={IC_TARGET} color="#22C55E" />}
+            trendText="Strong accuracy"
+            glowColor="#22C55E"
+            borderColor="#22C55E"
+            iconBg="rgba(34,197,94,0.08)"
+            delay={160}
           />
-          <MetricCard
-            label="Level"
-            value={xpProfile.level}
-            accentColor="info"
-            icon={<Trophy className="h-5 w-5" />}
-            trend={{ direction: 'up', value: `${xpProgress}% to next` }}
+          <AnimatedInsightCard
+            label="Topics Studied"
+            rawValue={MOCK_INSIGHTS_DASHBOARD.topicsStudied}
+            icon={<PixelIcon pixels={IC_BRAIN} color="#A855F7" />}
+            trendText="This month"
+            glowColor="#A855F7"
+            borderColor="#A855F7"
+            iconBg="rgba(168,85,247,0.08)"
+            delay={240}
           />
         </div>
 
@@ -304,31 +517,6 @@ export default function StudentDashboardPage() {
             )}
           </Panel>
         </div>
-        {/* ── Row 3b: Learning Insights ────────────────────────── */}
-        <Panel title="Learning Insights" description="Your study habits at a glance">
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-              <Flame className="h-5 w-5 text-orange-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.studyStreak}<span className="text-sm font-normal text-muted-foreground"> days</span></p>
-              <p className="text-xs text-muted-foreground mt-0.5">Study Streak</p>
-            </div>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-              <Clock className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.avgSessionMinutes}<span className="text-sm font-normal text-muted-foreground"> min</span></p>
-              <p className="text-xs text-muted-foreground mt-0.5">Avg Session</p>
-            </div>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-              <Target className="h-5 w-5 text-green-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.correctRate}<span className="text-sm font-normal text-muted-foreground">%</span></p>
-              <p className="text-xs text-muted-foreground mt-0.5">Correct Rate</p>
-            </div>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
-              <Brain className="h-5 w-5 text-purple-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.topicsStudied}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Topics Studied</p>
-            </div>
-          </div>
-        </Panel>
         {/* ── Row 3: Quick Actions ────────────────────────────── */}
         <Panel title="Recommended Next Actions">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

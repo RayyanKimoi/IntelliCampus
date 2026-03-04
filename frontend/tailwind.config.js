@@ -91,6 +91,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['var(--font-sans)', ...fontFamily.sans],
+        serif: ['var(--font-serif)', ...fontFamily.serif],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       fontSize: {
