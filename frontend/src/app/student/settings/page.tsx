@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Loader2, CheckCircle2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { User, Loader2, CheckCircle2, Type } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/authService';
+import { useAccessibility } from '@/hooks/useAccessibility';
 
 export default function StudentSettingsPage() {
   const { user, setUser } = useAuthStore();
+  const { settings, updateSetting, isLoaded } = useAccessibility();
 
   const [name, setName] = useState(user?.name || '');
   const [saving, setSaving] = useState(false);
@@ -65,6 +68,37 @@ export default function StudentSettingsPage() {
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save Profile
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Accessibility */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Type className="h-5 w-5" />
+              Accessibility
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">Dyslexia-Friendly Mode</Label>
+                <p className="text-sm text-muted-foreground">
+                  Switches to <strong>Lexend Peta</strong> font with increased letter spacing,
+                  word spacing, and line height for improved readability.
+                </p>
+                {isLoaded && settings.dyslexiaFont && (
+                  <Badge className="mt-1 bg-blue-600 text-white text-xs">
+                    Active — Lexend Peta font enabled
+                  </Badge>
+                )}
+              </div>
+              <Switch
+                checked={isLoaded ? settings.dyslexiaFont : false}
+                onCheckedChange={(checked) => updateSetting('dyslexiaFont', checked)}
+                aria-label="Toggle dyslexia-friendly font"
+              />
             </div>
           </CardContent>
         </Card>
