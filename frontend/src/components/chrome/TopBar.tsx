@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -24,12 +23,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { AccessibilityPanel } from '@/components/chrome/AccessibilityPanel';
-import type { ActiveMode } from '@/store/uiStore';
-
-const modes: { value: ActiveMode; label: string }[] = [
-  { value: 'learning', label: 'LEARNING' },
-  { value: 'assessment', label: 'ASSESSMENT' },
-];
+import { ModeToggle } from '@/components/ui/mode-toggle';
 
 export function TopBar() {
   const { user } = useAuthStore();
@@ -45,15 +39,12 @@ export function TopBar() {
     .toUpperCase()
     .slice(0, 2);
 
-  const activeIndex = modes.findIndex((m) => m.value === activeTab);
-  const pillIndex = activeIndex === -1 ? 0 : activeIndex;
-
-  return (
-    <header className="relative flex h-14 shrink-0 items-center border-b border-border bg-card px-4">
+    return (
+    <header className="relative flex h-14 shrink-0 items-center border-b border-[#001e33] bg-gradient-to-b from-[#002F4C] to-[#006EB2] dark:from-[#00101e] dark:to-[#002548] px-4 shadow-lg">
       {/* Brand — left-anchored */}
       <Link href={`/${user.role}`} className="flex items-center gap-2">
-        <GraduationCap className="h-6 w-6 text-primary" />
-        <span className="font-bold text-base tracking-tight hidden sm:inline">
+        <GraduationCap className="h-6 w-6 text-sky-300" />
+        <span className="font-bold text-base tracking-tight hidden sm:inline text-white">
           IntelliCampus
         </span>
       </Link>
@@ -61,32 +52,10 @@ export function TopBar() {
       {/* Mode Switcher — centered absolutely, students only */}
       {isStudent && (
         <div className="absolute left-1/2 -translate-x-1/2" data-focus-hide>
-          <div className="relative flex items-center rounded-full bg-muted/80 p-1 shadow-inner">
-            {/* Animated sliding pill */}
-            <div
-              className="absolute top-1 bottom-1 rounded-full bg-primary shadow-md"
-              style={{
-                width: `calc((100% - 8px) / 2)`,
-                left: 4,
-                transform: `translateX(${pillIndex * 100}%)`,
-                transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-            />
-            {modes.map((mode, idx) => (
-              <button
-                key={mode.value}
-                onClick={() => setActiveTab(mode.value)}
-                className={cn(
-                  'relative z-10 w-28 py-1.5 text-xs font-bold tracking-widest rounded-full transition-colors duration-200',
-                  pillIndex === idx
-                    ? 'text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
+          <ModeToggle
+            value={activeTab as 'learning' | 'assessment'}
+            onModeChange={(m) => setActiveTab(m)}
+          />
         </div>
       )}
 
@@ -96,7 +65,7 @@ export function TopBar() {
       {/* Right cluster */}
       <div className="flex items-center gap-1">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-8 w-8" data-focus-hide>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-sky-200 hover:text-white hover:bg-white/10" data-focus-hide>
           <Bell className="h-4 w-4" />
         </Button>
 
@@ -107,7 +76,7 @@ export function TopBar() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 text-sky-200 hover:text-white hover:bg-white/10"
           onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         >
           {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}

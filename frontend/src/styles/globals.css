@@ -78,7 +78,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: #E9FCFC;
+  }
+
+  .dark body,
+  html.dark body {
+    background-color: hsl(222 25% 13%);
   }
 }
 
