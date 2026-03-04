@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment, Submission, AssignmentComment } from '@/services/assessmentService';
+import { MOCK_ASSIGNMENTS } from '@/lib/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -385,17 +386,30 @@ export default function SubjectAssignmentsPage() {
           ? allAssignments.filter(a => a.subjectId === subjectId || a.courseId === subjectId)
           : [];
 
+        // Mock fallback when API returns no data for this subject
+        const assignmentsToUse: any[] = filtered.length > 0
+          ? filtered
+          : MOCK_ASSIGNMENTS.filter((a: any) => a.courseId === subjectId || a.subjectId === subjectId);
+
         const filteredSubs = Array.isArray(allSubmissions)
-          ? allSubmissions.filter(s => filtered.some(a => a.id === s.assignmentId))
+          ? allSubmissions.filter(s => assignmentsToUse.some(a => a.id === s.assignmentId))
           : [];
 
         if (!cancelled) {
-          setAssignments(filtered);
+          setAssignments(assignmentsToUse as any);
           setSubmissions(filteredSubs);
-          if (filtered.length > 0) setSubjectName(filtered[0].subjectName ?? filtered[0].courseName ?? 'Subject');
+          if (assignmentsToUse.length > 0) {
+            const a = assignmentsToUse[0] as any;
+            setSubjectName(a.subjectName ?? a.courseName ?? 'Assignments');
+          }
         }
       } catch (e) {
         console.error('[SubjectAssignments]', e);
+        if (!cancelled) {
+          const fallback: any[] = MOCK_ASSIGNMENTS.filter((a: any) => a.courseId === subjectId || a.subjectId === subjectId);
+          setAssignments(fallback);
+          if (fallback.length > 0) setSubjectName(fallback[0].courseName ?? 'Assignments');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

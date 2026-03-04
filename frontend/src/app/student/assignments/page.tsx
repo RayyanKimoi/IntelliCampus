@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, ChevronRight, ClipboardList, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { MOCK_ASSIGNMENTS } from '@/lib/mockData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function StudentAssignmentsPage() {
@@ -19,11 +20,14 @@ export default function StudentAssignmentsPage() {
       try {
         const response = await assessmentService.getAssignments() as any;
         const data = response.data || response;
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setAssignments(data);
+        } else {
+          setAssignments(MOCK_ASSIGNMENTS as any);
         }
       } catch (error) {
         console.error('Failed to fetch assignments', error);
+        setAssignments(MOCK_ASSIGNMENTS as any);
       } finally {
         setLoading(false);
       }

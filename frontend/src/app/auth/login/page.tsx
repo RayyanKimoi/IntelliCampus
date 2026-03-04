@@ -20,7 +20,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await login(email, password);
     } catch (err: any) {
@@ -83,7 +82,7 @@ export default function LoginPage() {
                 Sign In
               </Button>
               <p className="text-sm text-muted-foreground text-center">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link href="/auth/register" className="text-primary hover:underline font-medium">
                   Register
                 </Link>

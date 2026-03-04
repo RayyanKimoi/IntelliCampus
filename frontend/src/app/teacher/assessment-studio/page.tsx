@@ -8,6 +8,7 @@ import {
   ChevronUp, Loader2, X, AlertCircle, Check, Wand2,
   ClipboardList, Globe,
 } from 'lucide-react';
+import { MOCK_ALL_ASSIGNMENTS_FULL, MOCK_TEACHER_COURSES_LIST } from '@/lib/mockData';
 
 // ───────────────────────────── Types
 interface Course { id: string; name: string; }
@@ -67,8 +68,10 @@ export default function AssessmentStudioPage() {
         teacherService.getAllAssignments(),
         teacherService.getCourses(),
       ]);
-      if (a.status === 'fulfilled') setAssignments(a.value ?? []);
-      if (c.status === 'fulfilled') setCourses(c.value ?? []);
+      const assignmentList = a.status === 'fulfilled' ? (a.value ?? []) : [];
+      const courseList = c.status === 'fulfilled' ? (c.value ?? []) : [];
+      setAssignments(assignmentList.length > 0 ? assignmentList : (MOCK_ALL_ASSIGNMENTS_FULL as any[]));
+      setCourses(courseList.length > 0 ? courseList : MOCK_TEACHER_COURSES_LIST);
     } catch { /* handled per-promise */ }
     finally { setLoading(false); }
   }, []);

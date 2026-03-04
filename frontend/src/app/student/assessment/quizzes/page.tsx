@@ -8,6 +8,7 @@ import { curriculumService } from '@/services/curriculumService';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FileQuestion, ChevronRight, Layers, Clock, CheckCircle2 } from 'lucide-react';
+import { MOCK_QUIZ_SUBJECTS } from '@/lib/mockData';
 
 interface SubjectQuizMeta {
   id: string;
@@ -111,9 +112,11 @@ export default function QuizzesPage() {
           }
         }
 
-        if (!cancelled) setSubjects(Array.from(map.values()));
+        const result = Array.from(map.values());
+        if (!cancelled) setSubjects(result.length > 0 ? result : MOCK_QUIZ_SUBJECTS);
       } catch (e) {
         console.error('[QuizzesPage]', e);
+        if (!cancelled) setSubjects(MOCK_QUIZ_SUBJECTS);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -126,7 +129,7 @@ export default function QuizzesPage() {
     <DashboardLayout requiredRole="student">
       <div className="mx-auto max-w-7xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Assessment</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Quizzes</h1>
           <p className="text-muted-foreground mt-1">Graded quizzes — results count toward your academic record.</p>
         </div>
 

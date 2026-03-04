@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
+import { MOCK_STUDENT_DASHBOARD, MOCK_XP_PROFILE, MOCK_PERFORMANCE_TREND, MOCK_INSIGHTS_DASHBOARD } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 
 const PerformanceChart = dynamic(
@@ -167,9 +168,13 @@ export default function StudentDashboardPage() {
 
       if (dashRes.status === 'fulfilled' && dashRes.value?.data) {
         setDashboard({ ...DEFAULT_DASHBOARD, ...dashRes.value.data });
+      } else {
+        setDashboard(MOCK_STUDENT_DASHBOARD);
       }
       if (xpRes.status === 'fulfilled' && xpRes.value?.data) {
         setXpProfile({ ...DEFAULT_XP_PROFILE, ...xpRes.value.data });
+      } else {
+        setXpProfile(MOCK_XP_PROFILE);
       }
       if (trendRes.status === 'fulfilled' && trendRes.value?.data) {
         const raw = trendRes.value.data as PerformanceTrendPoint[];
@@ -180,10 +185,12 @@ export default function StudentDashboardPage() {
           }))
         );
       } else {
-        setTrend(generatePlaceholderTrend());
+        setTrend(MOCK_PERFORMANCE_TREND);
       }
     } catch {
-      setTrend(generatePlaceholderTrend());
+      setDashboard(MOCK_STUDENT_DASHBOARD);
+      setXpProfile(MOCK_XP_PROFILE);
+      setTrend(MOCK_PERFORMANCE_TREND);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -297,7 +304,31 @@ export default function StudentDashboardPage() {
             )}
           </Panel>
         </div>
-
+        {/* ── Row 3b: Learning Insights ────────────────────────── */}
+        <Panel title="Learning Insights" description="Your study habits at a glance">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+              <Flame className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.studyStreak}<span className="text-sm font-normal text-muted-foreground"> days</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">Study Streak</p>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+              <Clock className="h-5 w-5 text-blue-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.avgSessionMinutes}<span className="text-sm font-normal text-muted-foreground"> min</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">Avg Session</p>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+              <Target className="h-5 w-5 text-green-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.correctRate}<span className="text-sm font-normal text-muted-foreground">%</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">Correct Rate</p>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+              <Brain className="h-5 w-5 text-purple-500 mx-auto mb-1" />
+              <p className="text-2xl font-bold">{MOCK_INSIGHTS_DASHBOARD.topicsStudied}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Topics Studied</p>
+            </div>
+          </div>
+        </Panel>
         {/* ── Row 3: Quick Actions ────────────────────────────── */}
         <Panel title="Recommended Next Actions">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

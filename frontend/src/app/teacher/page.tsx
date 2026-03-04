@@ -24,7 +24,9 @@ import {
   ChevronRight,
   Calendar,
   RefreshCw,
+  Bell,
 } from 'lucide-react';
+import { MOCK_TEACHER_DASHBOARD, MOCK_TEACHER_ALERTS } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 
 const TeacherPerformanceChart = dynamic(
@@ -131,14 +133,14 @@ export default function TeacherDashboardPage() {
 
     try {
       const res = await analyticsService.getTeacherDashboard();
-      if (res?.data) {
+      if (res?.data && res.data.totalStudents > 0) {
         setDashboard({ ...DEFAULT_DASHBOARD, ...res.data });
       } else {
-        setDashboard(generateMockDashboard());
+        setDashboard(MOCK_TEACHER_DASHBOARD);
       }
     } catch (error) {
       console.error('Failed to fetch teacher dashboard data', error);
-      setDashboard(generateMockDashboard());
+      setDashboard(MOCK_TEACHER_DASHBOARD);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -356,6 +358,44 @@ export default function TeacherDashboardPage() {
             )}
           </Panel>
         </div>
+
+        {/* ── Alerts Panel ─────────────────────────────────── */}
+        <Panel
+          title="Recent Alerts"
+          description="Notifications requiring your attention"
+          action={
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Bell className="h-3.5 w-3.5" />
+              <span>{MOCK_TEACHER_ALERTS.filter(a => a.type === 'urgent').length} urgent</span>
+            </div>
+          }
+        >
+          <div className="divide-y">
+            {MOCK_TEACHER_ALERTS.slice(0, 6).map(alert => (
+              <div key={alert.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                <span className="text-xl leading-none mt-0.5">{alert.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground leading-snug">{alert.message}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{alert.courseLabel}</span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(alert.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+                <span className={cn(
+                  'shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full',
+                  alert.type === 'urgent'  ? 'bg-red-100 text-red-700' :
+                  alert.type === 'warning' ? 'bg-amber-100 text-amber-700' :
+                                             'bg-blue-100 text-blue-700'
+                )}>
+                  {alert.type}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
       </div>
     </DashboardLayout>
   );

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClipboardList, PlusCircle, Users, Calendar, ChevronRight } from 'lucide-react';
+import { MOCK_TEACHER_COURSES_LIST, MOCK_TEACHER_ASSIGNMENTS } from '@/lib/mockData';
 import { teacherService } from '@/services/teacherService';
 
 interface Assignment {
@@ -32,20 +33,25 @@ export default function TeacherAssignmentsPage() {
       try {
         const res = await teacherService.getCourses();
         const courseList = Array.isArray((res as any)?.data || res) ? ((res as any)?.data || res) : [];
-        setCourses(courseList);
+        const finalCourses = courseList.length > 0 ? courseList : MOCK_TEACHER_COURSES_LIST;
+        setCourses(finalCourses);
 
         const assignMap: Record<string, Assignment[]> = {};
-        for (const c of courseList) {
+        for (const c of finalCourses) {
           try {
             const aRes = await teacherService.getAssignments(c.id);
             const aList = (aRes as any)?.data || aRes || [];
-            assignMap[c.id] = Array.isArray(aList) ? aList : [];
+            const items = Array.isArray(aList) ? aList : [];
+            assignMap[c.id] = items.length > 0 ? items : (MOCK_TEACHER_ASSIGNMENTS[c.id] ?? []);
           } catch {
-            assignMap[c.id] = [];
+            assignMap[c.id] = MOCK_TEACHER_ASSIGNMENTS[c.id] ?? [];
           }
         }
         setAssignments(assignMap);
-      } catch { }
+      } catch {
+        setCourses(MOCK_TEACHER_COURSES_LIST);
+        setAssignments(MOCK_TEACHER_ASSIGNMENTS as any);
+      }
       finally { setLoading(false); }
     }
     load();

@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment, Submission } from '@/services/assessmentService';
 import { masteryService, TopicMastery } from '@/services/masteryService';
 import { analyticsService } from '@/services/analyticsService';
+import { MOCK_ASSIGNMENTS, MOCK_RESULTS_SUBMISSIONS, MOCK_MASTERY } from '@/lib/mockData';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -86,6 +87,14 @@ export default function AssessmentDashboardPage() {
           const m = masteryRes.value?.data ?? masteryRes.value;
           setOverallMastery(Math.round(m?.overallMastery ?? 0));
           setWeakTopics(Array.isArray(m?.weakTopics) ? m.weakTopics.slice(0, 4) : []);
+        }
+
+        // Mock fallbacks when backend is unavailable
+        if (!cancelled) {
+          setAssignments(prev => prev.length === 0 ? (MOCK_ASSIGNMENTS as any) : prev);
+          setSubmissions(prev => prev.length === 0 ? (MOCK_RESULTS_SUBMISSIONS as any) : prev);
+          setOverallMastery(prev => prev === 0 ? 72 : prev);
+          setWeakTopics(prev => prev.length === 0 ? (MOCK_MASTERY.weakTopics as any) : prev);
         }
       } catch (e) {
         console.error('[AssessmentDashboard] load error', e);

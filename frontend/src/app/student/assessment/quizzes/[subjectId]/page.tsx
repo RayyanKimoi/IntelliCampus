@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment } from '@/services/assessmentService';
+import { MOCK_SUBJECT_QUIZZES } from '@/lib/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -37,10 +38,16 @@ export default function SubjectQuizzesPage() {
         const filtered = Array.isArray(all)
           ? all.filter(q => q.subjectId === subjectId || q.courseId === subjectId)
           : [];
-        setQuizzes(filtered);
-        if (filtered.length > 0) setSubjectName(filtered[0].subjectName ?? filtered[0].courseName ?? 'Quizzes');
+        const toUse = filtered.length > 0 ? filtered : (MOCK_SUBJECT_QUIZZES[subjectId] ?? []);
+        setQuizzes(toUse);
+        if (toUse.length > 0) setSubjectName(toUse[0].subjectName ?? toUse[0].courseName ?? 'Quizzes');
       } catch (e) {
         console.error('[SubjectQuizzes]', e);
+        const fallback = MOCK_SUBJECT_QUIZZES[subjectId] ?? [];
+        if (!cancelled) {
+          setQuizzes(fallback);
+          if (fallback.length > 0) setSubjectName(fallback[0].subjectName ?? fallback[0].courseName ?? 'Quizzes');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,9 +63,14 @@ export default function SubjectQuizzesPage() {
       const attempt = res?.data ?? res;
       if (attempt?.id) {
         router.push(`/student/assessment/quizzes/${subjectId}/attempt/${attempt.id}?quizId=${quizId}`);
+      } else {
+        // Attempt created but no id — fall back to practice
+        router.push('/student/practice');
       }
     } catch (e) {
       console.error('[StartQuiz]', e);
+      // API unavailable — redirect to the practice page for the same topic
+      router.push('/student/practice');
     } finally {
       setStartingId(null);
     }

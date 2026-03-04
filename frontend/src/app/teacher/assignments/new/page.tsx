@@ -62,7 +62,8 @@ export default function NewAssignmentPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await teacherService.createAssignment(selectedCourse, {
+      const res = await teacherService.createAssignment({
+        courseId: selectedCourse,
         title: title.trim(),
         description: description.trim(),
         dueDate,

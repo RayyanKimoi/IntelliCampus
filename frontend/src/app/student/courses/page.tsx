@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BookOpen, ChevronRight, Layers, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { MOCK_COURSES } from '@/lib/mockData';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -120,10 +121,18 @@ export default function StudentCoursesPage() {
         const courseRes = await curriculumService.getCourses() as any;
         const rawCourses: Course[] = courseRes?.data ?? courseRes ?? [];
         if (cancelled || !Array.isArray(rawCourses)) return;
-        setCourses(rawCourses);
+
+        // Fall back to mock data when API returns empty array
+        const coursesToUse: Course[] = rawCourses.length > 0 ? rawCourses : (MOCK_COURSES as unknown as Course[]);
+        setCourses(coursesToUse);
+        if (rawCourses.length === 0) {
+          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
+          if (!cancelled) setLoading(false);
+          return;
+        }
 
         await Promise.allSettled(
-          rawCourses.map(async (course) => {
+          coursesToUse.map(async (course) => {
             try {
               const [subjectsRes, masteryRes] = await Promise.allSettled([
                 curriculumService.getSubjects(course.id) as Promise<any>,
@@ -142,6 +151,10 @@ export default function StudentCoursesPage() {
         );
       } catch (e) {
         console.error('[CoursesPage] failed to load courses', e);
+        if (!cancelled) {
+          setCourses(MOCK_COURSES as any);
+          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -153,8 +166,8 @@ export default function StudentCoursesPage() {
 
   const coursesWithMeta: CourseWithMeta[] = courses.map((c) => ({
     ...c,
-    subjectCount: (subjectsByCourse[c.id] ?? []).length,
-    mastery: Math.round(masteryByCourse[c.id]?.overallMastery ?? 0),
+    subjectCount: (c as any).subjectCount ?? (subjectsByCourse[c.id] ?? []).length,
+    mastery: Math.round((c as any).mastery ?? masteryByCourse[c.id]?.overallMastery ?? 0),
   }));
 
   return (
