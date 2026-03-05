@@ -27,13 +27,15 @@ export function MessageBubble({ message, onSpeak }: MessageBubbleProps) {
 
       <div
         className={cn(
-          'max-w-[80%] rounded-lg px-4 py-3',
+          'max-w-[80%] rounded-2xl px-4 py-3',
           isAI
-            ? 'bg-muted text-foreground'
-            : 'bg-primary text-primary-foreground',
+            ? 'bg-muted text-foreground rounded-tl-sm'
+            : 'text-white rounded-tr-sm',
+          !isAI && 'shadow-sm',
           message.responseType === 'hint' && 'border-l-4 border-warning',
           message.responseType === 'restricted' && 'border-l-4 border-destructive'
         )}
+        style={!isAI ? { background: 'linear-gradient(135deg, #002F4C 0%, #006EB2 100%)' } : undefined}
       >
         {message.responseType === 'hint' && (
           <span className="text-xs font-medium text-warning block mb-1">
@@ -49,7 +51,7 @@ export function MessageBubble({ message, onSpeak }: MessageBubbleProps) {
         <div className="flex items-center justify-between mt-1">
           <span className={cn(
             'text-[10px]',
-            isAI ? 'text-muted-foreground' : 'text-primary-foreground/70'
+            isAI ? 'text-muted-foreground' : 'text-white/60'
           )}>
             {new Date(message.timestamp).toLocaleTimeString([], {
               hour: '2-digit',
@@ -70,8 +72,11 @@ export function MessageBubble({ message, onSpeak }: MessageBubbleProps) {
       </div>
 
       {!isAI && (
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-          <User className="h-4 w-4 text-primary-foreground" />
+        <div
+          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #002F4C 0%, #006EB2 100%)' }}
+        >
+          <User className="h-4 w-4 text-white" />
         </div>
       )}
     </div>

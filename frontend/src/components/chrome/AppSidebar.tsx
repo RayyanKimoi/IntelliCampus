@@ -61,7 +61,7 @@ export function AppSidebar() {
 
       <aside
         className={cn(
-          'flex h-full flex-col border-r border-border bg-sidebar-bg text-sidebar-fg transition-all duration-200',
+          'flex h-full flex-col border-r border-[#001e33] bg-gradient-to-b from-[#002F4C] to-[#006EB2] dark:from-[#00101e] dark:to-[#002548] text-sky-100 shadow-xl transition-all duration-300',
           collapsed ? 'w-14' : 'w-56',
           isMobile
             ? cn('fixed left-0 top-0 z-50', !sidebarOpen && '-translate-x-full')
@@ -75,7 +75,7 @@ export function AppSidebar() {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-7 w-7 text-sidebar-fg hover:bg-sidebar-hover hover:text-white"
+              className="h-7 w-7 text-sky-200 hover:bg-white/10 hover:text-white"
             >
               {sidebarOpen ? (
                 <ChevronLeft className="h-4 w-4" />
@@ -125,8 +125,8 @@ export function AppSidebar() {
                 className={cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-sidebar-active text-white'
-                    : 'text-sidebar-fg hover:bg-sidebar-hover hover:text-white',
+                    ? 'bg-white/20 text-white shadow-sm'
+                    : 'text-sky-100/80 hover:bg-white/10 hover:text-white',
                   collapsed && 'justify-center px-2'
                 )}
               >

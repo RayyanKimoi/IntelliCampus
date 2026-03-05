@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Submission } from '@/services/assessmentService';
 import { masteryService } from '@/services/masteryService';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Star, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 
 const PerformanceChart = lazy(() =>
   import('@/components/charts/PerformanceChart') as Promise<{ default: React.ComponentType<{ data: any[] }> }>
@@ -111,22 +112,33 @@ function TopicMasteryBar({ topic }: { topic: TopicMastery }) {
 }
 
 function WeakTopicHeatmap({ topics }: { topics: TopicMastery[] }) {
-  const sorted = [...topics].sort((a, b) => a.masteryPct - b.masteryPct).slice(0, 16);
+  const sorted = [...topics].sort((a, b) => a.masteryPct - b.masteryPct).slice(0, 20);
+
+  function tileCls(pct: number) {
+    if (pct >= 80) return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-950/50 dark:border-green-700 dark:text-green-400';
+    if (pct >= 60) return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/50 dark:border-blue-700 dark:text-blue-400';
+    if (pct >= 40) return 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/50 dark:border-amber-700 dark:text-amber-400';
+    return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/60 dark:border-red-800 dark:text-red-400';
+  }
 
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {sorted.map(t => {
+    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+      {sorted.map((t, i) => {
         const pct = Math.round(t.masteryPct);
-        const bg =
-          pct >= 80 ? 'bg-green-100 border-green-200 text-green-800 dark:bg-green-950/30' :
-          pct >= 60 ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-950/30' :
-          pct >= 40 ? 'bg-amber-100 border-amber-200 text-amber-800 dark:bg-amber-950/30' :
-          'bg-red-100 border-red-200 text-red-700 dark:bg-red-950/30';
         return (
-          <div key={t.topicId} className={cn('rounded-lg border p-2 text-center', bg)}>
-            <p className="text-xs font-bold">{pct}%</p>
-            <p className="text-[10px] leading-tight mt-0.5 line-clamp-2">{t.topicName}</p>
-          </div>
+          <motion.div
+            key={t.topicId}
+            initial={{ opacity: 0, scale: 0.75 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
+            className={cn(
+              'rounded-lg border p-2.5 text-center cursor-default transition-all duration-200 select-none hover:scale-[1.04]',
+              tileCls(pct),
+            )}
+          >
+            <p className="text-sm font-black tabular-nums">{pct}%</p>
+            <p className="text-[9px] leading-tight mt-1 line-clamp-2 opacity-80">{t.topicName}</p>
+          </motion.div>
         );
       })}
     </div>
@@ -315,35 +327,7 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* Recommended actions */}
-        {weakTopics.length > 0 && (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Star className="h-5 w-5 text-primary shrink-0" />
-              <h2 className="font-semibold">Recommended Actions</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your AI tutor and adaptive practice modules are ready to help with your {weakTopics.length} weakest topics.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-              {weakTopics.slice(0, 4).map(t => (
-                <div key={t.topicId} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
-                  <div className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
-                  <span className="text-sm truncate flex-1">{t.topicName}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">{Math.round(t.masteryPct)}%</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              <Button size="sm" onClick={() => router.push('/student/ai-tutor')}>
-                <BookOpen className="mr-2 h-4 w-4" /> Open AI Tutor
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => router.push('/student/practice')}>
-                Adaptive Practice <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+
       </div>
     </DashboardLayout>
   );

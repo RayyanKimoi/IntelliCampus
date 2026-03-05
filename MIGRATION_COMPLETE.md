@@ -293,24 +293,11 @@ Vercel will automatically:
 
 ## 🗑️ Cleanup (Optional)
 
-Once everything is working, you can:
+Cleanup completed:
 
-1. **Delete backend folder**:
-   ```bash
-   rm -rf backend
-   ```
-
-2. **Delete docker-compose.yml** (if not using local PostgreSQL):
-   ```bash
-   rm docker-compose.yml
-   ```
-
-3. **Update root package.json** to remove backend workspace:
-   ```json
-   {
-     "workspaces": ["frontend", "shared", "ai-services"]
-   }
-   ```
+- `docker-compose.yml` — removed (Docker is no longer used; database is hosted externally).
+- `backend/` — kept for reference; business logic has been migrated to `frontend/src/services/`.
+- Root `package.json` `db:*` scripts now point to `@intellicampus/frontend` (the primary Prisma schema).
 
 ---
 

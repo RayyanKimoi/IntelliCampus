@@ -6,7 +6,6 @@ IntelliCampus/
 ├── 📄 .env                          # Environment variables (not in git)
 ├── 📄 .env.example                  # Example environment configuration
 ├── 📄 .gitignore                    # Git ignore rules
-├── 📄 docker-compose.yml            # Docker configuration for services
 ├── 📄 package.json                  # Root workspace package config
 ├── 📄 package-lock.json             # NPM lock file
 ├── 📄 pnpm-lock.yaml                # PNPM lock file (monorepo)
@@ -15,7 +14,7 @@ IntelliCampus/
 ├── 📄 MIGRATION_COMPLETE.md         # Migration documentation
 │
 ├── 📁 frontend/                     # Next.js 15 App Router (PRIMARY)
-├── 📁 backend/                      # Express API (LEGACY - being removed)
+├── 📁 backend/                      # Express API (legacy, kept for reference)
 ├── 📁 ai-services/                  # AI/ML microservice
 ├── 📁 shared/                       # Shared types & constants
 ├── 📁 scripts/                      # Utility scripts
@@ -426,20 +425,14 @@ docs/
 ### 📄 pnpm-workspace.yaml
 ```yaml
 packages:
-  - 'frontend'
-  - 'backend'      # ⚠️ TO BE REMOVED
-  - 'ai-services'
-  - 'shared'
+  - shared
+  - backend
+  - ai-services
+  - frontend
 ```
 
 ### 📄 tsconfig.base.json
 Base TypeScript configuration shared across all packages
-
-### 📄 docker-compose.yml
-Container orchestration for:
-- PostgreSQL database
-- Redis cache (optional)
-- AI services
 
 ### 📄 .env (not in git)
 ```env

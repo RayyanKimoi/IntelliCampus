@@ -61,7 +61,7 @@ export function AppShell({ children, requiredRole }: AppShellProps) {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-[#E9FCFC] dark:bg-[#171f2e]">
       {/* Sidebar */}
       <AppSidebar />
 
@@ -83,7 +83,7 @@ export function AppShell({ children, requiredRole }: AppShellProps) {
         )}
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 bg-[#E9FCFC] dark:bg-[#171f2e]">
           <div className="mx-auto max-w-[1440px]">{children}</div>
         </main>
       </div>

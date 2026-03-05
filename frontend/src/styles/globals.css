@@ -78,7 +78,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: #E9FCFC;
+  }
+
+  .dark body,
+  html.dark body {
+    background-color: hsl(222 25% 13%);
   }
 }
 
@@ -182,6 +188,64 @@ html.dyslexia-mode [data-icon] {
 .adhd-mode .decorative,
 .adhd-mode [data-decorative] {
   display: none !important;
+}
+
+/* Landing page brand utilities */
+.font-serif {
+  font-family: var(--font-serif, Georgia, serif);
+}
+
+.lp-bg {
+  background-color: #060B14;
+}
+
+.lp-card {
+  background-color: #0E1624;
+  border-color: #1A2A40;
+}
+
+.lp-glow {
+  box-shadow: 0 0 40px rgba(0, 110, 178, 0.25);
+}
+
+.lp-glow-sm {
+  box-shadow: 0 0 20px rgba(0, 110, 178, 0.15);
+}
+
+.lp-gradient-text {
+  background: linear-gradient(135deg, #006EB2, #00AAFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.lp-btn-primary {
+  background: linear-gradient(135deg, #002F4C, #006EB2);
+  box-shadow: 0 0 24px rgba(0, 110, 178, 0.35);
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.lp-btn-primary:hover {
+  box-shadow: 0 0 36px rgba(0, 110, 178, 0.55);
+  transform: translateY(-1px);
+}
+
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-18px) scale(1.02); }
+}
+
+.lp-float {
+  animation: lp-float 7s ease-in-out infinite;
+}
+
+@keyframes lp-pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.lp-pulse-glow {
+  animation: lp-pulse-glow 4s ease-in-out infinite;
 }
 
 /* Custom scrollbar */

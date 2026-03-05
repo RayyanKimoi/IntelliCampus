@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment, Submission, AssignmentComment } from '@/services/assessmentService';
 import { MOCK_ASSIGNMENTS } from '@/lib/mockData';
@@ -15,9 +16,12 @@ import { cn } from '@/lib/utils';
 import {
   ChevronLeft, CheckCircle2, Clock, AlertTriangle, Paperclip,
   Send, MessageSquare, ChevronDown, ChevronUp, Upload, FileText,
-  Star, Loader2, ChevronRight,
+  Star, Loader2, ChevronRight, Code2, Type, AlignLeft,
+  Award, BookOpen, BarChart3, XCircle,
 } from 'lucide-react';
 import { formatDistanceToNow, isPast, parseISO, format } from '@/lib/dateUtils';
+
+type AnswerType = 'text' | 'richtext' | 'code' | 'file';
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers
@@ -47,6 +51,7 @@ function ActiveAssignmentCard({ assignment, onSubmit }: {
 }) {
   const [expanded, setExpanded] = useState(false);
   const [textContent, setTextContent] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(assignment.status === 'submitted');
   const [comments, setComments] = useState<AssignmentComment[]>([]);
@@ -54,6 +59,7 @@ function ActiveAssignmentCard({ assignment, onSubmit }: {
   const [newComment, setNewComment] = useState('');
   const [postingComment, setPostingComment] = useState(false);
 
+  const answerType: AnswerType = (assignment as any).answerType ?? 'text';
   const { text: dueText, color: dueColor } = countdown(assignment.dueDate);
 
   async function loadComments() {
@@ -188,17 +194,109 @@ function ActiveAssignmentCard({ assignment, onSubmit }: {
           {/* Submission area */}
           {!submitted ? (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Answer</p>
-              <Textarea
-                value={textContent}
-                onChange={e => setTextContent(e.target.value)}
-                placeholder="Type your answer or paste content here…"
-                className="min-h-[120px] resize-y"
-              />
+              {/* Answer type badge */}
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your Answer</p>
+                <Badge variant="outline" className="text-[10px] capitalize gap-1">
+                  {answerType === 'code' && <Code2 className="h-3 w-3" />}
+                  {answerType === 'richtext' && <AlignLeft className="h-3 w-3" />}
+                  {answerType === 'file' && <Upload className="h-3 w-3" />}
+                  {answerType === 'text' && <Type className="h-3 w-3" />}
+                  {answerType}
+                </Badge>
+              </div>
+
+              {/* Code editor */}
+              {answerType === 'code' && (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="flex items-center gap-2 bg-muted/60 px-3 py-2 border-b border-border">
+                    <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground font-mono">Code Editor</span>
+                  </div>
+                  <textarea
+                    value={textContent}
+                    onChange={e => setTextContent(e.target.value)}
+                    placeholder="// Write your code here..."
+                    className="w-full min-h-[200px] resize-y bg-[#1e1e2e] dark:bg-[#1e1e2e] text-green-400 font-mono text-sm p-4 outline-none"
+                    spellCheck={false}
+                  />
+                </div>
+              )}
+
+              {/* Rich text (simple) */}
+              {answerType === 'richtext' && (
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="flex items-center gap-1 bg-muted/40 px-3 py-1.5 border-b border-border">
+                    {[['B','font-bold'],['I','italic'],['U','underline']].map(([label, cls]) => (
+                      <button
+                        key={label}
+                        className="h-6 w-6 rounded text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center"
+                        title={label}
+                      >
+                        <span className={cls}>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <Textarea
+                    value={textContent}
+                    onChange={e => setTextContent(e.target.value)}
+                    placeholder="Write your formatted response here..."
+                    className="min-h-[160px] resize-y border-0 rounded-none focus-visible:ring-0"
+                  />
+                </div>
+              )}
+
+              {/* File upload */}
+              {answerType === 'file' && (
+                <div
+                  className="rounded-lg border-2 border-dashed border-border bg-muted/20 p-8 text-center cursor-pointer hover:bg-muted/40 hover:border-primary/40 transition-all"
+                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                >
+                  <input
+                    id="file-upload-input"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.docx,.zip,.txt,.py,.js,.ts"
+                    onChange={e => setUploadedFile(e.target.files?.[0] ?? null)}
+                  />
+                  {uploadedFile ? (
+                    <div className="flex items-center justify-center gap-3">
+                      <FileText className="h-8 w-8 text-primary" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium">{uploadedFile.name}</p>
+                        <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button
+                        onClick={e => { e.stopPropagation(); setUploadedFile(null); }}
+                        className="ml-2 text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">PDF, DOCX, ZIP, code files up to 50MB</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Plain text (default) */}
+              {answerType === 'text' && (
+                <Textarea
+                  value={textContent}
+                  onChange={e => setTextContent(e.target.value)}
+                  placeholder="Type your answer or paste content here…"
+                  className="min-h-[120px] resize-y"
+                />
+              )}
+
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleSubmit}
-                  disabled={submitting || !textContent.trim()}
+                  disabled={submitting || (answerType !== 'file' && !textContent.trim()) || (answerType === 'file' && !uploadedFile && !textContent.trim())}
                   size="sm"
                   className="px-5"
                 >
@@ -276,25 +374,163 @@ function ActiveAssignmentCard({ assignment, onSubmit }: {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Completed Assignment Card
+// Completed Assignment Card — Detailed Grading Panel
 // ─────────────────────────────────────────────────────────────────
+
+interface RubricItem {
+  label: string;
+  maxPoints: number;
+  earnedPoints: number;
+  feedback?: string;
+}
+
+function GradingBreakdown({ pct, submission, rubric }: {
+  pct: number | null;
+  submission: Submission;
+  rubric: RubricItem[];
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Score summary banner */}
+      {pct !== null && (
+        <div className={cn(
+          'rounded-xl p-4 flex items-center gap-4 border',
+          pct >= 80 ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800/60'
+            : pct >= 60 ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/60'
+            : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800/60'
+        )}>
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4 border-current">
+            <span className={cn('text-xl font-black', scoreColor(pct))}>{pct}%</span>
+          </div>
+          <div>
+            <p className={cn('font-bold text-lg', scoreColor(pct))}>
+              {submission.score ?? 0} / {submission.totalPoints ?? 100} points
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {pct >= 80 ? 'Excellent work!' : pct >= 60 ? 'Good effort — review feedback below.' : 'Needs improvement — see teacher comments.'}
+            </p>
+          </div>
+          <div className="ml-auto">
+            <Progress
+              value={pct}
+              className={cn(
+                'h-2 w-24',
+                pct >= 80 ? '[&>*]:bg-green-500' : pct >= 60 ? '[&>*]:bg-amber-500' : '[&>*]:bg-red-500'
+              )}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Rubric / marking scheme */}
+      {rubric.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <BarChart3 className="h-3.5 w-3.5" /> Marking Scheme
+          </p>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_80px_80px] text-xs font-semibold text-muted-foreground bg-muted/40 px-4 py-2 border-b border-border">
+              <span>Criterion</span>
+              <span className="text-center">Max Pts</span>
+              <span className="text-center">Earned</span>
+            </div>
+            {rubric.map((item, i) => (
+              <div key={i} className="border-b border-border/50 last:border-0">
+                <div className="grid grid-cols-[1fr_80px_80px] items-center px-4 py-3">
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-xs text-center text-muted-foreground">{item.maxPoints}</span>
+                  <span className={cn(
+                    'text-sm font-bold text-center',
+                    item.earnedPoints >= item.maxPoints * 0.8 ? 'text-green-600'
+                      : item.earnedPoints >= item.maxPoints * 0.6 ? 'text-amber-600' : 'text-red-600'
+                  )}>
+                    {item.earnedPoints}
+                  </span>
+                </div>
+                {item.feedback && (
+                  <div className="px-4 pb-3 -mt-1">
+                    <p className="text-xs text-muted-foreground italic bg-muted/30 rounded px-2 py-1">{item.feedback}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Teacher feedback */}
+      {submission.teacherComment && (
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-6 w-6 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center">
+              <BookOpen className="h-3.5 w-3.5 text-blue-700 dark:text-blue-300" />
+            </div>
+            <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Teacher Feedback</p>
+          </div>
+          <p className="text-sm leading-relaxed text-blue-900 dark:text-blue-200">{submission.teacherComment}</p>
+        </div>
+      )}
+
+      {/* Submission preview */}
+      {submission.textContent && (
+        <div className="rounded-lg bg-muted/40 border border-border p-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> Your Submission
+          </p>
+          <p className="text-sm whitespace-pre-wrap line-clamp-8 font-mono">{submission.textContent}</p>
+        </div>
+      )}
+
+      {/* File attachment */}
+      {submission.attachmentUrl && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+          <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+          <a
+            href={submission.attachmentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline truncate"
+          >
+            View Submitted File
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CompletedAssignmentCard({ submission }: { submission: Submission }) {
   const [expanded, setExpanded] = useState(false);
   const pct = submission.totalPoints ? Math.round(((submission.score ?? 0) / submission.totalPoints) * 100) : null;
 
+  // Simulate rubric from totalPoints for demonstration; real data would come from API
+  const rubric: RubricItem[] = (submission as any).rubric ?? (
+    submission.status === 'graded' && submission.totalPoints
+      ? [
+          { label: 'Accuracy & Correctness',    maxPoints: Math.round((submission.totalPoints ?? 100) * 0.4), earnedPoints: Math.round(((submission.score ?? 0) / (submission.totalPoints ?? 100)) * (submission.totalPoints ?? 100) * 0.4 * 0.95), feedback: undefined },
+          { label: 'Explanation & Clarity',     maxPoints: Math.round((submission.totalPoints ?? 100) * 0.3), earnedPoints: Math.round(((submission.score ?? 0) / (submission.totalPoints ?? 100)) * (submission.totalPoints ?? 100) * 0.3), feedback: undefined },
+          { label: 'Code Style / Presentation', maxPoints: Math.round((submission.totalPoints ?? 100) * 0.2), earnedPoints: Math.round(((submission.score ?? 0) / (submission.totalPoints ?? 100)) * (submission.totalPoints ?? 100) * 0.2), feedback: undefined },
+          { label: 'Completeness',              maxPoints: Math.round((submission.totalPoints ?? 100) * 0.1), earnedPoints: Math.round(((submission.score ?? 0) / (submission.totalPoints ?? 100)) * (submission.totalPoints ?? 100) * 0.1), feedback: undefined },
+        ]
+      : []
+  );
+
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-border bg-card overflow-hidden shadow-sm"
+    >
       <button
         onClick={() => setExpanded(v => !v)}
         className="w-full flex items-center gap-4 p-5 text-left hover:bg-muted/20 transition-colors"
       >
         <div className={cn(
           'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-          submission.status === 'graded' ? 'bg-green-100' : 'bg-muted'
+          submission.status === 'graded' ? 'bg-green-100 dark:bg-green-900/40' : 'bg-muted'
         )}>
           {submission.status === 'graded'
-            ? <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ? <Award className="h-5 w-5 text-green-600" />
             : <Clock className="h-5 w-5 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
@@ -305,45 +541,33 @@ function CompletedAssignmentCard({ submission }: { submission: Submission }) {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {pct !== null ? (
-            <span className={cn('text-lg font-bold', scoreColor(pct))}>{pct}%</span>
+            <div className="text-right">
+              <span className={cn('text-lg font-bold', scoreColor(pct))}>{pct}%</span>
+              <p className="text-[10px] text-muted-foreground">{submission.score ?? 0}/{submission.totalPoints ?? 100} pts</p>
+            </div>
           ) : (
-            <Badge variant="outline" className="text-xs">{submission.status === 'graded' ? 'Graded' : 'Pending'}</Badge>
+            <Badge variant="outline" className={cn('text-xs', submission.status === 'graded' ? 'border-green-200 text-green-700 bg-green-50' : '')}>{submission.status === 'graded' ? 'Graded' : 'Pending Review'}</Badge>
           )}
           {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>
       </button>
 
-      {expanded && (
-        <div className="border-t border-border px-5 pb-5 pt-4 space-y-4">
-          {/* Score break */}
-          {pct !== null && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Score</span>
-                <span className={cn('font-bold', scoreColor(pct))}>{submission.score} / {submission.totalPoints} pts ({pct}%)</span>
-              </div>
-              <Progress value={pct} className={cn('h-2', pct >= 80 ? '[&>*]:bg-green-500' : pct >= 60 ? '[&>*]:bg-amber-500' : '[&>*]:bg-red-500')} />
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-border px-5 pb-5 pt-4">
+              <GradingBreakdown pct={pct} submission={submission} rubric={rubric} />
             </div>
-          )}
-
-          {/* Teacher comment */}
-          {submission.teacherComment && (
-            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 p-4">
-              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">Teacher Feedback</p>
-              <p className="text-sm leading-relaxed">{submission.teacherComment}</p>
-            </div>
-          )}
-
-          {/* Submission preview */}
-          {submission.textContent && (
-            <div className="rounded-lg bg-muted/40 border border-border p-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Your Submission</p>
-              <p className="text-sm whitespace-pre-wrap line-clamp-6">{submission.textContent}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

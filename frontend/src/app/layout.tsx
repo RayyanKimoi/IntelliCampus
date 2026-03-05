@@ -1,16 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter, Lexend_Peta } from 'next/font/google';
+import { DM_Sans, Lexend_Peta, Instrument_Serif } from 'next/font/google';
 import '@/styles/globals.css';
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 const lexendPeta = Lexend_Peta({
   subsets: ['latin'],
   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
   variable: '--font-dyslexia',
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
 });
 
 export const metadata: Metadata = {
@@ -25,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${lexendPeta.variable} font-sans antialiased`} suppressHydrationWarning>
+      <body className={`${dmSans.variable} ${lexendPeta.variable} ${instrumentSerif.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
       </body>
     </html>

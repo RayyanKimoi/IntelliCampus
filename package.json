@@ -12,10 +12,11 @@
     "build:backend": "pnpm --filter @intellicampus/backend build",
     "build:frontend": "pnpm --filter @intellicampus/frontend build",
     "lint": "pnpm -r lint",
-    "db:migrate": "pnpm --filter @intellicampus/backend prisma:migrate",
-    "db:generate": "pnpm --filter @intellicampus/backend prisma:generate",
-    "db:seed": "pnpm --filter @intellicampus/backend prisma:seed",
-    "db:studio": "pnpm --filter @intellicampus/backend prisma:studio",
+    "db:migrate": "pnpm --filter @intellicampus/frontend prisma:migrate",
+    "db:migrate:deploy": "pnpm --filter @intellicampus/frontend prisma:migrate:deploy",
+    "db:generate": "pnpm --filter @intellicampus/frontend prisma:generate",
+    "db:seed": "pnpm --filter @intellicampus/frontend prisma:seed",
+    "db:studio": "pnpm --filter @intellicampus/frontend prisma:studio",
     "clean": "pnpm -r exec -- rm -rf node_modules dist .next .turbo"
   },
   "engines": {

@@ -4,11 +4,11 @@ import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ChatWindow } from '@/components/ai/ChatWindow';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { useCourseStore } from '@/store/courseStore';
 import { curriculumService, Course, Subject } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -22,16 +22,9 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import {
-  Brain,
   MessageSquare,
-  Lightbulb,
-  ImageIcon,
-  Layers,
-  ChevronDown,
-  BookOpen,
   AlertTriangle,
   Sparkles,
-  Info,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,38 +40,9 @@ interface TopicOption {
   masteryLevel?: number;
 }
 
-interface QuickAction {
-  label: string;
-  icon: React.ReactNode;
-  prompt: string;
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quick Actions
-// ─────────────────────────────────────────────────────────────────────────────
 
-const QUICK_ACTIONS: QuickAction[] = [
-  {
-    label: 'Explain simpler',
-    icon: <Lightbulb className="h-3.5 w-3.5" />,
-    prompt: 'Please explain this concept in a simpler way with an easy analogy.',
-  },
-  {
-    label: 'Give example',
-    icon: <Layers className="h-3.5 w-3.5" />,
-    prompt: 'Give me a real-world example to better understand this.',
-  },
-  {
-    label: 'Visual breakdown',
-    icon: <ImageIcon className="h-3.5 w-3.5" />,
-    prompt: 'Describe this concept visually, as if drawing it step by step.',
-  },
-  {
-    label: 'Test me',
-    icon: <Brain className="h-3.5 w-3.5" />,
-    prompt: 'Ask me a quick question to test if I understand this topic.',
-  },
-];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Source Reference Panel
@@ -192,6 +156,22 @@ function SourceReferencePanel({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mock topics — shown when backend is unavailable / returns empty
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MOCK_TOPICS: TopicOption[] = [
+  { topicId: 'mock-1', topicName: 'Introduction to Algebra',      courseId: 'mock-c1', courseName: 'Mathematics Grade 10', subjectName: 'Algebra',       masteryLevel: 72 },
+  { topicId: 'mock-2', topicName: 'Quadratic Equations',          courseId: 'mock-c1', courseName: 'Mathematics Grade 10', subjectName: 'Algebra',       masteryLevel: 45 },
+  { topicId: 'mock-3', topicName: 'Trigonometry Basics',          courseId: 'mock-c1', courseName: 'Mathematics Grade 10', subjectName: 'Trigonometry',  masteryLevel: 0  },
+  { topicId: 'mock-4', topicName: 'Newton\'s Laws of Motion',     courseId: 'mock-c2', courseName: 'Physics Grade 10',     subjectName: 'Mechanics',     masteryLevel: 88 },
+  { topicId: 'mock-5', topicName: 'Work, Energy & Power',         courseId: 'mock-c2', courseName: 'Physics Grade 10',     subjectName: 'Mechanics',     masteryLevel: 60 },
+  { topicId: 'mock-6', topicName: 'Waves & Sound',                courseId: 'mock-c2', courseName: 'Physics Grade 10',     subjectName: 'Waves',         masteryLevel: 30 },
+  { topicId: 'mock-7', topicName: 'Cell Structure & Function',    courseId: 'mock-c3', courseName: 'Biology Grade 10',     subjectName: 'Cell Biology',  masteryLevel: 55 },
+  { topicId: 'mock-8', topicName: 'Photosynthesis',               courseId: 'mock-c3', courseName: 'Biology Grade 10',     subjectName: 'Cell Biology',  masteryLevel: 80 },
+  { topicId: 'mock-9', topicName: 'DNA & Genetics',               courseId: 'mock-c3', courseName: 'Biology Grade 10',     subjectName: 'Genetics',      masteryLevel: 20 },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Inner content (needs useSearchParams — wrapped in Suspense)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -262,11 +242,12 @@ function AiTutorContent() {
         );
 
         if (!cancelled) {
-          setTopicOptions(options);
+          const finalOptions = options.length > 0 ? options : MOCK_TOPICS;
+          setTopicOptions(finalOptions);
 
           // Auto-select from URL params or first topic
           if (paramTopicId && paramCourseId) {
-            const match = options.find((o) => o.topicId === paramTopicId);
+            const match = finalOptions.find((o) => o.topicId === paramTopicId);
             if (match) {
               setChatState({
                 topicId: match.topicId,
@@ -275,8 +256,8 @@ function AiTutorContent() {
                 selectedKey: match.topicId,
               });
             }
-          } else if (options.length > 0) {
-            const first = options[0];
+          } else if (finalOptions.length > 0) {
+            const first = finalOptions[0];
             setChatState({
               topicId: first.topicId,
               courseId: first.courseId,
@@ -286,7 +267,12 @@ function AiTutorContent() {
           }
         }
       } catch (e) {
-        console.error('[AiTutor] load error', e);
+        console.error('[AiTutor] load error — using mock topics', e);
+        if (!cancelled) {
+          setTopicOptions(MOCK_TOPICS);
+          const first = MOCK_TOPICS[0];
+          setChatState({ topicId: first.topicId, courseId: first.courseId, topicName: first.topicName, selectedKey: first.topicId });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -299,21 +285,24 @@ function AiTutorContent() {
   const selectedTopic =
     chatState ? topicOptions.find((t) => t.topicId === chatState.topicId) ?? null : null;
 
-  const masteryForTopic =
-    selectedTopic && masteryByCourse[selectedTopic.courseId]
+  const masteryForTopic = selectedTopic
+    ? masteryByCourse[selectedTopic.courseId]
       ? Math.round(
           (masteryByCourse[selectedTopic.courseId].byTopic ?? []).find(
             (t) => t.topicId === selectedTopic.topicId
-          )?.masteryLevel ?? 0
+          )?.masteryLevel ?? selectedTopic.masteryLevel ?? 0
         )
-      : 0;
+      : (selectedTopic.masteryLevel ?? 0)
+    : 0;
 
-  // Group topics by course for the select
-  const courseGroups = courses.map((course) => ({
-    courseId: course.id,
-    courseName: course.name,
-    topics: topicOptions.filter((t) => t.courseId === course.id),
-  })).filter((g) => g.topics.length > 0);
+  // Group topics by course for the select — works with real and mock data
+  const courseGroups = Array.from(
+    topicOptions.reduce((map, t) => {
+      if (!map.has(t.courseId)) map.set(t.courseId, { courseId: t.courseId, courseName: t.courseName, topics: [] });
+      map.get(t.courseId)!.topics.push(t);
+      return map;
+    }, new Map<string, { courseId: string; courseName: string; topics: TopicOption[] }>())
+  ).map(([, g]) => g);
 
   const handleTopicChange = (value: string) => {
     const topic = topicOptions.find((t) => t.topicId === value);
@@ -375,26 +364,18 @@ function AiTutorContent() {
         </div>
       </div>
 
-      {/* Quick action buttons */}
-      {chatState && (
-        <div className="flex flex-wrap gap-2">
-          {QUICK_ACTIONS.map((action) => (
-            <Badge
-              key={action.label}
-              variant="outline"
-              className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer hover:bg-muted transition-colors text-xs font-medium"
-            >
-              {action.icon}
-              {action.label}
-            </Badge>
-          ))}
-        </div>
-      )}
-
       {/* Main layout: Chat + Source Panel */}
       <div className="flex gap-4 h-[calc(100vh-16rem)] min-h-[500px]">
         {/* Chat window */}
-        <div className="flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0 rounded-xl border border-border p-[2px]">
+          <GlowingEffect
+            spread={50}
+            glow={true}
+            disabled={false}
+            proximity={80}
+            inactiveZone={0.01}
+            borderWidth={2}
+          />
           {loading ? (
             <Skeleton className="h-full w-full rounded-xl" />
           ) : chatState ? (

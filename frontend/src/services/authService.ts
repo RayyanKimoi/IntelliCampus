@@ -8,8 +8,8 @@ export const authService = {
     name: string;
     email: string;
     password: string;
-    role: string;
-    institutionId: string;
+    role?: string;
+    institutionId?: string;
   }) => api.post('/auth/register', data),
 
   getMe: () => api.get('/auth/me'),

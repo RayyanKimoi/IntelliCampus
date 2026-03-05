@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment } from '@/services/assessmentService';
@@ -153,12 +154,20 @@ export default function QuizzesPage() {
             <p className="text-sm text-muted-foreground mt-1">Teacher-created quizzes will appear here.</p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <motion.div
+            className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+          >
             {subjects.map(s => {
               const pct = s.quizCount > 0 ? Math.round((s.completedCount / s.quizCount) * 100) : 0;
               return (
-                <Link
+                <motion.div
                   key={s.id}
+                  variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } }}
+                >
+                <Link
                   href={`/student/assessment/quizzes/${s.id}`}
                   className="group block rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5"
                 >
@@ -199,9 +208,10 @@ export default function QuizzesPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </Link>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </div>
     </DashboardLayout>

@@ -78,43 +78,43 @@ export default function ReportsPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Export</h1>
-          <p className="text-sm text-gray-500 mt-1">Export student performance data as CSV for offline analysis.</p>
+          <h1 className="text-2xl font-bold text-foreground">Reports & Export</h1>
+          <p className="text-sm text-muted-foreground mt-1">Export student performance data as CSV for offline analysis.</p>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded-lg text-sm">
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 rounded-lg text-sm">
             <Check className="w-4 h-4 flex-shrink-0" /> {success}
           </div>
         )}
 
         {/* Export card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <FileBarChart className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/40 rounded-lg flex items-center justify-center">
+              <FileBarChart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-gray-800">Student Performance Report</h2>
-              <p className="text-xs text-gray-500">Includes: student name, email, assignment, score, status, submission date.</p>
+              <h2 className="text-base font-semibold text-foreground">Student Performance Report</h2>
+              <p className="text-xs text-muted-foreground">Includes: student name, email, assignment, score, status, submission date.</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Select Course</label>
               {loading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-400">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading courses…
                 </div>
               ) : (
                 <select
-                  className="w-full max-w-md border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white"
+                  className="w-full max-w-md border border-border rounded-lg px-3 py-2.5 text-sm bg-background text-foreground"
                   value={selectedCourseId}
                   onChange={e => setSelectedCourseId(e.target.value)}>
                   <option value="">All Courses (export everything)</option>
@@ -124,13 +124,13 @@ export default function ReportsPage() {
             </div>
 
             {/* Preview */}
-            <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Report Preview</p>
-              <div className="font-mono text-xs text-gray-600 space-y-1">
-                <p className="text-gray-400">Student,Email,Assignment,Course,Score,TotalPoints,Status,SubmittedAt</p>
+            <div className="bg-muted/50 border border-dashed border-border rounded-xl p-4">
+              <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Report Preview</p>
+              <div className="font-mono text-xs text-muted-foreground space-y-1">
+                <p className="opacity-60">Student,Email,Assignment,Course,Score,TotalPoints,Status,SubmittedAt</p>
                 <p>Alice Sharma,alice@example.com,Quiz 1,{selectedCourseName},85,100,submitted,2024-11-01T10:00:00Z</p>
                 <p>Bob Kumar,bob@example.com,Quiz 1,{selectedCourseName},72,100,submitted,2024-11-01T11:30:00Z</p>
-                <p className="text-gray-400 italic">… and all matching submissions</p>
+                <p className="opacity-60 italic">… and all matching submissions</p>
               </div>
             </div>
 
@@ -151,25 +151,25 @@ export default function ReportsPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           {[
             {
-              icon: <BarChart2 className="w-5 h-5 text-indigo-600" />,
-              bg: 'bg-indigo-50',
+              icon: <BarChart2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+              bg: 'bg-indigo-50 dark:bg-indigo-950/40',
               title: 'Performance Report',
               desc: 'Student scores, submission status, and grading details for all assignments.',
             },
             {
-              icon: <BookOpen className="w-5 h-5 text-green-600" />,
-              bg: 'bg-green-50',
+              icon: <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400" />,
+              bg: 'bg-green-50 dark:bg-green-950/40',
               title: 'Course Coverage',
               desc: 'Export includes course and assignment metadata alongside student data.',
             },
           ].map(card => (
-            <div key={card.title} className="bg-white border border-gray-200 rounded-xl p-4 flex gap-3">
+            <div key={card.title} className="bg-card border border-border rounded-xl p-4 flex gap-3">
               <div className={`w-9 h-9 ${card.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
                 {card.icon}
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-800">{card.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{card.desc}</p>
+                <p className="text-sm font-semibold text-foreground">{card.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{card.desc}</p>
               </div>
             </div>
           ))}

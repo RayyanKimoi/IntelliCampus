@@ -12,6 +12,7 @@ import {
 } from '@/services/assessmentService';
 import { masteryService } from '@/services/masteryService';
 import { api } from '@/services/apiClient';
+import { MOCK_QUIZ_QUESTIONS } from '@/lib/mockData';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -258,8 +259,11 @@ export default function QuizAttemptPage() {
   const attemptId = params.attemptId as string;
   const quizId = searchParams.get('quizId') ?? '';
 
+  const isMockAttempt = attemptId.startsWith('mock-');
   const [phase, setPhase] = useState<Phase>('loading');
-  const [questions, setQuestions] = useState<AssignmentQuestion[]>([]);
+  const [questions, setQuestions] = useState<AssignmentQuestion[]>(
+    isMockAttempt ? (MOCK_QUIZ_QUESTIONS as unknown as AssignmentQuestion[]) : []
+  );
   const [currentIdx, setCurrentIdx] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, LocalAnswer>>(new Map());
   const [answerResults, setAnswerResults] = useState<AnswerResult[]>([]);
@@ -275,6 +279,12 @@ export default function QuizAttemptPage() {
     if (!quizId) return;
     let cancelled = false;
     async function load() {
+      // Mock attempts use pre-populated local questions—no API call needed
+      if (isMockAttempt) {
+        setPhase('quiz');
+        setQuestionStartTime(Date.now());
+        return;
+      }
       try {
         const res = await assessmentService.getAssignment(quizId) as any;
         const quiz = res?.data ?? res;
@@ -285,7 +295,12 @@ export default function QuizAttemptPage() {
           setQuestionStartTime(Date.now());
         }
       } catch {
-        if (!cancelled) setPhase('quiz');
+        // API unavailable — fall back to mock questions
+        if (!cancelled) {
+          setQuestions(MOCK_QUIZ_QUESTIONS as unknown as AssignmentQuestion[]);
+          setPhase('quiz');
+          setQuestionStartTime(Date.now());
+        }
       }
     }
     load();
@@ -335,37 +350,58 @@ export default function QuizAttemptPage() {
       // Submit all answers
       const answersToSubmit = Array.from(localAnswers.values());
       for (const ans of answersToSubmit) {
-        try {
-          const res = await assessmentService.submitAnswer(attemptId, {
-            questionId: ans.questionId,
-            selectedOption: ans.selectedOption,
-            timeTaken: ans.timeTaken,
-          }) as any;
-          const result = res?.data ?? res;
+        if (isMockAttempt) {
+          // Evaluate locally — no API available
+          const q = questions.find(q => q.id === ans.questionId);
           results.push({
             questionId: ans.questionId,
             selectedOption: ans.selectedOption,
-            isCorrect: result?.isCorrect ?? result?.correct ?? false,
-            correctOption: result?.correctOption,
-            explanation: result?.explanation,
-            topicId: result?.topicId,
-            topicName: result?.topicName,
+            isCorrect: q ? ans.selectedOption === q.correctOption : false,
+            correctOption: q?.correctOption,
+            explanation: (q as any)?.explanation,
           });
-        } catch {
-          results.push({
-            questionId: ans.questionId,
-            selectedOption: ans.selectedOption,
-            isCorrect: false,
-          });
+        } else {
+          try {
+            const res = await assessmentService.submitAnswer(attemptId, {
+              questionId: ans.questionId,
+              selectedOption: ans.selectedOption,
+              timeTaken: ans.timeTaken,
+            }) as any;
+            const result = res?.data ?? res;
+            results.push({
+              questionId: ans.questionId,
+              selectedOption: ans.selectedOption,
+              isCorrect: result?.isCorrect ?? result?.correct ?? false,
+              correctOption: result?.correctOption,
+              explanation: result?.explanation,
+              topicId: result?.topicId,
+              topicName: result?.topicName,
+            });
+          } catch {
+            const q = questions.find(q => q.id === ans.questionId);
+            results.push({
+              questionId: ans.questionId,
+              selectedOption: ans.selectedOption,
+              isCorrect: q ? ans.selectedOption === q.correctOption : false,
+              correctOption: q?.correctOption,
+            });
+          }
         }
       }
 
-      // Submit the attempt
-      const attemptRes = await assessmentService.submitAttempt(attemptId) as any;
-      const finalAtt = attemptRes?.data ?? attemptRes;
+      // Submit the attempt (skip for mock/offline)
+      if (!isMockAttempt) {
+        try {
+          const attemptRes = await assessmentService.submitAttempt(attemptId) as any;
+          setFinalAttempt(attemptRes?.data ?? attemptRes);
+        } catch {
+          setFinalAttempt({ id: attemptId, status: 'completed' } as any);
+        }
+      } else {
+        setFinalAttempt({ id: attemptId, status: 'completed' } as any);
+      }
 
       setAnswerResults(results);
-      setFinalAttempt(finalAtt);
 
       // CRITICAL: Trigger mastery update pipeline for wrong answers
       await triggerMasteryUpdate(results);

@@ -45,16 +45,25 @@ class ApiClient {
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
-    // Guard against HTML error pages (e.g. Next.js 404 for missing API routes)
     const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
-      throw new Error(`API route not available: ${endpoint} (HTTP ${response.status})`);
+    let data: any = null;
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text || `Request failed with status ${response.status}` };
+      }
     }
 
-    const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(data.error || `Request failed with status ${response.status}`);
+      if (response.status === 401 && typeof window !== 'undefined') {
+        try { localStorage.removeItem('intellicampus-auth'); } catch {}
+        window.location.href = '/auth/login';
+      }
+      throw new Error(data?.error || `Request failed with status ${response.status}`);
     }
 
     return data;
