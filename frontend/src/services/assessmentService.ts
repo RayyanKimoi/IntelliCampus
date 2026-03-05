@@ -25,6 +25,7 @@ export interface AssignmentQuestion {
   optionB: string;
   optionC: string;
   optionD: string;
+  correctOption?: string;
   topicId?: string;
   topicName?: string;
   difficultyLevel?: string;
