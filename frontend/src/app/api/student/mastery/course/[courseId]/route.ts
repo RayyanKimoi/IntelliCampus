@@ -8,13 +8,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const user = getAuthUser(req);
     requireRole(user, ['student']);
 
-    const records = await masteryService.getCourseMastery(user.userId, params.courseId);
+    const records = await masteryService.getCourseMastery(user.userId, courseId);
 
     const byTopic = records.map((r) => ({
       topicId: r.topicId,
