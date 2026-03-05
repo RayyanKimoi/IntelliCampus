@@ -26,6 +26,7 @@ export default function SubjectQuizzesPage() {
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<string | null>(null);
   const [subjectName, setSubjectName] = useState('');
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +43,7 @@ export default function SubjectQuizzesPage() {
         setQuizzes(toUse);
         if (toUse.length > 0) setSubjectName(toUse[0].subjectName ?? toUse[0].courseName ?? 'Quizzes');
       } catch (e) {
-        console.error('[SubjectQuizzes]', e);
+        console.warn('[SubjectQuizzes] API unavailable, using mock data', e);
         const fallback = MOCK_SUBJECT_QUIZZES[subjectId] ?? [];
         if (!cancelled) {
           setQuizzes(fallback);
@@ -58,19 +59,21 @@ export default function SubjectQuizzesPage() {
 
   async function startQuiz(quizId: string) {
     setStartingId(quizId);
+    setStartError(null);
     try {
       const res = await assessmentService.startAttempt(quizId) as any;
       const attempt = res?.data ?? res;
       if (attempt?.id) {
         router.push(`/student/assessment/quizzes/${subjectId}/attempt/${attempt.id}?quizId=${quizId}`);
       } else {
-        // Attempt created but no id — fall back to practice
-        router.push('/student/practice');
+        setStartError('Could not start quiz — the server returned an unexpected response. Please try again.');
       }
-    } catch (e) {
-      console.error('[StartQuiz]', e);
-      // API unavailable — redirect to the practice page for the same topic
-      router.push('/student/practice');
+    } catch (e: any) {
+      console.warn('[StartQuiz] API unavailable, falling back to offline attempt', e);
+      // Server unavailable — navigate to the attempt page with a synthetic ID so
+      // the student can still take the quiz using local mock questions.
+      const mockAttemptId = `mock-${quizId}-${Date.now()}`;
+      router.push(`/student/assessment/quizzes/${subjectId}/attempt/${mockAttemptId}?quizId=${quizId}`);
     } finally {
       setStartingId(null);
     }
@@ -91,6 +94,17 @@ export default function SubjectQuizzesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{subjectName || 'Subject Quizzes'}</h1>
         </div>
+
+        {startError && (
+          <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium">Could not start quiz</p>
+              <p className="mt-0.5 text-destructive/80">{startError}</p>
+            </div>
+            <button onClick={() => setStartError(null)} className="shrink-0 text-destructive/60 hover:text-destructive transition-colors">✕</button>
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse h-24" />)}</div>

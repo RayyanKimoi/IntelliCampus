@@ -14,8 +14,8 @@ export class UserService {
     name: string;
     email: string;
     password: string;
-    role: string;
-    institutionId: string;
+    role?: string;
+    institutionId?: string;
   }) {
     const existing = await prisma.user.findUnique({
       where: { email: data.email },
@@ -25,15 +25,43 @@ export class UserService {
       throw new Error('Email already registered');
     }
 
+    // Resolve institution: use provided ID or fall back to first available
+    let resolvedInstitutionId = data.institutionId;
+    if (!resolvedInstitutionId || resolvedInstitutionId === 'default') {
+      const defaultInstitution = await prisma.institution.findFirst();
+      if (defaultInstitution) {
+        resolvedInstitutionId = defaultInstitution.id;
+      } else {
+        const created = await prisma.institution.create({
+          data: { name: 'Default Institution', domain: 'default.edu' },
+        });
+        resolvedInstitutionId = created.id;
+      }
+    } else {
+      const inst = await prisma.institution.findUnique({ where: { id: resolvedInstitutionId } });
+      if (!inst) {
+        const fallback = await prisma.institution.findFirst();
+        if (fallback) {
+          resolvedInstitutionId = fallback.id;
+        } else {
+          const created = await prisma.institution.create({
+            data: { name: 'Default Institution', domain: 'default.edu' },
+          });
+          resolvedInstitutionId = created.id;
+        }
+      }
+    }
+
     const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
+    const resolvedRole = data.role || 'student';
 
     const user = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
         passwordHash,
-        role: data.role as any,
-        institutionId: data.institutionId,
+        role: resolvedRole as any,
+        institutionId: resolvedInstitutionId,
       },
       select: {
         id: true,
@@ -54,7 +82,7 @@ export class UserService {
     });
 
     // If student, create XP record
-    if (data.role === 'student') {
+    if (resolvedRole === 'student') {
       await prisma.studentXP.create({
         data: { userId: user.id },
       });

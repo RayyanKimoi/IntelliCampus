@@ -90,9 +90,9 @@ export default function ResultsPage() {
 
   // ── Status helpers
   function statusBadge(sub: Submission) {
-    if (sub.gradedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Graded</span>;
-    if (sub.completedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Submitted</span>;
-    return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">In Progress</span>;
+    if (sub.gradedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">Graded</span>;
+    if (sub.completedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">Submitted</span>;
+    return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400">In Progress</span>;
   }
 
   // Build assignment lookup
@@ -113,12 +113,12 @@ export default function ResultsPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Evaluation & Results</h1>
-          <p className="text-sm text-gray-500 mt-1">Review student submissions and assign grades.</p>
+          <h1 className="text-2xl font-bold text-foreground">Evaluation & Results</h1>
+          <p className="text-sm text-muted-foreground mt-1">Review student submissions and assign grades.</p>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded-lg text-sm">
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
             <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4" /></button>
           </div>
@@ -131,24 +131,24 @@ export default function ResultsPage() {
             { label: 'Submitted', value: submitted },
             { label: 'Graded', value: graded },
           ].map(stat => (
-            <div key={stat.label} className="bg-white border border-gray-200 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+            <div key={stat.label} className="bg-card border border-border rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
 
         {/* Filter */}
         <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-gray-700">Filter by Assignment:</label>
-          <select className="border rounded-lg px-3 py-2 text-sm max-w-xs"
+          <label className="text-sm font-medium text-foreground">Filter by Assignment:</label>
+          <select className="border border-border rounded-lg px-3 py-2 text-sm max-w-xs bg-background text-foreground"
             value={selectedAssignment} onChange={e => setSelectedAssignment(e.target.value)}>
             <option value="all">All Assignments</option>
             {assignments.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
           </select>
           {avgScore && (
-            <p className="ml-auto text-sm text-gray-500">
-              Avg score: <span className="font-semibold text-gray-800">{avgScore}</span>
+            <p className="ml-auto text-sm text-muted-foreground">
+              Avg score: <span className="font-semibold text-foreground">{avgScore}</span>
             </p>
           )}
         </div>
@@ -157,21 +157,21 @@ export default function ResultsPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
+          <div className="text-center py-16 text-muted-foreground">
             <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-40" />
             <p>No submissions found.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {filtered.map(sub => (
-              <div key={sub.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div key={sub.id} className="bg-card border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center px-5 py-4 gap-4">
-                  <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-gray-500" />
+                  <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{sub.user?.name ?? 'Unknown Student'}</p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="font-medium text-foreground">{sub.user?.name ?? 'Unknown Student'}</p>
+                    <p className="text-xs text-muted-foreground truncate">
                       {assignmentMap[sub.assignmentId] ?? sub.assignment?.title ?? '—'} ·{' '}
                       {sub.completedAt
                         ? `Submitted ${new Date(sub.completedAt).toLocaleDateString()}`
@@ -180,42 +180,42 @@ export default function ResultsPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {sub.score !== null && sub.score !== undefined && (
-                      <span className="text-sm font-semibold text-gray-700">{sub.score}%</span>
+                      <span className="text-sm font-semibold text-foreground">{sub.score}%</span>
                     )}
                     {statusBadge(sub)}
                     <button onClick={() => expandedId === sub.id ? setExpandedId(null) : openGrade(sub)}
-                      className="text-gray-400 hover:text-gray-700">
+                      className="text-muted-foreground hover:text-foreground">
                       {expandedId === sub.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
                 {expandedId === sub.id && (
-                  <div className="border-t border-gray-100 px-5 py-4 bg-gray-50 space-y-4">
-                    <div className="grid sm:grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div><span className="font-medium">Email:</span> {sub.user?.email ?? '—'}</div>
-                      <div><span className="font-medium">Attempt ID:</span> <code className="text-xs bg-gray-200 px-1 rounded">{sub.id}</code></div>
+                  <div className="border-t border-border px-5 py-4 bg-muted/40 space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                      <div><span className="font-medium text-foreground">Email:</span> {sub.user?.email ?? '—'}</div>
+                      <div><span className="font-medium text-foreground">Attempt ID:</span> <code className="text-xs bg-muted px-1 rounded">{sub.id}</code></div>
                     </div>
                     {sub.teacherComment && (
-                      <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+                      <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-800 dark:text-blue-300">
                         <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <span>{sub.teacherComment}</span>
                       </div>
                     )}
                     {/* Grade form */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-gray-700">Grade this submission</h4>
+                      <h4 className="text-sm font-semibold text-foreground">Grade this submission</h4>
                       <div className="grid sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-gray-600 mb-1">Score (0–100)</label>
+                          <label className="block text-xs text-muted-foreground mb-1">Score (0–100)</label>
                           <input type="number" min={0} max={100}
-                            className="w-full border rounded-lg px-3 py-2 text-sm"
+                            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
                             value={gradeInputs[sub.id]?.score ?? ''}
                             onChange={e => setGradeInputs(p => ({ ...p, [sub.id]: { ...p[sub.id], score: e.target.value } }))} />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-600 mb-1">Comment</label>
-                          <input className="w-full border rounded-lg px-3 py-2 text-sm"
+                          <label className="block text-xs text-muted-foreground mb-1">Comment</label>
+                          <input className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
                             value={gradeInputs[sub.id]?.comment ?? ''}
                             onChange={e => setGradeInputs(p => ({ ...p, [sub.id]: { ...p[sub.id], comment: e.target.value } }))}
                             placeholder="Optional feedback…" />

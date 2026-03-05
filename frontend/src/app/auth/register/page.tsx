@@ -4,13 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { AuthBackground } from '@/components/ui/auth-background';
 import {
   GraduationCap,
@@ -20,41 +13,73 @@ import {
   Eye,
   EyeOff,
   User,
-  Building2,
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
 
 export default function RegisterPage() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('student');
-  const [institutionId, setInstitutionId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [globalError, setGlobalError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
 
+  const clearFieldError = (field: string) =>
+    setFieldErrors(prev => ({ ...prev, [field]: '' }));
+
+  const validate = () => {
+    const errors: Record<string, string> = {};
+    if (!firstName.trim()) errors.firstName = 'First name is required';
+    if (!lastName.trim()) errors.lastName = 'Last name is required';
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!email.includes('@')) {
+      errors.email = 'Email is invalid';
+    }
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    }
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    return errors;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setGlobalError('');
+    const errors = validate();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setLoading(true);
     try {
-      await register({ name, email, password, role, institutionId: institutionId || 'default' });
+      await register({
+        name: `${firstName.trim()} ${lastName.trim()}`,
+        email,
+        password,
+        role: 'student',
+      });
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setGlobalError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const fieldClass = "h-11 text-sm rounded-xl border text-slate-800 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-[#006EB2]/40 transition-all duration-200";
-  const fieldStyle: React.CSSProperties = { backgroundColor: '#F4F7FB', borderColor: 'rgba(0,110,178,0.18)' };
+  const fieldBase = "h-11 text-sm rounded-xl border text-slate-800 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-[#006EB2]/40 transition-all duration-200";
+  const fieldOk: React.CSSProperties = { backgroundColor: '#F4F7FB', borderColor: 'rgba(0,110,178,0.18)' };
+  const fieldErr: React.CSSProperties = { backgroundColor: '#F4F7FB', borderColor: 'rgba(220,48,48,0.45)' };
+  const fs = (field: string) => (fieldErrors[field] ? fieldErr : fieldOk);
   const labelClass = "text-xs font-semibold uppercase tracking-widest";
   const labelStyle = { color: 'rgba(0,47,76,0.55)' };
 
@@ -109,75 +134,55 @@ export default function RegisterPage() {
             <p className="text-sm" style={{ color: 'rgba(12,26,46,0.5)' }}>Join IntelliCampus to start learning</p>
           </div>
 
-          {/* Error */}
-          {error && (
+          {/* Global error */}
+          {globalError && (
             <div
               className="rounded-xl px-4 py-3 text-sm border"
               style={{ backgroundColor: 'rgba(220,48,48,0.07)', borderColor: 'rgba(220,48,48,0.2)', color: '#c0392b' }}
             >
-              {error}
+              {globalError}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name */}
-            <div className="space-y-1.5">
-              <label className={labelClass} style={labelStyle}>Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
+            {/* First Name + Last Name */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className={labelClass} style={labelStyle}>First Name</label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
+                  <Input
+                    id="firstName" type="text" placeholder="John"
+                    value={firstName} onChange={(e) => { setFirstName(e.target.value); clearFieldError('firstName'); }}
+                    className={`pl-10 ${fieldBase}`} style={fs('firstName')}
+                  />
+                </div>
+                {fieldErrors.firstName && <p className="text-[11px] text-red-500">{fieldErrors.firstName}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <label className={labelClass} style={labelStyle}>Last Name</label>
                 <Input
-                  id="name" type="text" placeholder="John Doe"
-                  value={name} onChange={(e) => setName(e.target.value)} required
-                  className={`pl-10 ${fieldClass}`} style={fieldStyle}
+                  id="lastName" type="text" placeholder="Doe"
+                  value={lastName} onChange={(e) => { setLastName(e.target.value); clearFieldError('lastName'); }}
+                  className={`px-3 ${fieldBase}`} style={fs('lastName')}
                 />
+                {fieldErrors.lastName && <p className="text-[11px] text-red-500">{fieldErrors.lastName}</p>}
               </div>
             </div>
 
-            {/* Email */}
+            {/* College Email */}
             <div className="space-y-1.5">
-              <label className={labelClass} style={labelStyle}>Email</label>
+              <label className={labelClass} style={labelStyle}>College Email</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
                 <Input
-                  id="email" type="email" placeholder="you@university.edu"
-                  value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
-                  className={`pl-10 ${fieldClass}`} style={fieldStyle}
+                  id="email" type="text" placeholder="you@university.edu"
+                  value={email} onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); }}
+                  autoComplete="email"
+                  className={`pl-10 ${fieldBase}`} style={fs('email')}
                 />
               </div>
-            </div>
-
-            {/* Role */}
-            <div className="space-y-1.5">
-              <label className={labelClass} style={labelStyle}>Role</label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger
-                  className="h-11 rounded-xl text-sm border text-slate-800"
-                  style={fieldStyle}
-                >
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent
-                  style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,110,178,0.15)', color: '#0C1A2E' }}
-                >
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Institution Code */}
-            <div className="space-y-1.5">
-              <label className={labelClass} style={labelStyle}>Institution Code</label>
-              <div className="relative">
-                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
-                <Input
-                  id="institutionId" type="text" placeholder="Leave blank for default"
-                  value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}
-                  className={`pl-10 ${fieldClass}`} style={fieldStyle}
-                />
-              </div>
-              <p className="text-[11px]" style={{ color: 'rgba(12,26,46,0.38)' }}>Leave blank to use the default institution</p>
+              {fieldErrors.email && <p className="text-[11px] text-red-500">{fieldErrors.email}</p>}
             </div>
 
             {/* Password */}
@@ -187,8 +192,9 @@ export default function RegisterPage() {
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
                 <Input
                   id="password" type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters"
-                  value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password"
-                  className={`pl-10 pr-10 ${fieldClass}`} style={fieldStyle}
+                  value={password} onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); }}
+                  autoComplete="new-password"
+                  className={`pl-10 pr-10 ${fieldBase}`} style={fs('password')}
                 />
                 <button type="button" onClick={() => setShowPassword(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors hover:text-[#006EB2]"
@@ -198,17 +204,19 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {fieldErrors.password && <p className="text-[11px] text-red-500">{fieldErrors.password}</p>}
             </div>
 
-            {/* Confirm Password */}
+            {/* Re-enter Password */}
             <div className="space-y-1.5">
               <label className={labelClass} style={labelStyle}>Confirm Password</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'rgba(0,110,178,0.55)' }} />
                 <Input
-                  id="confirmPassword" type={showConfirm ? 'text' : 'password'} placeholder="Confirm your password"
-                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password"
-                  className={`pl-10 pr-10 ${fieldClass}`} style={fieldStyle}
+                  id="confirmPassword" type={showConfirm ? 'text' : 'password'} placeholder="Re-enter your password"
+                  value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError('confirmPassword'); }}
+                  autoComplete="new-password"
+                  className={`pl-10 pr-10 ${fieldBase}`} style={fs('confirmPassword')}
                 />
                 <button type="button" onClick={() => setShowConfirm(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded transition-colors hover:text-[#006EB2]"
@@ -218,6 +226,7 @@ export default function RegisterPage() {
                   {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {fieldErrors.confirmPassword && <p className="text-[11px] text-red-500">{fieldErrors.confirmPassword}</p>}
             </div>
 
             {/* Submit */}

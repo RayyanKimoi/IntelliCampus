@@ -26,11 +26,12 @@ import {
   Sparkles,
   Loader2,
   ArrowLeft,
+  TrendingUp,
 } from 'lucide-react';
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Topic {
   id: string;
@@ -57,7 +58,7 @@ interface AnswerRecord {
   topicName: string;
 }
 
-type View = 'select' | 'quiz' | 'results' | 'adaptive';
+type View = 'select' | 'quiz' | 'results';
 type PracticeMode = 'curriculum' | 'adaptive';
 
 const OPTIONS: { key: string; label: string }[] = [
@@ -67,59 +68,72 @@ const OPTIONS: { key: string; label: string }[] = [
   { key: 'D', label: 'optionD' },
 ];
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helpers
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-function getMasteryColor(pct: number) {
-  if (pct >= 80) return 'text-success';
-  if (pct >= 60) return 'text-warning';
-  return 'text-danger';
+function getScoreColor(pct: number) {
+  if (pct >= 80) return '#10b981';
+  if (pct >= 60) return '#f59e0b';
+  return '#ef4444';
 }
 
-function getMasteryBg(pct: number) {
-  if (pct >= 80) return 'bg-success/10 border-success/30';
-  if (pct >= 60) return 'bg-warning/10 border-warning/30';
-  return 'bg-danger/10 border-danger/30';
+function getScoreLabel(pct: number) {
+  if (pct === 100) return { emoji: '🏆', msg: 'Perfect score! Absolutely outstanding!' };
+  if (pct >= 80)  return { emoji: '🌟', msg: "Great work! You're mastering this topic." };
+  if (pct >= 60)  return { emoji: '📚', msg: "Good effort! A bit more practice and you'll nail it." };
+  return { emoji: '💡', msg: 'Keep going — the adaptive quiz below will help close your gaps.' };
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // AnimatedScore
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AnimatedScore({ value, max }: { value: number; max: number }) {
   const [displayed, setDisplayed] = useState(0);
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+
   useEffect(() => {
-    let start = 0;
-    const step = () => {
-      start += 2;
-      setDisplayed(Math.min(start, pct));
-      if (start < pct) requestAnimationFrame(step);
+    const duration = 900;
+    const startTime = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayed(Math.round(eased * pct));
+      if (progress < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }, [pct]);
+
+  const color = getScoreColor(displayed);
+
   return (
     <div className="flex flex-col items-center">
-      <span
-        className={cn(
-          'font-mono text-7xl font-black tabular-nums',
-          getMasteryColor(displayed)
-        )}
+      <div
+        className="relative flex items-center justify-center w-36 h-36 rounded-full"
+        style={{
+          background: `conic-gradient(${color} ${displayed * 3.6}deg, rgba(0,0,0,0.06) 0deg)`,
+          boxShadow: `0 0 32px ${color}33`,
+        }}
       >
-        {displayed}
-        <span className="text-3xl text-muted-foreground">%</span>
-      </span>
-      <span className="mt-1 text-sm text-muted-foreground">
+        <div className="absolute inset-2 rounded-full bg-white dark:bg-card flex flex-col items-center justify-center">
+          <span className="font-black text-4xl tabular-nums leading-none" style={{ color }}>
+            {displayed}
+            <span className="text-xl" style={{ color: 'hsl(var(--muted-foreground))' }}>%</span>
+          </span>
+        </div>
+      </div>
+      <span className="mt-3 text-sm text-muted-foreground font-medium">
         {value} / {max} correct
       </span>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // HintPanel
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function HintPanel({ question, topicId }: { question: Question; topicId: string }) {
   const [hint, setHint] = useState<string | null>(null);
@@ -136,10 +150,10 @@ function HintPanel({ question, topicId }: { question: Question; topicId: string 
         mode: 'practice',
       });
       const d = (res as any)?.data || res;
-      setHint((d as any)?.reply || (d as any)?.answer || "Think about the core concept behind this question.");
+      setHint((d as any)?.reply || (d as any)?.answer || 'Think about the core concept behind this question.');
       setVisible(true);
     } catch {
-      setHint("Think about the core concept behind this question.");
+      setHint('Think about the core concept behind this question.');
       setVisible(true);
     } finally {
       setLoading(false);
@@ -147,28 +161,26 @@ function HintPanel({ question, topicId }: { question: Question; topicId: string 
   };
 
   return (
-    <div className="mt-4">
+    <div className="mt-5">
       {!visible ? (
-        <Button
-          variant="outline"
-          size="sm"
+        <button
           onClick={fetchHint}
           disabled={loading}
-          className="w-full border-dashed border-amber-400/50 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-all hover:-translate-y-0.5 active:translate-y-0"
+          style={{ borderColor: 'rgba(245,158,11,0.35)', color: '#b45309', backgroundColor: 'rgba(245,158,11,0.05)' }}
         >
-          {loading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Lightbulb className="mr-2 h-4 w-4" />
-          )}
-          Get AI Hint
-        </Button>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+          {loading ? 'Asking AI…' : 'Get AI Hint'}
+        </button>
       ) : (
-        <div className="rounded-xl border border-amber-300/50 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-800/50 px-4 py-3 flex gap-3 animate-fade-in">
-          <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+        <div
+          className="rounded-xl border px-4 py-3.5 flex gap-3"
+          style={{ backgroundColor: 'rgba(245,158,11,0.07)', borderColor: 'rgba(245,158,11,0.3)', animation: 'practiceSlideDown 0.3s ease-out' }}
+        >
+          <Lightbulb className="h-5 w-5 shrink-0 mt-0.5" style={{ color: '#d97706' }} />
           <div>
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">AI Hint</p>
-            <p className="text-sm text-foreground/80">{hint}</p>
+            <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: '#d97706' }}>AI Hint</p>
+            <p className="text-sm text-foreground/80 leading-relaxed">{hint}</p>
           </div>
         </div>
       )}
@@ -176,9 +188,58 @@ function HintPanel({ question, topicId }: { question: Question; topicId: string 
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Main Page
-// ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AnimatedGenerateButton
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface AnimatedGenerateButtonProps {
+  labelIdle: string;
+  labelActive: string;
+  generating: boolean;
+  highlightHueDeg?: number;
+  disabled?: boolean;
+  onClick?: () => void;
+  className?: string;
+}
+
+function AnimatedGenerateButton({
+  labelIdle,
+  labelActive,
+  generating,
+  highlightHueDeg = 210,
+  disabled = false,
+  onClick,
+  className,
+}: AnimatedGenerateButtonProps) {
+  const hue = highlightHueDeg;
+  return (
+    <div className={className}>
+      <button
+        onClick={onClick}
+        disabled={disabled || generating}
+        className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+        style={{
+          background: generating
+            ? `hsl(${hue}, 70%, 35%)`
+            : `linear-gradient(135deg, hsl(${hue}, 80%, 30%), hsl(${hue}, 70%, 44%))`,
+          boxShadow: generating ? 'none' : `0 4px 18px hsl(${hue} 70% 35% / 0.35)`,
+        }}
+      >
+        {generating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4" />
+        )}
+        {generating ? labelActive : labelIdle}
+      </button>
+    </div>
+  );
+}
 
 export default function PracticePage() {
   const [view, setView] = useState<View>('select');
@@ -198,9 +259,13 @@ export default function PracticePage() {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [xpEarned, setXpEarned] = useState(0);
   const [isAdaptive, setIsAdaptive] = useState(false);
+  const [answerAnim, setAnswerAnim] = useState<'correct' | 'wrong' | null>(null);
 
   // Results
   const [weakTopics, setWeakTopics] = useState<{ topicId: string; topicName: string; wrong: number }[]>([]);
+
+  // Completed topics (per session)
+  const [completedTopics, setCompletedTopics] = useState<Set<string>>(new Set());
 
   // Load topics on mount
   useEffect(() => {
@@ -308,6 +373,7 @@ export default function PracticePage() {
       setChosen(null);
       setRevealed(false);
       setXpEarned(0);
+      setAnswerAnim(null);
       setView('quiz');
     } catch {
       // API failed — use mock questions so the quiz still works
@@ -317,6 +383,7 @@ export default function PracticePage() {
       setChosen(null);
       setRevealed(false);
       setXpEarned(0);
+      setAnswerAnim(null);
       setView('quiz');
     } finally {
       setLoadingQuiz(false);
@@ -346,10 +413,11 @@ export default function PracticePage() {
     } catch {
       // Check locally against mock questions
       const mockQ = MOCK_QUIZ_QUESTIONS.find(mq => mq.id === q.id);
-      correct = mockQ ? mockQ.correctOption === chosen : false;
+      correct = mockQ ? (mockQ as any).correctOption === chosen : false;
       if (correct) setXpEarned(x => x + 15);
     }
 
+    setAnswerAnim(correct ? 'correct' : 'wrong');
     setAnswers((prev) => [
       ...prev,
       {
@@ -368,13 +436,13 @@ export default function PracticePage() {
       setCurrentIdx((i) => i + 1);
       setChosen(null);
       setRevealed(false);
+      setAnswerAnim(null);
     } else {
       finishQuiz();
     }
   };
 
   const finishQuiz = () => {
-    // Compute weak topics from wrong answers
     const wrongMap: Record<string, { topicId: string; topicName: string; wrong: number }> = {};
     for (const a of answers) {
       if (!a.correct) {
@@ -382,33 +450,83 @@ export default function PracticePage() {
         wrongMap[a.topicId].wrong += 1;
       }
     }
-    // Add current question if not confirmed yet
     setWeakTopics(Object.values(wrongMap).sort((a, b) => b.wrong - a.wrong));
+    if (selectedTopic) setCompletedTopics(prev => new Set([...prev, selectedTopic.id]));
     setView('results');
   };
 
   const correctCount = answers.filter((a) => a.correct).length;
   const pct = answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0;
+  const adaptiveTopicList = weakTopicsAdaptive.length > 0 ? weakTopicsAdaptive : topics.slice(0, 6);
 
-  // ─── VIEW: SELECT ──────────────────────────────────────────────
+  const globalStyles = (
+    <style jsx global>{`
+      @keyframes practiceSlideUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes practiceSlideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes practicePopIn {
+        0%   { opacity: 0; transform: scale(0.92); }
+        60%  { transform: scale(1.03); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes practiceShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-6px); }
+        40% { transform: translateX(6px); }
+        60% { transform: translateX(-4px); }
+        80% { transform: translateX(4px); }
+      }
+      @keyframes practicePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+      }
+      @keyframes practiceStagger {
+        from { opacity: 0; transform: translateX(-10px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      .practice-slide-up   { animation: practiceSlideUp   0.3s ease-out both; }
+      .practice-pop-in     { animation: practicePopIn     0.35s ease-out both; }
+      .practice-shake      { animation: practiceShake     0.4s ease-out; }
+      .practice-stagger    { animation: practiceStagger   0.3s ease-out both; }
+      .practice-card       { background-color: hsl(var(--card)); }
+      .dark .practice-card { background-color: rgba(0, 110, 178, 0.13) !important; border-color: rgba(0, 110, 178, 0.28) !important; }
+      .dark .practice-card-hi { background-color: rgba(0, 110, 178, 0.22) !important; border-color: rgba(0, 110, 178, 0.45) !important; }
+    `}</style>
+  );
+
+  // â”€â”€â”€ VIEW: SELECT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (view === 'select') {
-    const adaptiveTopicList = weakTopicsAdaptive.length > 0 ? weakTopicsAdaptive : topics.slice(0, 6);
-
     return (
       <DashboardLayout requiredRole="student">
-        <div className="space-y-6 max-w-3xl mx-auto">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Target className="h-6 w-6 text-primary" />
-              Practice Tests
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Fear-free practice with AI hints. No pressure — just learning.
-            </p>
+        {globalStyles}
+        <div className="space-y-7 max-w-3xl mx-auto">
+
+          {/* Page Header */}
+          <div className="practice-slide-up" style={{ animationDelay: '0ms' }}>
+            <div className="flex items-center gap-3 mb-1">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, #002F4C, #006EB2)', boxShadow: '0 4px 16px rgba(0,110,178,0.3)' }}
+              >
+                <Target className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Practice Tests</h1>
+                <p className="text-sm text-muted-foreground">Fear-free practice with AI hints — no pressure, just learning.</p>
+              </div>
+            </div>
           </div>
 
-          {/* Mode toggle */}
-          <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1 w-fit">
+          {/* Mode Toggle */}
+          <div
+            className="practice-slide-up rounded-2xl border p-1.5 flex gap-1 w-fit"
+            style={{ animationDelay: '60ms', backgroundColor: 'rgba(0,47,76,0.04)', borderColor: 'rgba(0,110,178,0.15)' }}
+          >
             {([
               { id: 'curriculum', label: 'Curriculum Quiz', icon: BookOpen },
               { id: 'adaptive', label: 'Adaptive Quiz', icon: Brain },
@@ -416,12 +534,12 @@ export default function PracticePage() {
               <button
                 key={id}
                 onClick={() => setPracticeMode(id)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+                style={
                   practiceMode === id
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
+                    ? { background: 'linear-gradient(135deg, #002F4C, #006EB2)', color: '#fff', boxShadow: '0 2px 12px rgba(0,110,178,0.35)' }
+                    : { color: 'hsl(var(--muted-foreground))', backgroundColor: 'transparent' }
+                }
               >
                 <Icon className="h-4 w-4" />
                 {label}
@@ -429,413 +547,490 @@ export default function PracticePage() {
             ))}
           </div>
 
-          {/* Info banner */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 flex gap-3">
-            <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          {/* Info Banner */}
+          <div
+            className="practice-slide-up rounded-2xl border px-5 py-4 flex gap-3.5"
+            style={{ animationDelay: '120ms', backgroundColor: 'rgba(0,110,178,0.05)', borderColor: 'rgba(0,110,178,0.18)', boxShadow: '0 2px 16px rgba(0,110,178,0.06)' }}
+          >
+            <Sparkles className="h-5 w-5 shrink-0 mt-0.5" style={{ color: '#006EB2' }} />
             <div className="text-sm">
               {practiceMode === 'curriculum' ? (
                 <>
-                  <p className="font-semibold text-primary">Curriculum Quiz</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    Pick any topic from your curriculum and practice at your own pace. AI hints available anytime.
-                  </p>
+                  <p className="font-bold" style={{ color: '#006EB2' }}>Curriculum Quiz</p>
+                  <p className="text-muted-foreground mt-0.5 leading-relaxed">Pick any topic from your curriculum and practice at your own pace. AI hints available anytime.</p>
                 </>
               ) : (
                 <>
-                  <p className="font-semibold text-primary">Adaptive Quiz</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    AI-selected topics based on your weakest areas. Targeted practice to close your knowledge gaps fastest.
-                  </p>
+                  <p className="font-bold" style={{ color: '#006EB2' }}>Adaptive Quiz</p>
+                  <p className="text-muted-foreground mt-0.5 leading-relaxed">AI-selected topics based on your weakest areas. Targeted practice to close your knowledge gaps fastest.</p>
                 </>
               )}
             </div>
           </div>
 
+          {/* Topic Grid */}
           {practiceMode === 'curriculum' ? (
-            <Panel title="Choose a Topic">
-              {loadingTopics ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
-                  ))}
-                </div>
-              ) : topics.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Brain className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No topics available yet. Enroll in a course first.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.id}
-                      onClick={() => startQuiz(topic)}
-                      disabled={loadingQuiz}
-                      className="group relative flex flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left
-                                 transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      <div className="flex items-center justify-between">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <p className="text-sm font-semibold mt-1">{topic.name}</p>
-                      {(topic.subjectName || topic.courseName) && (
-                        <p className="text-xs text-muted-foreground">
-                          {topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}
-                        </p>
-                      )}
-                      {loadingQuiz && selectedTopic?.id === topic.id && (
-                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/80">
-                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Panel>
-          ) : (
-            <Panel title="Adaptive Topics — Your Weakest Areas">
-              {loadingAdaptive ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
-                  ))}
-                </div>
-              ) : adaptiveTopicList.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-400" />
-                  <p className="text-sm font-medium">No weak topics detected!</p>
-                  <p className="text-xs mt-1">Switch to Curriculum Quiz to practice any topic.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {weakTopicsAdaptive.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic">
-                      No mastery data yet — showing curriculum topics. Practice more to unlock adaptive recommendations.
-                    </p>
-                  )}
+            <div
+              className="practice-slide-up rounded-2xl border overflow-hidden"
+              style={{ animationDelay: '180ms', borderColor: 'rgba(0,110,178,0.13)', boxShadow: '0 4px 24px rgba(0,110,178,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
+            >
+              <div
+                className="px-5 py-4 border-b flex items-center gap-2"
+                style={{ borderColor: 'rgba(0,110,178,0.1)', backgroundColor: 'rgba(0,47,76,0.02)' }}
+              >
+                <BookOpen className="h-4 w-4" style={{ color: '#006EB2' }} />
+                <h2 className="font-bold text-sm tracking-wide text-foreground">Choose a Topic</h2>
+              </div>
+              <div className="p-5">
+                {loadingTopics ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {adaptiveTopicList.map((topic, idx) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => startQuiz(topic, true)}
-                        disabled={loadingQuiz}
-                        className="group relative flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left
-                                   transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                          {idx + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold">{topic.name}</p>
-                          {(topic.subjectName || topic.courseName) && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}
-                            </p>
-                          )}
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
-                        {loadingQuiz && selectedTopic?.id === topic.id && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-card/80">
-                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                          </div>
-                        )}
-                      </button>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="h-[72px] rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(0,110,178,0.06)' }} />
                     ))}
                   </div>
-                  <Button
-                    className="w-full"
-                    onClick={() => startQuiz(adaptiveTopicList[0], true)}
-                    disabled={loadingQuiz}
-                  >
-                    {loadingQuiz ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Start Adaptive Quiz on &ldquo;{adaptiveTopicList[0]?.name}&rdquo;
-                  </Button>
-                </div>
-              )}
-            </Panel>
+                ) : topics.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm font-medium">No topics yet. Enroll in a course first.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {topics.map((topic, i) => {
+                      const done = completedTopics.has(topic.id);
+                      return (
+                        <button
+                          key={topic.id}
+                          onClick={() => startQuiz(topic)}
+                          disabled={loadingQuiz}
+                          className={`group relative flex flex-col gap-1 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 practice-card${done ? ' practice-card-hi' : ''}`}
+                          style={{ borderColor: done ? 'rgba(16,185,129,0.35)' : 'rgba(0,110,178,0.15)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.6)' : 'rgba(0,110,178,0.5)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px rgba(0,110,178,0.12)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.35)' : 'rgba(0,110,178,0.15)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: done ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, rgba(0,47,76,0.08), rgba(0,110,178,0.12))' }}>
+                              {done
+                                ? <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#10b981' }} />
+                                : <BookOpen className="h-3.5 w-3.5" style={{ color: '#006EB2' }} />}
+                            </div>
+                            {done
+                              ? <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} />
+                              : <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: '#006EB2' }} />}
+                          </div>
+                          <p className="text-sm font-semibold mt-1.5 text-foreground">{topic.name}</p>
+                          {(topic.subjectName || topic.courseName) && (
+                            <p className="text-xs text-muted-foreground">{topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}</p>
+                          )}
+                          {done && <p className="text-[10px] font-bold mt-0.5" style={{ color: '#10b981' }}>Completed ✓</p>}
+                          {loadingQuiz && selectedTopic?.id === topic.id && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-xl" style={{ backgroundColor: 'hsl(var(--card) / 0.85)' }}>
+                              <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#006EB2' }} />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // â”€â”€ ADAPTIVE MODE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            <div
+              className="practice-slide-up rounded-2xl border overflow-hidden"
+              style={{ animationDelay: '180ms', borderColor: 'rgba(0,110,178,0.2)', boxShadow: '0 4px 24px rgba(0,110,178,0.1), 0 1px 3px rgba(0,0,0,0.05)' }}
+            >
+              <div
+                className="px-5 py-4 border-b flex items-center gap-2"
+                style={{ borderColor: 'rgba(0,110,178,0.15)', background: 'linear-gradient(135deg, rgba(0,47,76,0.06), rgba(0,110,178,0.08))' }}
+              >
+                <Brain className="h-4 w-4" style={{ color: '#006EB2' }} />
+                <h2 className="font-bold text-sm tracking-wide text-foreground">Adaptive Topics — Your Weakest Areas</h2>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,110,178,0.12)', color: '#006EB2' }}>
+                  AI Powered
+                </span>
+              </div>
+              <div className="p-5">
+                {loadingAdaptive ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(0,110,178,0.06)' }} />
+                    ))}
+                  </div>
+                ) : adaptiveTopicList.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <CheckCircle2 className="h-10 w-10 mx-auto mb-3" style={{ color: '#10b981' }} />
+                    <p className="text-sm font-semibold">No weak topics detected — great work!</p>
+                    <p className="text-xs mt-1">Switch to Curriculum Quiz to keep practicing.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {weakTopicsAdaptive.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic px-1">No mastery data yet — showing curriculum topics. Practice more to unlock adaptive recommendations.</p>
+                    )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {adaptiveTopicList.map((topic, idx) => {
+                        const done = completedTopics.has(topic.id);
+                        return (
+                          <button
+                            key={topic.id}
+                            onClick={() => startQuiz(topic, true)}
+                            disabled={loadingQuiz}
+                            className={`group relative flex items-start gap-3 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 practice-card${idx === 0 || done ? ' practice-card-hi' : ''}`}
+                            style={{
+                              borderColor: done ? 'rgba(16,185,129,0.4)' : idx === 0 ? 'rgba(0,110,178,0.3)' : 'rgba(0,110,178,0.12)',
+                              boxShadow: idx === 0 ? '0 2px 12px rgba(0,110,178,0.1)' : '0 1px 4px rgba(0,0,0,0.03)',
+                            }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.65)' : 'rgba(0,110,178,0.5)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px rgba(0,110,178,0.15)'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.4)' : idx === 0 ? 'rgba(0,110,178,0.3)' : 'rgba(0,110,178,0.12)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = idx === 0 ? '0 2px 12px rgba(0,110,178,0.1)' : '0 1px 4px rgba(0,0,0,0.03)'; }}
+                          >
+                            <div
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black"
+                              style={done
+                                ? { background: 'rgba(16,185,129,0.15)', color: '#10b981' }
+                                : { background: idx === 0 ? 'linear-gradient(135deg, #002F4C, #006EB2)' : 'rgba(0,110,178,0.1)', color: idx === 0 ? '#fff' : '#006EB2' }}
+                            >
+                              {done ? <CheckCircle2 className="h-4 w-4" /> : idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground">{topic.name}</p>
+                              {(topic.subjectName || topic.courseName) && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}</p>
+                              )}
+                              {done && <p className="text-[10px] font-bold mt-1" style={{ color: '#10b981' }}>Completed ✓</p>}
+                            </div>
+                            {done
+                              ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                              : <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" style={{ color: '#006EB2' }} />}
+                            {loadingQuiz && selectedTopic?.id === topic.id && (
+                              <div className="absolute inset-0 flex items-center justify-center rounded-xl" style={{ backgroundColor: 'hsl(var(--card) / 0.85)' }}>
+                                <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#006EB2' }} />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* â”€â”€ Animated Generate Button CTA â”€â”€ */}
+                    <div className="pt-1">
+                      <p className="text-xs text-muted-foreground mb-3 text-center">
+                        Start a focused adaptive session on your top weak area:
+                        <strong className="ml-1 text-foreground">{adaptiveTopicList[0]?.name}</strong>
+                      </p>
+                      <div className="flex justify-center">
+                        <AnimatedGenerateButton
+                          labelIdle="Start Adaptive Quiz"
+                          labelActive="Loading Quiz…"
+                          generating={loadingQuiz}
+                          highlightHueDeg={210}
+                          disabled={loadingQuiz}
+                          onClick={() => startQuiz(adaptiveTopicList[0], true)}
+                          className="w-full max-w-sm [&>button]:w-full [&>button]:justify-center"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </DashboardLayout>
     );
   }
 
-  // ─── VIEW: QUIZ ────────────────────────────────────────────────
+  // â”€â”€â”€ VIEW: QUIZ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (view === 'quiz') {
     const q = questions[currentIdx];
     if (!q) return null;
-    const progress = questions.length > 0 ? ((currentIdx) / questions.length) * 100 : 0;
+    const progress = questions.length > 0 ? (currentIdx / questions.length) * 100 : 0;
+    const lastAnswer = revealed ? answers[answers.length - 1] ?? null : null;
 
     return (
       <DashboardLayout requiredRole="student">
+        {globalStyles}
         <div className="max-w-2xl mx-auto space-y-5">
-          {/* Header */}
-          <div className="flex items-center justify-between">
+
+          {/* Top bar */}
+          <div className="practice-slide-up flex items-center justify-between" style={{ animationDelay: '0ms' }}>
             <button
               onClick={() => setView('select')}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-sm font-medium transition-colors px-3 py-1.5 rounded-lg text-muted-foreground"
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(0,110,178,0.07)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {isAdaptive && (
-                <Badge className="bg-primary/10 text-primary border-primary/30 text-xs">
-                  <Brain className="mr-1 h-3 w-3" /> Adaptive
-                </Badge>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: 'linear-gradient(135deg, rgba(0,47,76,0.1), rgba(0,110,178,0.15))', color: '#006EB2', border: '1px solid rgba(0,110,178,0.2)' }}>
+                  <Brain className="h-3 w-3" /> Adaptive
+                </span>
               )}
-              <span className="text-xs text-muted-foreground font-mono">
-                {currentIdx + 1} / {questions.length}
-              </span>
+              <span className="text-xs font-mono text-muted-foreground font-semibold">{currentIdx + 1} / {questions.length}</span>
               {xpEarned > 0 && (
-                <Badge variant="secondary" className="font-mono text-xs">
-                  <Zap className="mr-1 h-3 w-3 text-yellow-500" />+{xpEarned} XP
-                </Badge>
+                <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full practice-pop-in"
+                  style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706', border: '1px solid rgba(245,158,11,0.25)' }}>
+                  <Zap className="h-3 w-3" />+{xpEarned} XP
+                </span>
               )}
             </div>
           </div>
 
-          {/* Progress bar */}
-          <Progress value={progress} className="h-1.5" />
+          {/* Progress track */}
+          <div className="practice-slide-up h-1.5 rounded-full overflow-hidden" style={{ animationDelay: '40ms', backgroundColor: 'rgba(0,110,178,0.1)' }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: 'linear-gradient(90deg, #002F4C, #006EB2)' }} />
+          </div>
 
           {/* Topic label */}
           {selectedTopic && (
-            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+            <p className="practice-slide-up text-xs font-bold uppercase tracking-widest text-muted-foreground" style={{ animationDelay: '60ms' }}>
               {selectedTopic.name}
             </p>
           )}
 
-          {/* Question card */}
+          {/* Question Card */}
           <div
-            key={q.id}
-            className="rounded-2xl border border-border bg-card p-6 shadow-sm"
-            style={{ animation: 'slideInUp 0.25s ease-out' }}
+            key={`q-${currentIdx}`}
+            className="practice-pop-in rounded-2xl border p-7"
+            style={{
+              backgroundColor: 'hsl(var(--card))',
+              borderColor: 'rgba(0,110,178,0.13)',
+              boxShadow: '0 4px 32px rgba(0,110,178,0.08), 0 1px 4px rgba(0,0,0,0.05)',
+              ...(answerAnim === 'correct' ? { animation: 'practicePopIn 0.4s ease-out' } : {}),
+              ...(answerAnim === 'wrong'   ? { animation: 'practiceShake 0.4s ease-out' } : {}),
+            }}
           >
-            <p className="text-base font-medium leading-relaxed">{q.questionText}</p>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                style={{ background: 'linear-gradient(135deg, #002F4C, #006EB2)', color: '#fff' }}>
+                Q{currentIdx + 1}
+              </span>
+            </div>
 
-            <div className="mt-5 space-y-2.5">
-              {OPTIONS.map(({ key, label }) => {
+            <p className="text-base font-semibold leading-relaxed text-foreground mb-6">{q.questionText}</p>
+
+            {/* Options */}
+            <div className="space-y-3">
+              {OPTIONS.map(({ key, label }, optIdx) => {
                 const optionText = (q as any)[label] as string;
                 if (!optionText) return null;
-
                 const isSelected = chosen === key;
-                const isCorrectReveal = revealed && isSelected && answers[answers.length]?.correct;
-                // We can't know correct answer from API (it's not returned), so we just highlight selected
-                // and show whether it was correct after submit
-                const lastAnswer = revealed ? answers[answers.length - 1] ?? null : null;
-                const isWrong = revealed && isSelected && lastAnswer && !lastAnswer.correct;
+                const isCorrectResult = revealed && isSelected && !!lastAnswer?.correct;
+                const isWrongResult   = revealed && isSelected && !lastAnswer?.correct;
+                const isDimmed        = revealed && !isSelected;
 
                 return (
                   <button
                     key={key}
                     onClick={() => handleSelect(key)}
                     disabled={revealed}
-                    className={cn(
-                      'w-full flex items-center gap-3 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition-all',
-                      !revealed && !isSelected && 'border-border bg-card hover:border-primary/50 hover:bg-primary/5',
-                      !revealed && isSelected && 'border-primary bg-primary/10 text-primary',
-                      revealed && isSelected && lastAnswer?.correct && 'border-success bg-success/10 text-success',
-                      revealed && isSelected && !lastAnswer?.correct && 'border-danger bg-danger/10 text-danger',
-                      revealed && !isSelected && 'border-border bg-muted/30 opacity-50',
-                    )}
-                    style={isSelected ? { transition: 'all 0.15s ease' } : {}}
+                    className="w-full flex items-center gap-3.5 rounded-xl border px-5 py-3.5 text-left text-sm font-medium transition-all duration-200 practice-stagger"
+                    style={{
+                      animationDelay: `${optIdx * 50}ms`,
+                      ...(isDimmed
+                        ? { borderColor: 'rgba(0,0,0,0.08)', backgroundColor: 'rgba(0,0,0,0.02)', opacity: 0.45 }
+                        : isCorrectResult
+                        ? { borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', boxShadow: '0 0 0 3px rgba(16,185,129,0.15)', animationName: 'practicePulse', animationDuration: '0.5s', animationTimingFunction: 'ease-out' }
+                        : isWrongResult
+                        ? { borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.07)', boxShadow: '0 0 0 3px rgba(239,68,68,0.12)' }
+                        : isSelected
+                        ? { borderColor: '#006EB2', backgroundColor: 'rgba(0,110,178,0.07)', boxShadow: '0 0 0 3px rgba(0,110,178,0.1)' }
+                        : { borderColor: 'rgba(0,110,178,0.12)', backgroundColor: 'hsl(var(--card))' }),
+                    }}
+                    onMouseEnter={e => { if (!revealed && !isSelected) { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,110,178,0.4)'; (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,110,178,0.04)'; } }}
+                    onMouseLeave={e => { if (!revealed && !isSelected) { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,110,178,0.12)'; (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'hsl(var(--card))'; } }}
                   >
                     <span
-                      className={cn(
-                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold',
-                        !isSelected && 'border-border text-muted-foreground',
-                        isSelected && !revealed && 'border-primary text-primary',
-                        revealed && isSelected && lastAnswer?.correct && 'border-success bg-success text-white',
-                        revealed && isSelected && !lastAnswer?.correct && 'border-danger bg-danger text-white',
-                      )}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black transition-all duration-200"
+                      style={
+                        isCorrectResult ? { background: '#10b981', color: '#fff' }
+                        : isWrongResult  ? { background: '#ef4444', color: '#fff' }
+                        : isSelected     ? { background: 'linear-gradient(135deg, #002F4C, #006EB2)', color: '#fff' }
+                        : { backgroundColor: 'rgba(0,110,178,0.08)', color: '#006EB2' }
+                      }
                     >
                       {key}
                     </span>
-                    <span className="flex-1">{optionText}</span>
-                    {revealed && isSelected && lastAnswer?.correct && (
-                      <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                    )}
-                    {revealed && isSelected && !lastAnswer?.correct && (
-                      <XCircle className="h-5 w-5 text-danger shrink-0" />
-                    )}
+                    <span className="flex-1 leading-snug">{optionText}</span>
+                    {isCorrectResult && <CheckCircle2 className="h-5 w-5 shrink-0 practice-pop-in" style={{ color: '#10b981' }} />}
+                    {isWrongResult   && <XCircle      className="h-5 w-5 shrink-0 practice-pop-in" style={{ color: '#ef4444' }} />}
                   </button>
                 );
               })}
             </div>
 
-            {/* AI Hint */}
+            {/* Hint */}
             {selectedTopic && <HintPanel question={q} topicId={selectedTopic.id} />}
 
-            {/* Action buttons */}
-            <div className="mt-5 flex justify-end gap-3">
+            {/* Result feedback */}
+            {revealed && lastAnswer && (
+              <div
+                className="mt-5 rounded-xl border px-4 py-3 flex items-center gap-3 practice-slide-up"
+                style={lastAnswer.correct
+                  ? { backgroundColor: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.3)' }
+                  : { backgroundColor: 'rgba(239,68,68,0.07)', borderColor: 'rgba(239,68,68,0.25)' }}
+              >
+                {lastAnswer.correct
+                  ? <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: '#10b981' }} />
+                  : <XCircle      className="h-5 w-5 shrink-0" style={{ color: '#ef4444' }} />}
+                <p className="text-sm font-semibold" style={{ color: lastAnswer.correct ? '#059669' : '#dc2626' }}>
+                  {lastAnswer.correct ? 'Correct! Well done.' : 'Wrong answer. Review and keep going!'}
+                </p>
+              </div>
+            )}
+
+            {/* Action */}
+            <div className="mt-6 flex justify-end">
               {!revealed ? (
-                <Button onClick={handleConfirm} disabled={!chosen} className="px-6">
-                  Confirm Answer
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={!chosen}
+                  className="flex items-center gap-2 px-7 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+                  style={{
+                    background: chosen ? 'linear-gradient(135deg, #002F4C, #006EB2)' : 'rgba(0,0,0,0.15)',
+                    boxShadow: chosen ? '0 4px 16px rgba(0,110,178,0.35)' : 'none',
+                  }}
+                >
+                  Confirm Answer <ChevronRight className="h-4 w-4" />
+                </button>
               ) : (
-                <Button onClick={handleNext} className="px-6">
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-2 px-7 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 practice-pop-in"
+                  style={{ background: 'linear-gradient(135deg, #002F4C, #006EB2)', boxShadow: '0 4px 16px rgba(0,110,178,0.35)' }}
+                >
                   {currentIdx + 1 < questions.length ? 'Next Question' : 'See Results'}
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               )}
             </div>
           </div>
         </div>
-        <style jsx global>{`
-          @keyframes slideInUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-          }
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
       </DashboardLayout>
     );
   }
 
-  // ─── VIEW: RESULTS ─────────────────────────────────────────────
+  // â”€â”€â”€ VIEW: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (view === 'results') {
+    const { emoji, msg } = getScoreLabel(pct);
     return (
       <DashboardLayout requiredRole="student">
+        {globalStyles}
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Score hero */}
-          <div
-            className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm"
-            style={{ animation: 'slideInUp 0.3s ease-out' }}
-          >
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+
+          {/* Score Hero */}
+          <div className="practice-pop-in rounded-2xl border p-8 text-center"
+            style={{ backgroundColor: 'hsl(var(--card))', borderColor: 'rgba(0,110,178,0.15)', boxShadow: '0 8px 40px rgba(0,110,178,0.1), 0 2px 8px rgba(0,0,0,0.05)' }}>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-5 text-muted-foreground">
               {isAdaptive ? 'Adaptive Quiz Complete' : 'Practice Complete'}
             </p>
-            <AnimatedScore value={correctCount} max={answers.length} />
-            <div className="mt-4 flex justify-center gap-4 text-sm">
-              <span className="flex items-center gap-1.5 text-success">
-                <CheckCircle2 className="h-4 w-4" /> {correctCount} correct
-              </span>
-              <span className="flex items-center gap-1.5 text-danger">
-                <XCircle className="h-4 w-4" /> {answers.length - correctCount} wrong
-              </span>
-              {xpEarned > 0 && (
-                <span className="flex items-center gap-1.5 text-yellow-500">
-                  <Zap className="h-4 w-4" /> +{xpEarned} XP
-                </span>
-              )}
+            <div className="flex justify-center mb-5">
+              <AnimatedScore value={correctCount} max={answers.length} />
             </div>
-
-            {/* Motivational message */}
-            <p className="mt-5 text-sm text-muted-foreground">
-              {pct === 100
-                ? '🎉 Perfect score! Outstanding!'
-                : pct >= 80
-                ? '🌟 Great work! You\'re doing really well.'
-                : pct >= 60
-                ? '📚 Good effort! A bit more practice and you\'ll nail it.'
-                : '💡 Keep going — the adaptive quiz below will help strengthen your weak spots.'}
-            </p>
+            <div className="flex justify-center gap-5 text-sm mb-5">
+              <span className="flex items-center gap-1.5 font-semibold" style={{ color: '#10b981' }}><CheckCircle2 className="h-4 w-4" /> {correctCount} correct</span>
+              <span className="flex items-center gap-1.5 font-semibold" style={{ color: '#ef4444' }}><XCircle className="h-4 w-4" /> {answers.length - correctCount} wrong</span>
+              {xpEarned > 0 && <span className="flex items-center gap-1.5 font-semibold" style={{ color: '#d97706' }}><Zap className="h-4 w-4" /> +{xpEarned} XP</span>}
+            </div>
+            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ backgroundColor: 'rgba(0,110,178,0.06)', border: '1px solid rgba(0,110,178,0.15)', color: '#334155' }}>
+              <span>{emoji}</span><span>{msg}</span>
+            </div>
           </div>
 
-          {/* Question breakdown */}
-          <Panel title="Question Breakdown">
-            <div className="space-y-3">
+          {/* Breakdown */}
+          <div className="practice-slide-up rounded-2xl border overflow-hidden"
+            style={{ animationDelay: '150ms', borderColor: 'rgba(0,110,178,0.13)', boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
+            <div className="px-5 py-4 border-b flex items-center gap-2"
+              style={{ borderColor: 'rgba(0,110,178,0.1)', backgroundColor: 'rgba(0,47,76,0.02)' }}>
+              <TrendingUp className="h-4 w-4" style={{ color: '#006EB2' }} />
+              <h2 className="font-bold text-sm tracking-wide text-foreground">Question Breakdown</h2>
+            </div>
+            <div className="p-5 space-y-2.5">
               {answers.map((a, idx) => (
-                <div
-                  key={a.questionId}
-                  className={cn(
-                    'flex items-start gap-3 rounded-xl border px-4 py-3',
-                    a.correct ? 'border-success/30 bg-success/5' : 'border-danger/30 bg-danger/5'
-                  )}
-                  style={{ animation: `slideInUp ${0.1 + idx * 0.04}s ease-out` }}
-                >
-                  {a.correct ? (
-                    <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
-                  )}
+                <div key={a.questionId}
+                  className="flex items-start gap-3 rounded-xl border px-4 py-3 practice-stagger"
+                  style={{ animationDelay: `${idx * 40}ms`, borderColor: a.correct ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.2)', backgroundColor: a.correct ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.04)' }}>
+                  {a.correct
+                    ? <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                    : <XCircle      className="h-5 w-5 shrink-0 mt-0.5" style={{ color: '#ef4444' }} />}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium line-clamp-2">{a.questionText}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Your answer: <span className="font-semibold">{a.selected}</span>
-                      {' · '}{a.topicName}
-                    </p>
+                    <p className="text-sm font-medium line-clamp-2 text-foreground">{a.questionText}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Answered: <span className="font-semibold">{a.selected}</span> · {a.topicName}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </Panel>
+          </div>
 
-          {/* Weak topics + Adaptive CTA */}
+          {/* Weak topics adaptive CTA */}
           {weakTopics.length > 0 && (
-            <div
-              className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-4"
-              style={{ animation: 'slideInUp 0.4s ease-out' }}
-            >
+            <div className="practice-slide-up rounded-2xl border p-6 space-y-4"
+              style={{ animationDelay: '250ms', borderColor: 'rgba(0,110,178,0.2)', background: 'linear-gradient(135deg, rgba(0,47,76,0.03), rgba(0,110,178,0.06))', boxShadow: '0 4px 24px rgba(0,110,178,0.08)' }}>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-                <h3 className="font-semibold">Detected Weak Areas</h3>
+                <AlertTriangle className="h-5 w-5" style={{ color: '#f59e0b' }} />
+                <h3 className="font-bold text-foreground">Detected Weak Areas</h3>
               </div>
               <div className="space-y-2">
                 {weakTopics.map((wt) => (
-                  <div key={wt.topicId} className="flex items-center justify-between rounded-lg bg-card border border-border px-4 py-3">
-                    <span className="text-sm font-medium">{wt.topicName}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="destructive" className="text-xs">
-                        {wt.wrong} wrong
-                      </Badge>
-                    </div>
+                  <div key={wt.topicId} className="flex items-center justify-between rounded-xl border px-4 py-3"
+                    style={{ backgroundColor: 'hsl(var(--card))', borderColor: 'rgba(0,110,178,0.12)' }}>
+                    <span className="text-sm font-semibold text-foreground">{wt.topicName}</span>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626' }}>{wt.wrong} wrong</span>
                   </div>
                 ))}
               </div>
-
-              <div className="rounded-xl bg-card border border-border p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Brain className="h-5 w-5 text-primary" />
-                  <p className="font-semibold text-sm">Adaptive Quiz Ready</p>
+              <div className="rounded-xl border p-4" style={{ backgroundColor: 'hsl(var(--card))', borderColor: 'rgba(0,110,178,0.15)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Brain className="h-5 w-5" style={{ color: '#006EB2' }} />
+                  <p className="font-bold text-sm text-foreground">Adaptive Quiz Ready</p>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  We&apos;ve identified your weakest topic: <strong>{weakTopics[0].topicName}</strong>.
-                  Take a focused adaptive quiz to reinforce these concepts.
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                  Weakest topic: <strong className="text-foreground">{weakTopics[0].topicName}</strong>. Take a focused adaptive session to reinforce these concepts.
                 </p>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    const wt = weakTopics[0];
-                    const t = topics.find((t) => t.id === wt.topicId) || { id: wt.topicId, name: wt.topicName };
-                    startQuiz(t, true);
-                  }}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Start Adaptive Quiz on &ldquo;{weakTopics[0].topicName}&rdquo;
-                </Button>
+                <div className="flex justify-center">
+                  <AnimatedGenerateButton
+                    labelIdle="Start Adaptive Quiz"
+                    labelActive="Loading Quiz…"
+                    generating={loadingQuiz}
+                    highlightHueDeg={210}
+                    disabled={loadingQuiz}
+                    onClick={() => {
+                      const wt = weakTopics[0];
+                      const t = topics.find((t) => t.id === wt.topicId) || { id: wt.topicId, name: wt.topicName };
+                      startQuiz(t, true);
+                    }}
+                    className="w-full max-w-sm [&>button]:w-full [&>button]:justify-center"
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Navigation buttons */}
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setView('select')}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Choose Another Topic
-            </Button>
+          {/* Nav */}
+          <div className="flex gap-3 practice-slide-up" style={{ animationDelay: '300ms' }}>
+            <button
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+              style={{ borderColor: 'rgba(0,110,178,0.2)', color: '#006EB2', backgroundColor: 'rgba(0,110,178,0.04)' }}
+              onClick={() => setView('select')}
+            >
+              <RotateCcw className="h-4 w-4" /> Choose Another Topic
+            </button>
             {selectedTopic && (
-              <Button className="flex-1" onClick={() => startQuiz(selectedTopic, false)}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Retry This Topic
-              </Button>
+              <button
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                style={{ background: 'linear-gradient(135deg, #002F4C, #006EB2)', boxShadow: '0 4px 16px rgba(0,110,178,0.3)' }}
+                onClick={() => startQuiz(selectedTopic, false)}
+              >
+                <RotateCcw className="h-4 w-4" /> Retry This Topic
+              </button>
             )}
           </div>
         </div>
-        <style jsx global>{`
-          @keyframes slideInUp {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
       </DashboardLayout>
     );
   }

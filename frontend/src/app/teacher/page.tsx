@@ -1,37 +1,30 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { analyticsService } from '@/services/analyticsService';
-import { Panel } from '@/components/panels/Panel';
-import { MetricCard } from '@/components/panels/MetricCard';
-import { ActionCard } from '@/components/panels/ActionCard';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
   Users,
   GraduationCap,
   BookOpen,
   AlertCircle,
-  Plus,
-  Upload,
-  FileText,
-  ChevronRight,
   Calendar,
   RefreshCw,
-  Bell,
 } from 'lucide-react';
-import { MOCK_TEACHER_DASHBOARD, MOCK_TEACHER_ALERTS } from '@/lib/mockData';
+import { MOCK_TEACHER_DASHBOARD } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'motion/react';
 
 const TeacherPerformanceChart = dynamic(
   () => import('@/components/charts/TeacherPerformanceChart'),
-  { ssr: false, loading: () => <div className="h-[280px] w-full animate-pulse rounded bg-muted/50" /> }
+  { ssr: false, loading: () => <div className="h-[340px] w-full animate-pulse rounded bg-muted/50" /> }
 );
 
 // ------------------------------------------------------------------
@@ -81,38 +74,221 @@ const DEFAULT_DASHBOARD: TeacherDashboardData = {
   performanceTrend: [],
 };
 
-function generateMockDashboard(): TeacherDashboardData {
-  return {
-    totalStudents: 142,
-    avgMastery: 78,
-    activeCoursesCount: 4,
-    courses: [
-      { id: 'c1', title: 'Introduction to Computer Science', studentCount: 45, avgGrade: 82, nextAssignmentDue: '2023-11-15' },
-      { id: 'c2', title: 'Advanced Algorithms', studentCount: 28, avgGrade: 74, nextAssignmentDue: '2023-11-18' },
-      { id: 'c3', title: 'Web Development Bootcamp', studentCount: 35, avgGrade: 88, nextAssignmentDue: '2023-11-20' },
-      { id: 'c4', title: 'Data Structures 101', studentCount: 34, avgGrade: 68 },
-    ],
-    atRiskStudents: [
-      { id: 's1', name: 'Alex Johnson', riskFactor: 'High', currentGrade: 45, courseName: 'Data Structures 101' },
-      { id: 's2', name: 'Maria Garcia', riskFactor: 'Medium', currentGrade: 62, courseName: 'Advanced Algorithms' },
-      { id: 's3', name: 'Sam Wilson', riskFactor: 'Medium', currentGrade: 58, courseName: 'Data Structures 101' },
-    ],
-    performanceTrend: generatePlaceholderTrend(),
-  };
-}
-
 function generatePlaceholderTrend(): PerformanceTrendPoint[] {
   const points: PerformanceTrendPoint[] = [];
   const now = new Date();
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 11; i >= 0; i--) {
     const d = new Date(now);
-    d.setDate(d.getDate() - i);
+    d.setDate(d.getDate() - i * 7);
     points.push({
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      classAverage: 65 + Math.floor(Math.random() * 20),
+      date: `Week ${12 - i}`,
+      classAverage: 58 + Math.floor(Math.random() * 15),
     });
   }
   return points;
+}
+
+// ------------------------------------------------------------------
+// Animated counter hook
+// ------------------------------------------------------------------
+
+function useCountUp(target: number, duration = 1100, active = true) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    setValue(0);
+    let start: number | null = null;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(ease * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    const raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration, active]);
+  return value;
+}
+
+// ------------------------------------------------------------------
+// Animated Metric Card (matches student overview style)
+// ------------------------------------------------------------------
+
+interface MetricCardProps {
+  label: string;
+  rawValue: number;
+  suffix?: string;
+  prefix?: string;
+  icon: React.ReactNode;
+  trendText: string;
+  glowColor: string;
+  borderColor: string;
+  iconBg: string;
+  delay?: number;
+  loading?: boolean;
+}
+
+function AnimatedMetricCard({
+  label, rawValue, suffix = '', prefix = '', icon, trendText,
+  glowColor, borderColor, iconBg, delay = 0, loading = false,
+}: MetricCardProps) {
+  const [visible, setVisible] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const count = useCountUp(rawValue, 1100, visible && !loading);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), delay + 100);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        borderLeft: `3px solid ${borderColor}`,
+        boxShadow: hovered
+          ? `0 0 0 1px ${glowColor}33, 0 8px 28px ${glowColor}28, inset 0 0 20px ${glowColor}0A`
+          : '0 1px 3px rgba(0,0,0,0.07)',
+        transform: visible
+          ? hovered ? 'translateY(-4px) scale(1.01)' : 'translateY(0) scale(1)'
+          : 'translateY(18px) scale(0.98)',
+        opacity: visible ? 1 : 0,
+        transition: `transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.45s ease, box-shadow 0.25s ease`,
+        transitionDelay: visible ? '0ms' : `${delay}ms`,
+      }}
+      className="relative rounded-lg border border-border bg-card p-4 overflow-hidden cursor-default"
+    >
+      {/* Radial glow blob top-right */}
+      <div
+        style={{
+          background: `radial-gradient(ellipse 70% 55% at 105% -5%, ${glowColor}22, transparent 65%)`,
+          opacity: hovered ? 1 : 0.55,
+          transition: 'opacity 0.3s ease',
+        }}
+        className="absolute inset-0 pointer-events-none"
+      />
+      {/* Corner shimmer */}
+      <div
+        style={{
+          background: `conic-gradient(from 200deg at 100% 0%, ${glowColor}18 0deg, transparent 80deg)`,
+          opacity: hovered ? 1 : 0,
+          transition: 'opacity 0.35s ease',
+        }}
+        className="absolute inset-0 pointer-events-none rounded-lg"
+      />
+
+      <div className="relative flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p
+            style={{ color: hovered ? borderColor : undefined, transition: 'color 0.3s ease' }}
+            className="mt-1 font-mono text-3xl font-semibold text-card-foreground"
+          >
+            {prefix}{count}{suffix}
+          </p>
+          <p className="mt-1 text-xs font-medium text-green-500">↑ {trendText}</p>
+        </div>
+
+        <div
+          style={{
+            background: hovered ? `${glowColor}22` : iconBg,
+            boxShadow: hovered
+              ? `0 0 0 3px ${glowColor}1A, 0 0 18px ${glowColor}35`
+              : 'none',
+            color: glowColor,
+            transition: 'background 0.3s ease, box-shadow 0.3s ease',
+          }}
+          className="rounded-lg p-2"
+        >
+          {icon}
+        </div>
+      </div>
+
+      {/* Animated bottom accent bar */}
+      <div
+        style={{
+          background: `linear-gradient(90deg, ${glowColor}, ${glowColor}50)`,
+          transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
+          transformOrigin: 'left',
+          transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1)',
+        }}
+        className="absolute bottom-0 left-0 right-0 h-[2px]"
+      />
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
+// Section skeleton
+// ------------------------------------------------------------------
+
+function SectionSkeleton({ rows = 3, avatar = false }: { rows?: number; avatar?: boolean }) {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className={cn('flex gap-3', avatar && 'items-center')}>
+          {avatar && <Skeleton className="h-9 w-9 rounded-full shrink-0" />}
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-3/4" />
+            {avatar && <Skeleton className="h-1.5 w-full" />}
+          </div>
+          {!avatar && <Skeleton className="h-10 w-14 rounded ml-auto" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------
+// Panel wrapper with enter animation
+// ------------------------------------------------------------------
+
+function AnimatedPanel({
+  title, description, children, action, delay = 0,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+    >
+      <div className="flex items-start justify-between border-b border-border/60 px-5 py-4">
+        <div>
+          <h2 className="font-semibold text-sm text-foreground">{title}</h2>
+          {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </motion.div>
+  );
 }
 
 // ------------------------------------------------------------------
@@ -125,7 +301,7 @@ export default function TeacherDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const firstName = user?.name?.split(' ')[0] ?? 'Teacher';
+  const displayName = user?.name ?? 'Teacher';
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -136,11 +312,10 @@ export default function TeacherDashboardPage() {
       if (res?.data && res.data.totalStudents > 0) {
         setDashboard({ ...DEFAULT_DASHBOARD, ...res.data });
       } else {
-        setDashboard(MOCK_TEACHER_DASHBOARD);
+        setDashboard({ ...MOCK_TEACHER_DASHBOARD, performanceTrend: generatePlaceholderTrend() });
       }
-    } catch (error) {
-      console.error('Failed to fetch teacher dashboard data', error);
-      setDashboard(MOCK_TEACHER_DASHBOARD);
+    } catch {
+      setDashboard({ ...MOCK_TEACHER_DASHBOARD, performanceTrend: generatePlaceholderTrend() });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -152,14 +327,29 @@ export default function TeacherDashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+  const stagger = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.08 } },
+  };
+  const fadeUp = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
+  };
+
   return (
     <DashboardLayout requiredRole="teacher">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+
+        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="flex items-center justify-between"
+        >
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              {greeting}, {firstName}
+              {greeting}, {displayName}
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               What&apos;s happening in your classes today
@@ -174,228 +364,214 @@ export default function TeacherDashboardPage() {
             <RefreshCw className={cn('mr-2 h-4 w-4', refreshing && 'animate-spin')} />
             Refresh
           </Button>
-        </div>
+        </motion.div>
 
-        {/* ── Row 1: Metric Cards ─────────────────────────────── */}
+        {/* â”€â”€ Row 1: Animated Metric Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-          <MetricCard
+          <AnimatedMetricCard
             label="Total Students"
-            value={(dashboard.totalStudents ?? 0).toLocaleString()}
-            accentColor="info"
+            rawValue={dashboard.totalStudents ?? 0}
             icon={<Users className="h-5 w-5" />}
-            trend={{ direction: 'up', value: 'All courses' }}
+            trendText="All courses"
+            glowColor="#3b82f6"
+            borderColor="#3b82f6"
+            iconBg="#1e3a5f22"
+            delay={0}
+            loading={loading}
           />
-          <MetricCard
+          <AnimatedMetricCard
             label="Avg. Mastery"
-            value={`${dashboard.avgMastery ?? 0}%`}
-            accentColor="success"
+            rawValue={dashboard.avgMastery ?? 0}
+            suffix="%"
             icon={<GraduationCap className="h-5 w-5" />}
-            trend={{ direction: 'up', value: '+2.5% this month' }}
+            trendText="+2.5% this month"
+            glowColor="#22c55e"
+            borderColor="#22c55e"
+            iconBg="#14532d22"
+            delay={90}
+            loading={loading}
           />
-          <MetricCard
+          <AnimatedMetricCard
             label="Active Courses"
-            value={dashboard.activeCoursesCount ?? 0}
-            accentColor="warning"
+            rawValue={dashboard.activeCoursesCount ?? 0}
             icon={<BookOpen className="h-5 w-5" />}
-            trend={{ direction: 'up', value: 'In progress' }}
+            trendText="In progress"
+            glowColor="#f59e0b"
+            borderColor="#f59e0b"
+            iconBg="#451a0322"
+            delay={180}
+            loading={loading}
           />
         </div>
 
-        {/* ── Row 2: Chart + Quick Actions ────────────────────── */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Panel
-            title="Class Performance Trends"
-            description="Average student mastery over the last 7 days"
-            className="lg:col-span-2"
-          >
+        {/* â”€â”€ Row 2: Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <AnimatedPanel
+          title="Class Performance Trends"
+          description="Average student mastery over the last 12 weeks"
+          delay={0.2}
+        >
+          <AnimatePresence mode="wait">
             {loading ? (
-              <div className="h-[280px] w-full animate-pulse rounded bg-muted/50" />
+              <motion.div
+                key="chart-skeleton"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="h-[340px] w-full rounded bg-muted/50 animate-pulse"
+              />
             ) : (dashboard.performanceTrend?.length ?? 0) > 0 ? (
-              <TeacherPerformanceChart data={dashboard.performanceTrend} />
+              <motion.div
+                key="chart-data"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <TeacherPerformanceChart data={dashboard.performanceTrend} />
+              </motion.div>
             ) : (
-              <div className="flex h-[280px] items-center justify-center text-muted-foreground text-sm">
+              <div className="flex h-[340px] items-center justify-center text-muted-foreground text-sm">
                 No data available yet.
               </div>
             )}
-          </Panel>
+          </AnimatePresence>
+        </AnimatedPanel>
 
-          <Panel title="Quick Actions" description="Manage your classes">
-            <div className="space-y-3">
-              <ActionCard
-                title="Create Assignment"
-                description="Set up a new task"
-                icon={<Plus className="h-5 w-5" />}
-                href="/teacher/assignments/new"
-              />
-              <ActionCard
-                title="Upload Content"
-                description="Add course materials"
-                icon={<Upload className="h-5 w-5" />}
-                href="/teacher/content/upload"
-              />
-              <ActionCard
-                title="View Reports"
-                description="Analyze performance"
-                icon={<FileText className="h-5 w-5" />}
-                href="/teacher/analytics"
-              />
-            </div>
-          </Panel>
-        </div>
-
-        {/* ── Row 3: Courses + At-Risk Students ───────────────── */}
+        {/* â”€â”€ Row 3: Courses + At-Risk Students â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Courses */}
-          <Panel
+
+          {/* My Courses */}
+          <AnimatedPanel
             title="My Courses"
             description="Overview of active classes"
-            action={
-              <Link href="/teacher/courses">
-                <Button variant="ghost" size="sm" className="text-xs">
-                  View All <ChevronRight className="ml-1 h-3 w-3" />
-                </Button>
-              </Link>
-            }
+            delay={0.3}
           >
-            {loading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-16 w-full animate-pulse rounded bg-muted" />
-                ))}
-              </div>
-            ) : (dashboard.courses?.length ?? 0) > 0 ? (
-              <div className="space-y-3">
-                {dashboard.courses.map((course) => (
-                  <div
-                    key={course.id}
-                    className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                  >
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-semibold">{course.title}</h3>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" /> {course.studentCount}
-                        </span>
-                        {course.nextAssignmentDue && (
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div key="courses-skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <SectionSkeleton rows={4} />
+                </motion.div>
+              ) : (dashboard.courses?.length ?? 0) > 0 ? (
+                <motion.div
+                  key="courses-data"
+                  variants={stagger}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-3"
+                >
+                  {dashboard.courses.map((course) => (
+                    <motion.div
+                      key={course.id}
+                      variants={fadeUp}
+                      className="group flex items-center justify-between rounded-lg border border-border bg-background/50 p-4 transition-colors hover:bg-muted/40 hover:border-border/80"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">{course.title}</h3>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" /> Due {new Date(course.nextAssignmentDue).toLocaleDateString()}
+                            <Users className="h-3 w-3" /> {course.studentCount} students
                           </span>
-                        )}
+                          {course.nextAssignmentDue && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" /> Due {new Date(course.nextAssignmentDue).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xs text-muted-foreground uppercase tracking-wider">Avg</div>
-                      <div className={cn(
-                        'text-lg font-bold font-mono',
-                        course.avgGrade >= 80 ? 'text-success' :
-                        course.avgGrade >= 70 ? 'text-warning' : 'text-danger'
-                      )}>
-                        {course.avgGrade}%
+                      <div className="text-right shrink-0 ml-4">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg</div>
+                        <div className={cn(
+                          'text-xl font-black font-mono',
+                          course.avgGrade >= 80 ? 'text-green-500' :
+                          course.avgGrade >= 70 ? 'text-amber-500' : 'text-red-500'
+                        )}>
+                          {course.avgGrade}%
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No active courses found.
-              </div>
-            )}
-          </Panel>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground">No active courses found.</div>
+              )}
+            </AnimatePresence>
+          </AnimatedPanel>
 
           {/* At-Risk Students */}
-          <Panel
+          <AnimatedPanel
             title="At-Risk Students"
-            description="Students requiring attention"
-            action={<AlertCircle className="h-4 w-4 text-danger" />}
+            description="Students requiring your attention"
+            action={<AlertCircle className="h-4 w-4 text-red-500" />}
+            delay={0.38}
           >
-            {loading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                      <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (dashboard.atRiskStudents?.length ?? 0) > 0 ? (
-              <div className="space-y-4">
-                {dashboard.atRiskStudents.map((student) => (
-                  <div key={student.id} className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9 border">
-                      <AvatarFallback className="text-xs">
-                        {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">{student.name}</p>
-                        <Badge variant={student.riskFactor === 'High' ? 'destructive' : 'warning'} className="text-2xs">
-                          {student.riskFactor}
-                        </Badge>
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div key="risk-skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <SectionSkeleton rows={4} avatar />
+                </motion.div>
+              ) : (dashboard.atRiskStudents?.length ?? 0) > 0 ? (
+                <motion.div
+                  key="risk-data"
+                  variants={stagger}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-4"
+                >
+                  {dashboard.atRiskStudents.map((student) => (
+                    <motion.div key={student.id} variants={fadeUp} className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 border shrink-0">
+                        <AvatarFallback className="text-xs font-semibold">
+                          {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium truncate">{student.name}</p>
+                          <Badge
+                            className={cn(
+                              'text-[10px] shrink-0',
+                              student.riskFactor === 'High'
+                                ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400'
+                                : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
+                            )}
+                            variant="outline"
+                          >
+                            {student.riskFactor}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
+                          <span className="truncate">{student.courseName}</span>
+                          <span className={cn(
+                            'font-mono font-bold shrink-0 ml-2',
+                            student.currentGrade < 60 ? 'text-red-500' : 'text-amber-500'
+                          )}>
+                            {student.currentGrade}%
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <motion.div
+                            className={cn(
+                              'h-full rounded-full',
+                              student.currentGrade < 60 ? 'bg-red-500' : 'bg-amber-500'
+                            )}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${student.currentGrade}%` }}
+                            transition={{ duration: 0.7, delay: 0.4, ease: 'easeOut' }}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-                        <span className="truncate">{student.courseName}</span>
-                        <span className="font-mono font-semibold text-foreground">{student.currentGrade}%</span>
-                      </div>
-                      <Progress
-                        value={student.currentGrade}
-                        className="h-1 mt-1.5"
-                        indicatorClassName={student.currentGrade < 60 ? 'bg-destructive' : 'bg-warning'}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">All students are performing well!</p>
-              </div>
-            )}
-          </Panel>
-        </div>
-
-        {/* ── Alerts Panel ─────────────────────────────────── */}
-        <Panel
-          title="Recent Alerts"
-          description="Notifications requiring your attention"
-          action={
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Bell className="h-3.5 w-3.5" />
-              <span>{MOCK_TEACHER_ALERTS.filter(a => a.type === 'urgent').length} urgent</span>
-            </div>
-          }
-        >
-          <div className="divide-y">
-            {MOCK_TEACHER_ALERTS.slice(0, 6).map(alert => (
-              <div key={alert.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                <span className="text-xl leading-none mt-0.5">{alert.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground leading-snug">{alert.message}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{alert.courseLabel}</span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(alert.timestamp).toLocaleDateString()}
-                    </span>
-                  </div>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <GraduationCap className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">All students are performing well!</p>
                 </div>
-                <span className={cn(
-                  'shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full',
-                  alert.type === 'urgent'  ? 'bg-red-100 text-red-700' :
-                  alert.type === 'warning' ? 'bg-amber-100 text-amber-700' :
-                                             'bg-blue-100 text-blue-700'
-                )}>
-                  {alert.type}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Panel>
+              )}
+            </AnimatePresence>
+          </AnimatedPanel>
+
+        </div>
       </div>
     </DashboardLayout>
   );

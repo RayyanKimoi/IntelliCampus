@@ -56,8 +56,8 @@ export function useAuth() {
     name: string;
     email: string;
     password: string;
-    role: string;
-    institutionId: string;
+    role?: string;
+    institutionId?: string;
   }) => {
     const response = await authService.register(data);
     if (response.data) {

@@ -3,7 +3,6 @@ packages:
   - backend
   - ai-services
   - frontend
-  - scripts
 
 ignoredBuiltDependencies:
   - '@prisma/client'

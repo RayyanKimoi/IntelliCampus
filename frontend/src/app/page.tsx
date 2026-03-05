@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView } from 'motion/react';
 import { useRef } from 'react';
 import {
   GraduationCap,
@@ -25,12 +25,14 @@ import {
 } from 'lucide-react';
 
 // ─── Animation Variants ───────────────────────────────────────────────────────
+const EASE: [number, number, number, number] = [0.25, 1, 0.5, 1];
+
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, ease: [0.25, 1, 0.5, 1] },
+    transition: { duration: 0.55, ease: EASE },
   },
 };
 
@@ -39,7 +41,7 @@ const fadeUpDelay = (delay: number) => ({
   show: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, ease: [0.25, 1, 0.5, 1], delay },
+    transition: { duration: 0.55, ease: EASE, delay },
   },
 });
 
@@ -53,11 +55,11 @@ const staggerSlow = {
   show: { transition: { staggerChildren: 0.14 } },
 };
 
-function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function Section({ children, className = '', variants }: { children: React.ReactNode; className?: string; variants?: any }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-80px' });
   return (
-    <motion.div ref={ref} initial="hidden" animate={inView ? 'show' : 'hidden'} className={className}>
+    <motion.div ref={ref} variants={variants} initial="hidden" animate={inView ? 'show' : 'hidden'} className={className}>
       {children}
     </motion.div>
   );
@@ -389,36 +391,6 @@ export default function HomePage() {
               </div>
             </motion.div>
           </div>
-        </div>
-      </section>
-
-      {/* ── TRUSTED BY ── */}
-      <section style={{ borderColor: '#1A2A40' }} className="border-y py-14">
-        <div className="max-w-7xl mx-auto px-6">
-          <Section variants={stagger}>
-            <motion.p
-              variants={fadeUp}
-              style={{ color: 'rgba(255,255,255,0.3)' }}
-              className="text-center text-xs font-semibold tracking-[0.2em] uppercase mb-10"
-            >
-              Trusted by institutions worldwide
-            </motion.p>
-            <motion.div
-              variants={stagger}
-              className="flex flex-wrap items-center justify-center gap-10 md:gap-16"
-            >
-              {logos.map((logo) => (
-                <motion.span
-                  key={logo}
-                  variants={fadeUp}
-                  style={{ color: 'rgba(255,255,255,0.18)' }}
-                  className="font-bold text-lg tracking-[0.15em] hover:text-white transition-colors duration-300 cursor-default select-none"
-                >
-                  {logo}
-                </motion.span>
-              ))}
-            </motion.div>
-          </Section>
         </div>
       </section>
 

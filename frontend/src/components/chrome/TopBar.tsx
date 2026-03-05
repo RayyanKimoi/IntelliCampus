@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   GraduationCap,
-  Bell,
   Settings,
   LogOut,
   Moon,
@@ -64,11 +63,6 @@ export function TopBar() {
 
       {/* Right cluster */}
       <div className="flex items-center gap-1">
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-sky-200 hover:text-white hover:bg-white/10" data-focus-hide>
-          <Bell className="h-4 w-4" />
-        </Button>
-
         {/* Accessibility */}
         <AccessibilityPanel />
 
