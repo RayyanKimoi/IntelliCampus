@@ -1,3 +1,4 @@
+import type React from 'react';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -32,22 +33,25 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type NavIcon = LucideIcon | React.ComponentType<any>;
+
 export interface NavItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: NavIcon;
 }
 
 // ── Student navigation by mode ──────────────────────────────────
 export const studentNavByMode: Record<string, NavItem[]> = {
   learning: [
-    { label: 'Overview', href: '/student', icon: LayoutDashboard },
-    { label: 'My Courses', href: '/student/courses', icon: BookOpen },
-    { label: 'AI Tutor', href: '/student/ai-tutor', icon: MessageSquare },
-    { label: 'Practice', href: '/student/practice', icon: Target },
-    { label: 'Gamification', href: '/student/gamification', icon: Gamepad2 },
-    { label: 'Mastery', href: '/student/mastery', icon: GitBranch },
-    { label: 'Insights', href: '/student/insights', icon: Lightbulb },
+    { label: 'Overview',      href: '/student',              icon: LayoutDashboard },
+    { label: 'My Courses',    href: '/student/courses',      icon: BookOpen },
+    { label: 'AI Tutor',      href: '/student/ai-tutor',     icon: MessageSquare },
+    { label: 'Practice',      href: '/student/practice',     icon: Target },
+    { label: 'Gamification',  href: '/student/gamification', icon: Gamepad2 },
+    { label: 'Mastery',       href: '/student/mastery',      icon: Lightbulb },
+    { label: 'Insights',      href: '/student/insights',     icon: TrendingUp },
   ],
   assessment: [
     { label: 'Dashboard', href: '/student/assessment', icon: LayoutDashboard },

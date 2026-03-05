@@ -199,17 +199,16 @@ interface InsightCardProps {
   label: string;
   rawValue: number;
   suffix?: string;
-  icon: React.ReactNode;
+  iconSrc: string;
   trendText: string;
   glowColor: string;
   borderColor: string;
-  iconBg: string;
   delay?: number;
 }
 
 function AnimatedInsightCard({
-  label, rawValue, suffix = '', icon, trendText,
-  glowColor, borderColor, iconBg, delay = 0,
+  label, rawValue, suffix = '', iconSrc, trendText,
+  glowColor, borderColor, delay = 0,
 }: InsightCardProps) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -238,13 +237,13 @@ function AnimatedInsightCard({
         transition: `transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.45s ease, box-shadow 0.25s ease`,
         transitionDelay: visible ? '0ms' : `${delay}ms`,
       }}
-      className="relative rounded-lg border border-border bg-card p-4 overflow-hidden cursor-default"
+      className="relative rounded-lg border border-border bg-card overflow-hidden cursor-default"
     >
-      {/* Radial glow blob top-right */}
+      {/* Radial glow blob — covers full card */}
       <div
         style={{
-          background: `radial-gradient(ellipse 70% 55% at 105% -5%, ${glowColor}22, transparent 65%)`,
-          opacity: hovered ? 1 : 0.55,
+          background: `radial-gradient(ellipse 80% 80% at 110% 110%, ${glowColor}28, transparent 60%)`,
+          opacity: hovered ? 1 : 0.6,
           transition: 'opacity 0.3s ease',
         }}
         className="absolute inset-0 pointer-events-none"
@@ -259,33 +258,38 @@ function AnimatedInsightCard({
         className="absolute inset-0 pointer-events-none rounded-lg"
       />
 
-      <div className="relative flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {label}
-          </p>
+      {/* Large PNG pixel art icon — right side, 75-80% of card height */}
+      <img
+        src={iconSrc}
+        alt=""
+        aria-hidden="true"
+        style={{
+          width: '92px',
+          height: '92px',
+          objectFit: 'contain',
+          imageRendering: 'pixelated',
+          filter: hovered
+            ? `drop-shadow(0 0 14px ${glowColor}90) drop-shadow(0 0 28px ${glowColor}50)`
+            : `drop-shadow(0 4px 8px ${glowColor}40)`,
+          transition: 'filter 0.35s ease, transform 0.35s cubic-bezier(0.22,1,0.36,1)',
+          transform: hovered ? 'scale(1.08) translate(6px, 6px)' : 'scale(1) translate(10px, 10px)',
+        }}
+        className="absolute right-0 bottom-0 pointer-events-none"
+      />
+
+      {/* Text content — left side */}
+      <div className="relative p-4 flex flex-col justify-between" style={{ minHeight: '118px' }}>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <div>
           <p
             style={{ color: hovered ? borderColor : undefined, transition: 'color 0.3s ease' }}
-            className="mt-1 font-mono text-3xl font-semibold text-card-foreground"
+            className="font-mono text-3xl font-bold text-card-foreground"
           >
             {count}{suffix}
           </p>
           <p className="mt-1 text-xs font-medium text-success">↑ {trendText}</p>
-        </div>
-
-        {/* Icon — glows on hover */}
-        <div
-          style={{
-            background: hovered ? `${glowColor}22` : iconBg,
-            boxShadow: hovered
-              ? `0 0 0 3px ${glowColor}1A, 0 0 18px ${glowColor}35`
-              : 'none',
-            color: glowColor,
-            transition: 'background 0.3s ease, box-shadow 0.3s ease',
-          }}
-          className="rounded-lg p-2"
-        >
-          {icon}
         </div>
       </div>
 
@@ -435,43 +439,39 @@ export default function StudentDashboardPage() {
             label="Study Streak"
             rawValue={MOCK_INSIGHTS_DASHBOARD.studyStreak}
             suffix=" days"
-            icon={<PixelIcon pixels={IC_FLAME} color="#F97316" />}
+            iconSrc="/icons/flame.png"
             trendText="Keep going!"
             glowColor="#F97316"
             borderColor="#F97316"
-            iconBg="rgba(249,115,22,0.08)"
             delay={0}
           />
           <AnimatedInsightCard
             label="Avg Session"
             rawValue={MOCK_INSIGHTS_DASHBOARD.avgSessionMinutes}
             suffix=" min"
-            icon={<PixelIcon pixels={IC_CLOCK} color="#3B82F6" />}
+            iconSrc="/icons/hourglass.png"
             trendText="Per session"
             glowColor="#3B82F6"
             borderColor="#3B82F6"
-            iconBg="rgba(59,130,246,0.08)"
             delay={80}
           />
           <AnimatedInsightCard
             label="Correct Rate"
             rawValue={MOCK_INSIGHTS_DASHBOARD.correctRate}
             suffix="%"
-            icon={<PixelIcon pixels={IC_TARGET} color="#22C55E" />}
+            iconSrc="/icons/radar.png"
             trendText="Strong accuracy"
             glowColor="#22C55E"
             borderColor="#22C55E"
-            iconBg="rgba(34,197,94,0.08)"
             delay={160}
           />
           <AnimatedInsightCard
             label="Topics Studied"
             rawValue={MOCK_INSIGHTS_DASHBOARD.topicsStudied}
-            icon={<PixelIcon pixels={IC_BRAIN} color="#A855F7" />}
+            iconSrc="/icons/book.png"
             trendText="This month"
             glowColor="#A855F7"
             borderColor="#A855F7"
-            iconBg="rgba(168,85,247,0.08)"
             delay={240}
           />
         </div>

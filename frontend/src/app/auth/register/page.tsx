@@ -92,13 +92,8 @@ export default function RegisterPage() {
         className="relative z-20 flex items-center justify-between px-6 py-4 border-b"
         style={{ borderColor: 'rgba(0,110,178,0.12)', backgroundColor: 'rgba(238,242,248,0.92)', backdropFilter: 'blur(12px)' }}
       >
-        <Link href="/" className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)' }}
-          >
-            <GraduationCap className="w-4 h-4 text-white" />
-          </div>
+        <Link href="/" className="flex items-center gap-2">
+          <img src="/icons/logo.png" alt="IntelliCampus" className="h-8 w-8 object-contain" />
           <span className="font-bold text-slate-900 text-sm tracking-tight">IntelliCampus</span>
         </Link>
         <Link
@@ -123,12 +118,7 @@ export default function RegisterPage() {
           {/* Header */}
           <div className="text-center space-y-1">
             <div className="flex justify-center mb-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)', boxShadow: '0 0 20px rgba(0,110,178,0.3)' }}
-              >
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+              <img src="/icons/logo.png" alt="IntelliCampus" className="h-16 w-16 object-contain" />
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900">Create an account</h1>
             <p className="text-sm" style={{ color: 'rgba(12,26,46,0.5)' }}>Join IntelliCampus to start learning</p>

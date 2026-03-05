@@ -161,13 +161,8 @@ export default function HomePage() {
         className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md"
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div
-              style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)' }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-            >
-              <GraduationCap className="w-4.5 h-4.5 text-white" />
-            </div>
+          <div className="flex items-center gap-2">
+            <img src="/icons/logo.png" alt="IntelliCampus" className="h-9 w-9 object-contain" />
             <span className="font-bold text-white text-lg tracking-tight">IntelliCampus</span>
           </div>
           <nav className="hidden md:flex items-center gap-8">
@@ -702,13 +697,8 @@ export default function HomePage() {
         className="border-t py-10"
       >
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div
-              style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)' }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-            >
-              <GraduationCap className="w-4 h-4 text-white" />
-            </div>
+          <div className="flex items-center gap-2">
+            <img src="/icons/logo.png" alt="IntelliCampus" className="h-8 w-8 object-contain" />
             <span className="font-bold text-white">IntelliCampus</span>
           </div>
           <p style={{ color: 'rgba(255,255,255,0.25)' }} className="text-xs text-center">

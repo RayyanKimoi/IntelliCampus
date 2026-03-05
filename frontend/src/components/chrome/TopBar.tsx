@@ -42,7 +42,9 @@ export function TopBar() {
     <header className="relative flex h-14 shrink-0 items-center border-b border-[#001e33] bg-gradient-to-b from-[#002F4C] to-[#006EB2] dark:from-[#00101e] dark:to-[#002548] px-4 shadow-lg">
       {/* Brand — left-anchored */}
       <Link href={`/${user.role}`} className="flex items-center gap-2">
-        <GraduationCap className="h-6 w-6 text-sky-300" />
+        <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center shrink-0">
+          <img src="/icons/logo.png" alt="IntelliCampus" className="h-7 w-7 object-contain" />
+        </div>
         <span className="font-bold text-base tracking-tight hidden sm:inline text-white">
           IntelliCampus
         </span>
