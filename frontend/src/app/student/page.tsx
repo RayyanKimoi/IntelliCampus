@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import {
   Zap,
   Brain,
-  BookOpen,
   MessageSquare,
   Swords,
   ChevronRight,
@@ -25,6 +24,7 @@ import {
   Clock,
   RefreshCw,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { MOCK_STUDENT_DASHBOARD, MOCK_XP_PROFILE, MOCK_PERFORMANCE_TREND, MOCK_INSIGHTS_DASHBOARD } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 
@@ -339,7 +339,7 @@ function activityIcon(type: string) {
     case 'quiz': case 'sprint': return <Zap className="h-4 w-4" />;
     case 'boss_battle': return <Swords className="h-4 w-4" />;
     case 'mastery': return <Brain className="h-4 w-4" />;
-    default: return <BookOpen className="h-4 w-4" />;
+    default: return <FaBook className="h-4 w-4" />;
   }
 }
 
@@ -541,7 +541,7 @@ export default function StudentDashboardPage() {
             <ActionCard
               title="My Courses"
               description="Browse enrolled courses"
-              icon={<BookOpen className="h-5 w-5" />}
+              icon={<FaBook className="h-5 w-5" />}
               href="/student/courses"
             />
           </div>
@@ -651,7 +651,7 @@ export default function StudentDashboardPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <BookOpen className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <FaBook className="h-10 w-10 text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">No recent activity yet.</p>
               </div>
             )}

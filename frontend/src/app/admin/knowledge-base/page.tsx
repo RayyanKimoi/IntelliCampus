@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   Database, Upload, FileText, Search, Trash2, RefreshCw,
-  CheckCircle2, AlertTriangle, Clock, Cpu, BookOpen, Layers,
+  CheckCircle2, AlertTriangle, Clock, Cpu, Layers,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 interface KBDocument {
   id: string;
@@ -134,7 +135,7 @@ export default function AdminKnowledgeBasePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
+                <FaBook className="h-5 w-5 text-primary" />
                 By Subject
               </CardTitle>
               <CardDescription>Document count per subject</CardDescription>

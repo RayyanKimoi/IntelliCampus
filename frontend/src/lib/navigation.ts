@@ -13,7 +13,6 @@ import {
   BarChart3,
   TrendingUp,
   AlertTriangle,
-  BookOpen,
   FlaskConical,
   CheckSquare,
   Users,
@@ -33,6 +32,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { FaBookBookmark, FaPencil, FaLightbulb } from 'react-icons/fa6';
+import { MdAssignment, MdQuiz } from 'react-icons/md';
+import { BsFileEarmarkBarGraphFill } from 'react-icons/bs';
 import { IoIosChatboxes } from 'react-icons/io';
 import { RiDashboardHorizontalFill } from 'react-icons/ri';
 import { IoGameController } from 'react-icons/io5';
@@ -59,10 +60,10 @@ export const studentNavByMode: Record<string, NavItem[]> = {
     { label: 'Insights',      href: '/student/insights',     icon: MdInsights },
   ],
   assessment: [
-    { label: 'Dashboard', href: '/student/assessment', icon: LayoutDashboard },
-    { label: 'Assignments', href: '/student/assessment/assignments', icon: ClipboardCheck },
-    { label: 'Quizzes', href: '/student/assessment/quizzes', icon: FileCode },
-    { label: 'Results', href: '/student/assessment/results', icon: BarChart3 },
+    { label: 'Dashboard', href: '/student/assessment', icon: RiDashboardHorizontalFill },
+    { label: 'Assignments', href: '/student/assessment/assignments', icon: MdAssignment },
+    { label: 'Quizzes', href: '/student/assessment/quizzes', icon: MdQuiz },
+    { label: 'Results', href: '/student/assessment/results', icon: BsFileEarmarkBarGraphFill },
   ],
 };
 

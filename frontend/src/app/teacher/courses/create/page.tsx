@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, BookOpen } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { teacherService } from '@/services/teacherService';
 
 export default function CreateCoursePage() {
@@ -46,7 +47,7 @@ export default function CreateCoursePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+              <FaBook className="h-5 w-5 text-primary" />
               Create New Course
             </CardTitle>
             <CardDescription>

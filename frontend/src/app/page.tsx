@@ -11,7 +11,6 @@ import {
   MessageSquare,
   BarChart3,
   Accessibility,
-  BookOpen,
   ArrowRight,
   Sparkles,
   Zap,
