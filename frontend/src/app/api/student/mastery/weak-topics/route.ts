@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         subjectName: r.topic.subject.name,
         courseName: (r.topic.subject as any).course?.name ?? '',
         masteryLevel: Math.round(r.masteryScore),
-        lastAssessed: r.updatedAt?.toISOString(),
+        lastAssessed: (r as any).updatedAt?.toISOString(),
       }));
 
     return NextResponse.json({ success: true, data: weakTopics }, { status: 200 });

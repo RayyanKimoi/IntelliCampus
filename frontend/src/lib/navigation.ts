@@ -1,22 +1,11 @@
 import type React from 'react';
 import {
   LayoutDashboard,
-  MessageSquare,
-  Target,
-  Gamepad2,
-  GitBranch,
-  SlidersHorizontal,
-  ClipboardCheck,
-  FileCode,
-  CheckCircle,
   Shield,
   BarChart3,
-  TrendingUp,
-  AlertTriangle,
   FlaskConical,
   CheckSquare,
   Users,
-  Eye,
   FileBarChart,
   Database,
   UserCog,
@@ -24,20 +13,16 @@ import {
   Lock,
   Accessibility,
   FileCheck,
-  Trophy,
-  GraduationCap,
   Library,
   ShieldAlert,
-  Lightbulb,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { FaBookBookmark, FaPencil, FaLightbulb } from 'react-icons/fa6';
-import { MdAssignment, MdQuiz } from 'react-icons/md';
+import { MdAssignment, MdQuiz, MdInsights } from 'react-icons/md';
 import { BsFileEarmarkBarGraphFill } from 'react-icons/bs';
 import { IoIosChatboxes } from 'react-icons/io';
 import { RiDashboardHorizontalFill } from 'react-icons/ri';
 import { IoGameController } from 'react-icons/io5';
-import { MdInsights } from 'react-icons/md';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type NavIcon = LucideIcon | React.ComponentType<any>;

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Submission } from '@/services/assessmentService';
 import { masteryService } from '@/services/masteryService';
