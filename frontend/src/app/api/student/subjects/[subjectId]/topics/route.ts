@@ -7,14 +7,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { subjectId: string } }
+  { params }: { params: Promise<{ subjectId: string }> }
 ) {
   try {
+    const { subjectId } = await params;
     const user = getAuthUser(req);
     requireRole(user, ['student']);
 
     const topics = await prisma.topic.findMany({
-      where: { subjectId: params.subjectId },
+      where: { subjectId },
       orderBy: { orderIndex: 'asc' },
     });
     return NextResponse.json({ success: true, data: topics }, { status: 200 });

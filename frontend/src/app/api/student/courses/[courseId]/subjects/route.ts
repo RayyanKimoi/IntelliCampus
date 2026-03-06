@@ -7,14 +7,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const user = getAuthUser(req);
     requireRole(user, ['student']);
 
     const subjects = await prisma.subject.findMany({
-      where: { courseId: params.courseId },
+      where: { courseId },
+
       include: {
         topics: { orderBy: { orderIndex: 'asc' } },
       },

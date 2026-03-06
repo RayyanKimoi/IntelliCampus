@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment, Submission, AssignmentComment } from '@/services/assessmentService';
 import { MOCK_ASSIGNMENTS } from '@/lib/mockData';

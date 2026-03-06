@@ -7,13 +7,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
+    const { courseId } = await params;
     const user = getAuthUser(req);
     requireRole(user, ['student']);
 
-    const course = await curriculumService.getCourseById(params.courseId);
+    const course = await curriculumService.getCourseById(courseId);
     if (!course) {
       return NextResponse.json({ success: false, error: 'Course not found' }, { status: 404 });
     }
