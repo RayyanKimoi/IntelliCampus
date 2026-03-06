@@ -12,13 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Users,
-  BookOpen,
   Cpu,
   Activity,
   Shield,
   Plus,
   FileText,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
             label="Active Courses"
             value={stats?.totalCourses ?? 0}
             accentColor="success"
-            icon={<BookOpen className="h-5 w-5" />}
+            icon={<FaBook className="h-5 w-5" />}
             trend={{ direction: 'up', value: 'All departments' }}
           />
           <MetricCard
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
             <Panel title="Quick Actions">
               <div className="space-y-3">
                 <ActionCard title="Add New User" description="Create user account" icon={<Plus className="h-5 w-5" />} href="/admin/users" />
-                <ActionCard title="Create Course" description="New course template" icon={<BookOpen className="h-5 w-5" />} href="/admin/ai-policy" />
+                <ActionCard title="Create Course" description="New course template" icon={<FaBook className="h-5 w-5" />} href="/admin/ai-policy" />
                 <ActionCard title="System Logs" description="View audit trail" icon={<FileText className="h-5 w-5" />} href="/admin/usage" />
               </div>
             </Panel>

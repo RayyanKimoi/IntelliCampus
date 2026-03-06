@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   BarChart3, Users, GraduationCap, TrendingUp, TrendingDown,
-  Minus, BookOpen, Brain, Zap, Activity, Clock, CheckCircle2,
+  Minus, Brain, Zap, Activity, Clock, CheckCircle2,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 interface CourseAnalytic {
   id: string;
@@ -174,7 +175,7 @@ export default function AdminAnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+              <FaBook className="h-5 w-5 text-primary" />
               Course Performance Overview
             </CardTitle>
             <CardDescription>Enrolment, completion and average scores per course</CardDescription>

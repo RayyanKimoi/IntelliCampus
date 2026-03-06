@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import {
-  FileCheck, Download, BarChart3, Users, BookOpen,
+  FileCheck, Download, BarChart3, Users,
   CheckCircle2, Clock, FileText, GraduationCap, Loader2,
   Shield, Calendar, TrendingUp, AlertTriangle,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 type ReportStatus = 'ready' | 'generating' | 'scheduled';
 
@@ -187,7 +188,7 @@ export default function AdminReportsPage() {
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <Button size="sm" variant="outline" className="text-xs" onClick={() => handleGenerate(report.id)} disabled={isGenerating}>
-                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><BookOpen className="h-3.5 w-3.5 mr-1" />Regenerate</>}
+                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><FaBook className="h-3.5 w-3.5 mr-1" />Regenerate</>}
                         </Button>
                         {report.status === 'ready' && (
                           <Button size="sm" className="text-xs" onClick={() => handleDownload(report.id)} disabled={isDownloading}>

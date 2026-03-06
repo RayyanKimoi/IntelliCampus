@@ -3,13 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, ClipboardCheck, FileQuestion, BarChart3 } from 'lucide-react';
+import { RiDashboardHorizontalFill } from 'react-icons/ri';
+import { MdAssignment, MdQuiz } from 'react-icons/md';
+import { BsFileEarmarkBarGraphFill } from 'react-icons/bs';
 
 const TABS = [
-  { label: 'Dashboard', href: '/student/assessment', icon: LayoutDashboard, exact: true },
-  { label: 'Assignments', href: '/student/assessment/assignments', icon: ClipboardCheck, exact: false },
-  { label: 'Quizzes', href: '/student/assessment/quizzes', icon: FileQuestion, exact: false },
-  { label: 'Results', href: '/student/assessment/results', icon: BarChart3, exact: false },
+  { label: 'Dashboard', href: '/student/assessment', icon: RiDashboardHorizontalFill, exact: true },
+  { label: 'Assignments', href: '/student/assessment/assignments', icon: MdAssignment, exact: false },
+  { label: 'Quizzes', href: '/student/assessment/quizzes', icon: MdQuiz, exact: false },
+  { label: 'Results', href: '/student/assessment/results', icon: BsFileEarmarkBarGraphFill, exact: false },
 ];
 
 export function AssessmentTabNav() {

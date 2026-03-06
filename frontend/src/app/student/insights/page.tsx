@@ -13,10 +13,11 @@ import { MOCK_INSIGHTS_DASHBOARD, MOCK_INSIGHTS_TREND, MOCK_INSIGHTS_MASTERY } f
 import {
   Lightbulb, Brain, Flame, Clock, BatteryLow, BatteryFull,
   BatteryMedium, AlertTriangle, CheckCircle2, Calendar,
-  BookOpen, Eye, Headphones, PenLine, Zap, TrendingUp,
+  Eye, Headphones, PenLine, Zap, TrendingUp,
   TrendingDown, Minus, Moon, Sun, Coffee, Loader2, BarChart2,
   ArrowRight,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -134,7 +135,7 @@ const TIMETABLE: { day: string; slots: { time: string; activity: string; icon: R
   {
     day: 'Monday',
     slots: [
-      { time: '7–8 AM', activity: 'Concept Review', icon: <BookOpen className="h-3.5 w-3.5" />, intensity: 'medium' },
+      { time: '7–8 AM', activity: 'Concept Review', icon: <FaBook className="h-3.5 w-3.5" />, intensity: 'medium' },
       { time: '4–6 PM', activity: 'Practice Quiz', icon: <Zap className="h-3.5 w-3.5" />, intensity: 'high' },
     ],
   },
@@ -142,7 +143,7 @@ const TIMETABLE: { day: string; slots: { time: string; activity: string; icon: R
     day: 'Tuesday',
     slots: [
       { time: '8–9 AM', activity: 'AI Tutor Session', icon: <Brain className="h-3.5 w-3.5" />, intensity: 'medium' },
-      { time: '5–6 PM', activity: 'Light Reading', icon: <BookOpen className="h-3.5 w-3.5" />, intensity: 'low' },
+      { time: '5–6 PM', activity: 'Light Reading', icon: <FaBook className="h-3.5 w-3.5" />, intensity: 'low' },
     ],
   },
   {
@@ -163,7 +164,7 @@ const TIMETABLE: { day: string; slots: { time: string; activity: string; icon: R
     day: 'Friday',
     slots: [
       { time: '8–9 AM', activity: 'Weak Topics', icon: <AlertTriangle className="h-3.5 w-3.5" />, intensity: 'high' },
-      { time: '6 PM', activity: 'Light Review', icon: <BookOpen className="h-3.5 w-3.5" />, intensity: 'low' },
+      { time: '6 PM', activity: 'Light Review', icon: <FaBook className="h-3.5 w-3.5" />, intensity: 'low' },
     ],
   },
   {

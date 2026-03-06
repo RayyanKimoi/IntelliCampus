@@ -5,8 +5,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teacherService } from '@/services/teacherService';
 import {
   FileBarChart, Download, Loader2, AlertCircle, Check,
-  BarChart2, BookOpen,
+  BarChart2,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { MOCK_TEACHER_COURSES_FOR_REPORTS } from '@/lib/mockData';
 
 // ───────────────────────────── Types
@@ -157,7 +158,7 @@ export default function ReportsPage() {
               desc: 'Student scores, submission status, and grading details for all assignments.',
             },
             {
-              icon: <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400" />,
+              icon: <FaBook className="w-5 h-5 text-green-600 dark:text-green-400" />,
               bg: 'bg-green-50 dark:bg-green-950/40',
               title: 'Course Coverage',
               desc: 'Export includes course and assignment metadata alongside student data.',
