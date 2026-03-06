@@ -17,7 +17,6 @@ import {
   Calendar,
   RefreshCw,
 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 import { MOCK_TEACHER_DASHBOARD } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'motion/react';
@@ -394,7 +393,7 @@ export default function TeacherDashboardPage() {
           <AnimatedMetricCard
             label="Active Courses"
             rawValue={dashboard.activeCoursesCount ?? 0}
-            icon={<FaBook className="h-5 w-5" />}
+            icon={<BookOpen className="h-5 w-5" />}
             trendText="In progress"
             glowColor="#f59e0b"
             borderColor="#f59e0b"

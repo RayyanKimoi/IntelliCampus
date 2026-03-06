@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 import { teacherService } from '@/services/teacherService';
 
 export default function CreateCoursePage() {
@@ -47,7 +46,7 @@ export default function CreateCoursePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FaBook className="h-5 w-5 text-primary" />
+              <BookOpen className="h-5 w-5 text-primary" />
               Create New Course
             </CardTitle>
             <CardDescription>

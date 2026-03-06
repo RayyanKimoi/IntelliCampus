@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -14,7 +14,6 @@ import {
   Scale, ClipboardCheck, Clock, Shield, AlertTriangle,
   CheckCircle2, Settings, FileText, BarChart3, Lock, Eye,
 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 
 interface AssessmentPolicy {
   strictExamMode: boolean;
@@ -202,7 +201,7 @@ export default function AdminAssessmentGovernancePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FaBook className="h-5 w-5 text-primary" />
+              <BookOpen className="h-5 w-5 text-primary" />
               Question Bank Overview
             </CardTitle>
             <CardDescription>Distribution of questions by subject and difficulty</CardDescription>

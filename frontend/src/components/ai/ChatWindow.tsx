@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,6 @@ import { aiService } from '@/services/aiService';
 import { useVoice } from '@/hooks/useVoice';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
 import { Volume2, VolumeX } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 
 interface Message {
   id: string;
@@ -116,7 +115,7 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
               className="flex h-7 w-7 items-center justify-center rounded-lg"
               style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)' }}
             >
-              <FaBook className="h-3.5 w-3.5 text-white" />
+              <BookOpen className="h-3.5 w-3.5 text-white" />
             </div>
             <CardTitle className="text-base font-semibold text-foreground">{topicName}</CardTitle>
           </div>
@@ -158,7 +157,7 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
               className="flex h-16 w-16 items-center justify-center rounded-2xl"
               style={{ background: 'linear-gradient(135deg,rgba(0,47,76,0.08),rgba(0,110,178,0.12))' }}
             >
-              <FaBook className="h-7 w-7 text-[#006EB2]/60" />
+              <BookOpen className="h-7 w-7 text-[#006EB2]/60" />
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-slate-600">Ask about {topicName}</p>
