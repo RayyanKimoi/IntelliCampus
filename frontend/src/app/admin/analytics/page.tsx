@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -11,7 +11,6 @@ import {
   BarChart3, Users, GraduationCap, TrendingUp, TrendingDown,
   Minus, Brain, Zap, Activity, Clock, CheckCircle2,
 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 
 interface CourseAnalytic {
   id: string;
@@ -175,7 +174,7 @@ export default function AdminAnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FaBook className="h-5 w-5 text-primary" />
+              <BookOpen className="h-5 w-5 text-primary" />
               Course Performance Overview
             </CardTitle>
             <CardDescription>Enrolment, completion and average scores per course</CardDescription>

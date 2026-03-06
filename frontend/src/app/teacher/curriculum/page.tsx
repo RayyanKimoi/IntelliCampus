@@ -1,9 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teacherService } from '@/services/teacherService';
-import { FaBook } from 'react-icons/fa';
 import {
   ChevronRight, Plus, Upload, FolderOpen,
   FileText, Layers, X, Check, AlertCircle, Loader2,
@@ -184,7 +183,7 @@ export default function CurriculumPage() {
 
   // ── UI
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'courses', label: 'Courses', icon: <FaBook className="w-4 h-4" /> },
+    { id: 'courses', label: 'Courses', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'subjects', label: 'Subjects', icon: <Layers className="w-4 h-4" /> },
     { id: 'topics', label: 'Topics & Content', icon: <FileText className="w-4 h-4" /> },
   ];
@@ -269,7 +268,7 @@ export default function CurriculumPage() {
                 </div>
                 {courses.length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">
-                    <FaBook className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
                     <p>No courses yet. Create your first course.</p>
                   </div>
                 ) : (
@@ -279,7 +278,7 @@ export default function CurriculumPage() {
                         className="bg-card border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group">
                         <div className="flex items-start justify-between">
                           <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/40 rounded-lg flex items-center justify-center">
-                            <FaBook className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                           </div>
                           <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
                         </div>

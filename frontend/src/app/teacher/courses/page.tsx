@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlusCircle, Users, Brain, ChevronRight } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 import { MOCK_TEACHER_COURSES } from '@/lib/mockData';
 import { teacherService } from '@/services/teacherService';
 
@@ -66,7 +65,7 @@ export default function TeacherCoursesPage() {
         ) : courses.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
-              <FaBook className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No courses yet</h3>
               <p className="text-muted-foreground mb-4">Create your first course to get started.</p>
               <Link href="/teacher/courses/create">
@@ -83,7 +82,7 @@ export default function TeacherCoursesPage() {
               <Card key={course.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FaBook className="h-5 w-5 text-primary" />
+                    <BookOpen className="h-5 w-5 text-primary" />
                     {course.name}
                   </CardTitle>
                   <CardDescription className="line-clamp-2">{course.description}</CardDescription>

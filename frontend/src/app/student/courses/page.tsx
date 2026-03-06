@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -10,7 +10,6 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, Layers, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 import { MOCK_COURSES } from '@/lib/mockData';
 import { cn } from '@/lib/utils';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
@@ -65,7 +64,7 @@ function SubjectCard({ course }: { course: CourseWithMeta }) {
           <div className="absolute inset-x-0 top-0 h-1 rounded-t-[calc(0.75rem-3px)] bg-gradient-to-r from-[#006EB2]/60 to-[#5BB8FF]/20" />
           <div className="flex items-start justify-between mb-4 mt-1">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <FaBook className="h-5 w-5 text-primary" />
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <Badge variant="outline" className={cn('text-xs font-medium border', label.bg, label.color)}>
               {label.text}
@@ -202,7 +201,7 @@ export default function StudentCoursesPage() {
         ) : coursesWithMeta.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-24 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-              <FaBook className="h-8 w-8 text-muted-foreground/60" />
+              <BookOpen className="h-8 w-8 text-muted-foreground/60" />
             </div>
             <h3 className="text-lg font-semibold">No courses enrolled</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">

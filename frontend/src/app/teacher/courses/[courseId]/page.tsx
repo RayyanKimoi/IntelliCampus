@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -14,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Loader2, PlusCircle, Brain, FileText, ChevronRight } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 import { teacherService } from '@/services/teacherService';
 
 interface Subject {
@@ -303,7 +302,7 @@ export default function CourseDetailPage() {
               <AccordionItem key={subject.id} value={subject.id}>
                 <AccordionTrigger className="px-4">
                   <div className="flex items-center gap-2">
-                    <FaBook className="h-4 w-4 text-primary" />
+                    <BookOpen className="h-4 w-4 text-primary" />
                     <span className="font-semibold">{subject.name}</span>
                     <Badge variant="outline" className="ml-2">
                       {subject.topics?.length || 0} topics

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -18,7 +18,6 @@ import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
   FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2
 } from 'lucide-react';
-import { FaBook } from 'react-icons/fa';
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Types
@@ -155,7 +154,7 @@ function TeacherResources({
                             : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                         )}
                       >
-                        <FaBook className="h-3.5 w-3.5 shrink-0" />
+                        <BookOpen className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate text-left">{topic.name}</span>
                       </button>
                     ))}
@@ -467,7 +466,7 @@ export default function CourseDetailPage() {
           <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
             <span><Layers className="inline h-3.5 w-3.5 mr-1" />{subjects.length} chapters</span>
             <span>
-              <FaBook className="inline h-3.5 w-3.5 mr-1" />
+              <BookOpen className="inline h-3.5 w-3.5 mr-1" />
               {subjects.reduce((acc, s) => acc + s.topics.length, 0)} topics
             </span>
           </div>
@@ -476,7 +475,7 @@ export default function CourseDetailPage() {
         {/* Tab toggle */}
         <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1 w-fit">
           {([ 
-            { id: 'teacher', label: 'Teacher Resources', icon: FaBook },
+            { id: 'teacher', label: 'Teacher Resources', icon: BookOpen },
             { id: 'adaptive', label: 'Adaptive Resources', icon: Lightbulb },
           ] as { id: CourseTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
             <button
