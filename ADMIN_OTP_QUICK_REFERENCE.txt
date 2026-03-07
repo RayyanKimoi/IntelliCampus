@@ -1,0 +1,122 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                 ADMIN OTP AUTHENTICATION                      ║
+║                     QUICK REFERENCE                           ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📍 ADMIN LOGIN URL
+   http://localhost:3000/login-admin
+
+🔐 ADMIN CREDENTIALS
+   Email: divyajeetsahu24@gmail.com
+   Password: 123456890
+
+⚡ QUICK SETUP (3 COMMANDS)
+   cd frontend
+   pnpm prisma migrate dev --name add_admin_otp
+   npx tsx scripts/create-admin.ts
+
+🧪 TEST FLOW
+   1. Visit /login-admin
+   2. Enter credentials above
+   3. Check terminal for OTP (dev mode)
+   4. Enter 6-digit OTP
+   5. Success → redirected to /admin/dashboard
+
+📦 WHAT WAS CREATED
+   ✅ Backend: 2 API routes, 2 services, 1 email module
+   ✅ Frontend: 1 page (/login-admin) with OTP UI
+   ✅ Database: AdminOTP table with Prisma
+   ✅ Security: Hashed OTPs, rate limiting, expiry
+   ✅ Docs: Setup guide + implementation summary
+
+🔧 KEY FILES
+   Backend:
+   • src/app/api/admin/login/route.ts
+   • src/app/api/admin/verify-otp/route.ts
+   • src/services/admin-otp.service.ts
+   • src/lib/email.ts
+   
+   Frontend:
+   • src/app/login-admin/page.tsx
+   
+   Database:
+   • prisma/schema.prisma (AdminOTP model)
+   • admin_otp_migration.sql
+
+📧 OTP DELIVERY
+   Development: Console logs (check terminal)
+   Production: Email via Resend (set RESEND_API_KEY)
+
+🔒 SECURITY FEATURES
+   ✓ Credentials verified before OTP sent
+   ✓ OTPs hashed with bcrypt
+   ✓ 5-minute expiry
+   ✓ Single-use OTPs
+   ✓ Rate limiting (5 attempts)
+   ✓ Database storage (no memory)
+
+⚙️ ENVIRONMENT VARIABLES (.env)
+   RESEND_API_KEY=your-key-here (optional for dev)
+   DATABASE_URL=postgresql://... (existing)
+   JWT_SECRET=... (existing)
+
+🎨 UI FEATURES
+   • Two-step flow (credentials → OTP)
+   • Auto-focus on OTP inputs
+   • Paste support for 6-digit codes
+   • Backspace navigation
+   • Loading states
+   • Error/success messages
+   • Resend OTP button
+
+📊 DATABASE SCHEMA
+   model AdminOTP {
+     id        String   @id
+     email     String
+     otpHash   String
+     expiresAt DateTime
+     used      Boolean  @default(false)
+     attempts  Int      @default(0)
+     createdAt DateTime @default(now())
+   }
+
+🔌 API ENDPOINTS
+   POST /api/admin/login
+   → Send: { email, password }
+   → Get: { requiresOTP: true, email }
+   
+   POST /api/admin/verify-otp
+   → Send: { email, otp }
+   → Get: { user, token }
+
+📖 DOCUMENTATION
+   • ADMIN_OTP_SETUP.md (detailed setup guide)
+   • ADMIN_OTP_IMPLEMENTATION.md (technical docs)
+   • ADMIN_OTP_QUICK_REFERENCE.txt (this file)
+
+🐛 TROUBLESHOOTING
+   Issue: TypeScript errors
+   → pnpm prisma generate
+   → Restart VS Code TS server
+   
+   Issue: Admin user not found
+   → npx tsx scripts/create-admin.ts
+   
+   Issue: Database connection error
+   → Check DATABASE_URL in .env
+   
+   Issue: OTP not received
+   → Check terminal (dev) or spam folder (prod)
+
+🚀 DEPLOYMENT
+   1. Run: pnpm prisma migrate deploy
+   2. Set RESEND_API_KEY in production
+   3. Create admin user in prod database
+   4. Test login flow
+   5. Enable HTTPS
+
+✨ STATUS: ✅ COMPLETE & READY TO USE
+
+═══════════════════════════════════════════════════════════════
+For detailed instructions, see: ADMIN_OTP_SETUP.md
+═══════════════════════════════════════════════════════════════
