@@ -35,7 +35,12 @@ export interface ChapterContent {
   chapterId: string;
   title: string;
   description: string;
+  // Content type: pdf | doc | ppt | image | youtube
+  type: string;
   fileUrl: string;
+  youtubeUrl?: string;
+  thumbnailUrl?: string;
+  teacherNotes?: string;
   fileType: string;
   fileSize: number;
   orderIndex: number;
@@ -96,12 +101,42 @@ export const chapterCurriculumService = {
   },
 
   // Get chapter content
-  async getChapterContent(chapterId: string): Promise<{ chapterName: string; content: ChapterContent[] }> {
+  async getChapterContent(chapterId: string): Promise<{ chapterName: string; content: ChapterContent[]; teacherNotes?: string }> {
     const response = await api.get(`/teacher/curriculum/chapters/${chapterId}/content`);
     return response.data || response;
   },
 
-  // Upload content
+  // Upload file content (PDF, DOC, PPT, image)
+  async uploadFile(data: {
+    chapterId: string;
+    title: string;
+    description?: string;
+    fileUrl: string;
+    fileType?: string;
+    fileSize?: number;
+    type?: string;
+  }): Promise<ChapterContent> {
+    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content/file`, data);
+    return response.data || response;
+  },
+
+  // Add YouTube video content
+  async addYoutubeVideo(data: {
+    chapterId: string;
+    title: string;
+    youtubeUrl: string;
+  }): Promise<ChapterContent> {
+    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content/youtube`, data);
+    return response.data || response;
+  },
+
+  // Save teacher notes for AI summary guidance
+  async saveTeacherNotes(chapterId: string, notes: string): Promise<{ chapterId: string; teacherNotes: string }> {
+    const response = await api.post(`/teacher/curriculum/chapters/${chapterId}/content/teacher-notes`, { notes });
+    return response.data || response;
+  },
+
+  // Legacy uploadContent (kept for backward compat)
   async uploadContent(data: {
     chapterId: string;
     title: string;
@@ -131,3 +166,4 @@ export const chapterCurriculumService = {
     await api.delete(`/teacher/curriculum/content/${contentId}`);
   },
 };
+

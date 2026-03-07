@@ -1,235 +1,153 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { teacherService } from '@/services/teacherService';
-import {
-  ClipboardList, ChevronDown, ChevronUp, Check, AlertCircle,
-  Loader2, User, X, Star, MessageSquare,
-} from 'lucide-react';
-import { MOCK_SUBMISSIONS, MOCK_ALL_ASSIGNMENTS } from '@/lib/mockData';
+import { BookMarked, Users, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Card, CardContent } from '@/components/ui/card';
 
-// ───────────────────────────── Types
-interface Submission {
+interface Subject {
   id: string;
-  userId: string;
-  assignmentId: string;
-  score?: number;
-  teacherComment?: string;
-  gradedAt?: string;
-  completedAt?: string;
-  createdAt: string;
-  user?: { name: string; email: string };
-  assignment?: { id: string; title: string; courseId: string };
+  name: string;
+  description: string;
+  enrolledStudents?: number;
+  avgMastery?: number;
 }
-interface Assignment { id: string; title: string; }
 
-// ───────────────────────────── Page
+// ─── Skeleton Card ─────────────────────────────────────────────
+function SubjectCardSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card/30 p-6 animate-pulse space-y-5">
+      <div className="flex justify-between items-start">
+        <div className="w-11 h-11 rounded-xl bg-muted/70" />
+        <div className="w-7 h-7 rounded-full bg-muted/50" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-5 bg-muted/70 rounded-lg w-3/4" />
+        <div className="h-3 bg-muted/50 rounded-md w-1/2" />
+      </div>
+      <div className="h-px bg-border/40 w-full" />
+      <div className="flex justify-between">
+        <div className="h-3.5 bg-muted/50 rounded w-24" />
+        <div className="h-3.5 bg-muted/50 rounded w-14" />
+      </div>
+    </div>
+  );
+}
+
 export default function ResultsPage() {
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [selectedAssignment, setSelectedAssignment] = useState<string>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const router = useRouter();
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [gradeInputs, setGradeInputs] = useState<Record<string, { score: string; comment: string }>>({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [subs, asgns] = await Promise.allSettled([
-        teacherService.getAllSubmissions(),
-        teacherService.getAllAssignments(),
-      ]);
-      const subList = subs.status === 'fulfilled' ? (subs.value ?? []) : [];
-      setSubmissions(subList.length > 0 ? subList : MOCK_SUBMISSIONS as any);
-      if (asgns.status === 'fulfilled') {
-        const list = asgns.value ?? [];
-        setAssignments(list.length > 0 ? list : MOCK_ALL_ASSIGNMENTS);
-      } else {
-        setAssignments(MOCK_ALL_ASSIGNMENTS);
-      }
-    } catch { /* individual */ }
-    finally { setLoading(false); }
+      const { MOCK_TEACHER_COURSES_RICH } = await import('@/lib/mockData');
+      // Simulate a small loading delay for skeleton visibility
+      await new Promise(r => setTimeout(r, 600));
+      setSubjects(MOCK_TEACHER_COURSES_RICH);
+    } catch (err) {
+      console.error('Failed to load subjects', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // Filter submissions
-  const filtered = selectedAssignment === 'all'
-    ? submissions
-    : submissions.filter(s => s.assignmentId === selectedAssignment);
-
-  // Init grade input
-  function openGrade(sub: Submission) {
-    setGradeInputs(prev => ({
-      ...prev,
-      [sub.id]: {
-        score: String(sub.score ?? ''),
-        comment: sub.teacherComment ?? '',
-      },
-    }));
-    setExpandedId(sub.id);
-  }
-
-  async function submitGrade(subId: string) {
-    const input = gradeInputs[subId];
-    if (!input) return;
-    setSaving(true);
-    try {
-      await teacherService.gradeSubmission(subId, {
-        score: parseFloat(input.score),
-        comment: input.comment,
-      });
-      await loadData();
-      setExpandedId(null);
-    } catch { setError('Failed to save grade'); }
-    finally { setSaving(false); }
-  }
-
-  // ── Status helpers
-  function statusBadge(sub: Submission) {
-    if (sub.gradedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">Graded</span>;
-    if (sub.completedAt) return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">Submitted</span>;
-    return <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400">In Progress</span>;
-  }
-
-  // Build assignment lookup
-  const assignmentMap = Object.fromEntries(assignments.map(a => [a.id, a.title]));
-
-  // Stats
-  const submitted = filtered.filter(s => s.completedAt).length;
-  const graded = filtered.filter(s => s.gradedAt).length;
-  const avgScore = (() => {
-    const scored = filtered.filter(s => s.score !== null && s.score !== undefined);
-    if (!scored.length) return null;
-    return (scored.reduce((acc, s) => acc + (s.score ?? 0), 0) / scored.length).toFixed(1);
-  })();
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   return (
     <DashboardLayout requiredRole="teacher">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Evaluation & Results</h1>
-          <p className="text-sm text-muted-foreground mt-1">Review student submissions and assign grades.</p>
-        </div>
-
-        {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded-lg text-sm">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
-            <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4" /></button>
+      <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col gap-1.5"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary dark:text-blue-400 text-xs font-semibold tracking-widest uppercase w-fit mb-2 border border-primary/20">
+            <BookMarked className="w-3.5 h-3.5" />
+            Teacher Portal
           </div>
-        )}
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+            Evaluation & Results
+          </h1>
+          <p className="text-muted-foreground text-sm md:text-base max-w-2xl">
+            Select a subject to view grading progress, evaluate assignments, and monitor student performance across your courses.
+          </p>
+        </motion.div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Total Submissions', value: filtered.length },
-            { label: 'Submitted', value: submitted },
-            { label: 'Graded', value: graded },
-          ].map(stat => (
-            <div key={stat.label} className="bg-card border border-border rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-foreground">Filter by Assignment:</label>
-          <select className="border border-border rounded-lg px-3 py-2 text-sm max-w-xs bg-background text-foreground"
-            value={selectedAssignment} onChange={e => setSelectedAssignment(e.target.value)}>
-            <option value="all">All Assignments</option>
-            {assignments.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
-          </select>
-          {avgScore && (
-            <p className="ml-auto text-sm text-muted-foreground">
-              Avg score: <span className="font-semibold text-foreground">{avgScore}</span>
-            </p>
-          )}
-        </div>
-
-        {/* List */}
         {loading ? (
-          <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p>No submissions found.</p>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pt-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SubjectCardSkeleton key={i} />
+            ))}
           </div>
+        ) : subjects.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-24 flex flex-col items-center justify-center bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm"
+          >
+            <div className="p-4 bg-muted/60 rounded-full mb-4 ring-1 ring-border/50">
+              <BookMarked className="w-8 h-8 opacity-40 text-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">No subjects found</h3>
+            <p className="text-muted-foreground mt-1 max-w-sm text-sm">You haven't been assigned any subjects to evaluate yet.</p>
+          </motion.div>
         ) : (
-          <div className="space-y-3">
-            {filtered.map(sub => (
-              <div key={sub.id} className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="flex items-center px-5 py-4 gap-4">
-                  <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground">{sub.user?.name ?? 'Unknown Student'}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {assignmentMap[sub.assignmentId] ?? sub.assignment?.title ?? '—'} ·{' '}
-                      {sub.completedAt
-                        ? `Submitted ${new Date(sub.completedAt).toLocaleDateString()}`
-                        : 'Not submitted'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {sub.score !== null && sub.score !== undefined && (
-                      <span className="text-sm font-semibold text-foreground">{sub.score}%</span>
-                    )}
-                    {statusBadge(sub)}
-                    <button onClick={() => expandedId === sub.id ? setExpandedId(null) : openGrade(sub)}
-                      className="text-muted-foreground hover:text-foreground">
-                      {expandedId === sub.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 pt-4">
+            {subjects.map((subject, index) => (
+              <motion.div
+                key={subject.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.07, ease: 'easeOut' }}
+                whileHover={{ y: -3 }}
+              >
+                <Card
+                  className="group relative h-full flex flex-col overflow-hidden border border-border/60 dark:border-white/[0.06] bg-card shadow-sm hover:shadow-xl hover:shadow-primary/5 dark:hover:shadow-primary/10 transition-all duration-400 cursor-pointer rounded-2xl"
+                  onClick={() => router.push(`/teacher/results/${subject.id}`)}
+                >
+                  {/* Top gradient accent on hover */}
+                  <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-sky-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                {expandedId === sub.id && (
-                  <div className="border-t border-border px-5 py-4 bg-muted/40 space-y-4">
-                    <div className="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div><span className="font-medium text-foreground">Email:</span> {sub.user?.email ?? '—'}</div>
-                      <div><span className="font-medium text-foreground">Attempt ID:</span> <code className="text-xs bg-muted px-1 rounded">{sub.id}</code></div>
-                    </div>
-                    {sub.teacherComment && (
-                      <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-800 dark:text-blue-300">
-                        <MessageSquare className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <span>{sub.teacherComment}</span>
+                  {/* Subtle gradient wash on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-sky-500/0 to-indigo-500/0 group-hover:from-primary/5 group-hover:via-sky-500/3 group-hover:to-indigo-500/5 transition-all duration-500 pointer-events-none" />
+
+                  <CardContent className="p-6 flex flex-col h-full relative z-10">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="p-3 bg-primary/10 dark:bg-primary/15 text-primary dark:text-blue-400 rounded-xl ring-1 ring-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                        <BookMarked className="w-5 h-5" />
                       </div>
-                    )}
-                    {/* Grade form */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground">Grade this submission</h4>
-                      <div className="grid sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-muted-foreground mb-1">Score (0–100)</label>
-                          <input type="number" min={0} max={100}
-                            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
-                            value={gradeInputs[sub.id]?.score ?? ''}
-                            onChange={e => setGradeInputs(p => ({ ...p, [sub.id]: { ...p[sub.id], score: e.target.value } }))} />
+                      <div className="p-1.5 rounded-full bg-muted/60 text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <h3 className="text-[17px] font-semibold mb-1 text-foreground group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-300 leading-snug">
+                      {subject.name}
+                    </h3>
+
+                    <div className="mt-auto space-y-4 pt-4">
+                      <div className="h-px w-full bg-border/60" />
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>{subject.enrolledStudents || 0} Students</span>
                         </div>
-                        <div>
-                          <label className="block text-xs text-muted-foreground mb-1">Comment</label>
-                          <input className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
-                            value={gradeInputs[sub.id]?.comment ?? ''}
-                            onChange={e => setGradeInputs(p => ({ ...p, [sub.id]: { ...p[sub.id], comment: e.target.value } }))}
-                            placeholder="Optional feedback…" />
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Active</span>
                         </div>
                       </div>
-                      <button onClick={() => submitGrade(sub.id)} disabled={saving}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {saving ? 'Saving…' : 'Save Grade'}
-                      </button>
                     </div>
-                  </div>
-                )}
-              </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
           </div>
         )}

@@ -1,0 +1,2 @@
+src/components/curriculum/UploadModal.tsx(233,26): error TS7009: 'new' expression, whose target lacks a construct signature, implicitly has an 'any' type.
+src/components/curriculum/UploadModal.tsx(233,43): error TS2554: Expected 1 arguments, but got 3.

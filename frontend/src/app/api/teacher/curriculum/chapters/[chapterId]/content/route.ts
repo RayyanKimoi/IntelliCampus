@@ -784,6 +784,16 @@ export async function GET(
     };
 
     const result = mockContent[chapterId] || { chapterName: 'Unknown Chapter', content: [] };
+    // Enrich mock content items with new fields if missing
+    if (result.content) {
+      result.content = result.content.map((item: any) => ({
+        ...item,
+        type: item.type || 'pdf',
+        thumbnailUrl: item.thumbnailUrl || null,
+        youtubeUrl: item.youtubeUrl || null,
+        teacherNotes: item.teacherNotes || null,
+      }));
+    }
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     console.error('[API] /api/teacher/curriculum/chapters/[chapterId]/content error:', error);
@@ -800,3 +810,62 @@ export async function GET(
     );
   }
 }
+
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ chapterId: string }> }
+) {
+  try {
+    const user = getAuthUser(req);
+    requireRole(user, [UserRole.TEACHER]);
+
+    const { chapterId } = await context.params;
+    const body = await req.json();
+    const { title, description, fileUrl, fileType, fileSize, type } = body;
+
+    if (!title) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    }
+
+    // Determine content type from fileType if not provided
+    const contentType = type || (() => {
+      if (fileType?.includes('pdf')) return 'pdf';
+      if (fileType?.includes('word') || fileType?.includes('document')) return 'doc';
+      if (fileType?.includes('presentation') || fileType?.includes('powerpoint')) return 'ppt';
+      if (fileType?.includes('image')) return 'image';
+      return 'pdf';
+    })();
+
+    const newContent = {
+      id: `content-${Date.now()}`,
+      chapterId,
+      uploadedBy: user.userId,
+      title,
+      description: description || '',
+      type: contentType,
+      fileUrl: fileUrl || `/uploads/${Date.now()}_${title.replace(/\s+/g, '-')}`,
+      youtubeUrl: null,
+      thumbnailUrl: null,
+      teacherNotes: null,
+      fileType: fileType || 'application/pdf',
+      fileSize: fileSize || 0,
+      orderIndex: 0,
+      createdAt: new Date().toISOString(),
+      uploader: { id: user.userId, email: user.email },
+    };
+
+    return NextResponse.json({ success: true, data: newContent }, { status: 201 });
+  } catch (error: any) {
+    console.error('[API] POST /api/teacher/curriculum/chapters/[chapterId]/content error:', error);
+    
+    const isAuthError = error.message?.includes('Authentication required') || 
+                        error.message?.includes('Invalid or expired token');
+    const statusCode = isAuthError ? 401 : 500;
+    
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: statusCode }
+    );
+  }
+}
+
