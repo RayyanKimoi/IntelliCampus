@@ -17,13 +17,17 @@ import {
   Calendar,
   RefreshCw,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { MOCK_TEACHER_DASHBOARD } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'motion/react';
 
 const TeacherPerformanceChart = dynamic(
-  () => import('@/components/charts/TeacherPerformanceChart'),
-  { ssr: false, loading: () => <div className="h-[340px] w-full animate-pulse rounded bg-muted/50" /> }
+  () => import('@/components/charts/TeacherPerformanceChart').then(mod => mod.default),
+  { 
+    ssr: false, 
+    loading: () => <div className="h-[340px] w-full animate-pulse rounded bg-muted/50" />,
+  }
 );
 
 // ------------------------------------------------------------------
@@ -393,7 +397,7 @@ export default function TeacherDashboardPage() {
           <AnimatedMetricCard
             label="Active Courses"
             rawValue={dashboard.activeCoursesCount ?? 0}
-            icon={<BookOpen className="h-5 w-5" />}
+            icon={<FaBook className="h-5 w-5" />}
             trendText="In progress"
             glowColor="#f59e0b"
             borderColor="#f59e0b"

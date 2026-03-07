@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 import { gamificationService } from '@/services/gamification.service';
 
 export const runtime = 'nodejs';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['student']);
+    requireRole(user, [UserRole.STUDENT]);
     
     const xpData = await gamificationService.getStudentXP(user.userId);
     return NextResponse.json(

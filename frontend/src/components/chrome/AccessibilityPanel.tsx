@@ -75,16 +75,20 @@ export function AccessibilityPanel() {
     <div className="relative">
       <Button
         ref={triggerRef}
-        variant={open ? 'secondary' : 'ghost'}
+        variant="ghost"
         size="icon"
-        className={`h-8 w-8 relative ${anyActive ? 'text-primary' : ''}`}
+        className={`h-8 w-8 relative ${
+          anyActive 
+            ? 'text-white' 
+            : 'text-white/90'
+        } hover:bg-white/10 hover:text-white`}
         aria-label="Accessibility options"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
         <Accessibility className="h-4 w-4" />
         {anyActive && (
-          <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-primary" />
+          <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-white" />
         )}
       </Button>
 

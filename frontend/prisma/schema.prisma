@@ -131,7 +131,9 @@ model User {
 
   // Teacher relations
   createdCourses        Course[]       @relation("CourseCreator")
+  assignedCourses       TeacherCourseAssignment[] @relation("TeacherCourseAssignments")
   uploadedContent       CurriculumContent[] @relation("ContentUploader")
+  uploadedChapterContent ChapterContent[] @relation("ChapterContentUploader")
   createdAssignments    Assignment[]   @relation("AssignmentCreator")
   teacherInsights       TeacherInsight[] @relation("TeacherInsights")
 
@@ -185,12 +187,64 @@ model Course {
   creator     User        @relation("CourseCreator", fields: [createdBy], references: [id])
 
   subjects       Subject[]
+  chapters       Chapter[]
   assignments    Assignment[]
   aiSessions     AISession[]
   teacherInsights TeacherInsight[]
+  teacherAssignments TeacherCourseAssignment[]
 
   @@index([institutionId])
   @@map("courses")
+}
+
+model TeacherCourseAssignment {
+  id        String   @id @default(cuid())
+  teacherId String   @map("teacher_id")
+  courseId  String   @map("course_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  teacher User   @relation("TeacherCourseAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, courseId])
+  @@index([teacherId])
+  @@index([courseId])
+  @@map("teacher_course_assignments")
+}
+
+model Chapter {
+  id          String   @id @default(cuid())
+  courseId    String   @map("course_id")
+  name        String
+  description String   @default("")
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  course  Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  content ChapterContent[]
+
+  @@index([courseId])
+  @@map("chapters")
+}
+
+model ChapterContent {
+  id          String   @id @default(cuid())
+  chapterId   String   @map("chapter_id")
+  uploadedBy  String   @map("uploaded_by")
+  title       String
+  description String   @default("")
+  fileUrl     String   @map("file_url")
+  fileType    String   @default("pdf") @map("file_type")
+  fileSize    Int?     @map("file_size")
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  chapter  Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  uploader User    @relation("ChapterContentUploader", fields: [uploadedBy], references: [id])
+
+  @@index([chapterId])
+  @@map("chapter_content")
 }
 
 model Subject {

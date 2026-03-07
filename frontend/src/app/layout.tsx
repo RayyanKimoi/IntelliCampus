@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { DM_Sans, Lexend_Peta, Instrument_Serif } from 'next/font/google';
 import '@/styles/globals.css';
+import '@/lib/clearAuthState'; // Import debug utilities
 
 const dmSans = DM_Sans({
   subsets: ['latin'],

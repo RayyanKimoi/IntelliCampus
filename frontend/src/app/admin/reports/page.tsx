@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   FileCheck, Download, BarChart3, Users,
   CheckCircle2, Clock, FileText, GraduationCap, Loader2,
-  Shield, Calendar, TrendingUp, AlertTriangle,
+  Shield, Calendar, TrendingUp, AlertTriangle, BookOpen,
 } from 'lucide-react';
 
 type ReportStatus = 'ready' | 'generating' | 'scheduled';

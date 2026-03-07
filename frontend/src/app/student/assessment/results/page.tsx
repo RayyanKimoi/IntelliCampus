@@ -264,7 +264,12 @@ export default function ResultsPage() {
 
   return (
     <DashboardLayout requiredRole="student">
-      <div className="space-y-6">
+      <motion.div 
+        className="space-y-6"
+        initial="hidden"
+        animate="show"
+        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.12 } } }}
+      >
         {error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
@@ -272,12 +277,20 @@ export default function ResultsPage() {
         )}
 
         {/* Overall grade */}
-        <GradeCard overallPct={overallPct} />
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+          <GradeCard overallPct={overallPct} />
+        </motion.div>
 
         {/* 2-col layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }}
+        >
           {/* Topic mastery breakdown */}
-          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <motion.div 
+            className="rounded-xl border border-border bg-card p-5 space-y-3"
+            variants={{ hidden: { opacity: 0, x: -20 }, show: { opacity: 1, x: 0 } }}
+          >
             <div className="flex items-center justify-between mb-1">
               <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Topic Mastery</h2>
               <Badge variant="outline">{topicMastery.length} topics</Badge>
@@ -289,10 +302,13 @@ export default function ResultsPage() {
                 {topicMastery.map(t => <TopicMasteryBar key={t.topicId} topic={t} />)}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Recent scores */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <motion.div 
+            className="rounded-xl border border-border bg-card p-5"
+            variants={{ hidden: { opacity: 0, x: 20 }, show: { opacity: 1, x: 0 } }}
+          >
             <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Recent Scores</h2>
             {recentScores.length === 0 ? (
               <p className="text-sm text-muted-foreground italic text-center py-6">No graded submissions yet.</p>
@@ -301,11 +317,14 @@ export default function ResultsPage() {
                 {recentScores.map(s => <RecentScoreRow key={s.id} sub={s} />)}
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Improvement trend chart */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <motion.div 
+          className="rounded-xl border border-border bg-card p-5"
+          variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+        >
           <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">30-Day Performance Trend</h2>
           {trendData.length > 0 ? (
             <Suspense fallback={<div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Loading chart…</div>}>
@@ -316,19 +335,22 @@ export default function ResultsPage() {
               <p className="text-sm text-muted-foreground">Complete quizzes and assignments to see your trend.</p>
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Weak topic heatmap */}
         {topicMastery.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <motion.div 
+            className="rounded-xl border border-border bg-card p-5"
+            variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+          >
             <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-4">Topic Heatmap</h2>
             <p className="text-xs text-muted-foreground mb-4">Showing all topics by mastery level — red = weakest, green = strongest</p>
             <WeakTopicHeatmap topics={topicMastery} />
-          </div>
+          </motion.div>
         )}
 
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   );
 }

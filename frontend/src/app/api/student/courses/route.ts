@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 import { curriculumService } from '@/services/curriculum.service';
 
 export const runtime = 'nodejs';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['student']);
+    requireRole(user, [UserRole.STUDENT]);
 
     const courses = await curriculumService.getCourses(user.institutionId);
     return NextResponse.json({ success: true, data: courses }, { status: 200 });

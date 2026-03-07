@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs'
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['admin']);
+    requireRole(user, [UserRole.ADMIN]);
     
     const policy = await prisma.aIPolicySettings.findUnique({
       where: { institutionId: user.institutionId }
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['admin']);
+    requireRole(user, [UserRole.ADMIN]);
     
     const body = await req.json();
 

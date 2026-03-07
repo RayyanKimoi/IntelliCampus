@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import {
   Scale, ClipboardCheck, Clock, Shield, AlertTriangle,
-  CheckCircle2, Settings, FileText, BarChart3, Lock, Eye,
+  CheckCircle2, Settings, FileText, BarChart3, Lock, Eye, BookOpen,
 } from 'lucide-react';
 
 interface AssessmentPolicy {

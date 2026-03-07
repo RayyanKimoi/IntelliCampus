@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -12,7 +13,7 @@ export async function GET(
   try {
     const { subjectId } = await params;
     const user = getAuthUser(req);
-    requireRole(user, ['student']);
+    requireRole(user, [UserRole.STUDENT]);
 
     const topics = await prisma.topic.findMany({
       where: { subjectId },

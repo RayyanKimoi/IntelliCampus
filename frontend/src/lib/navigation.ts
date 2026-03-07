@@ -1,6 +1,5 @@
 import type React from 'react';
 import {
-  LayoutDashboard,
   Shield,
   BarChart3,
   FlaskConical,
@@ -15,16 +14,21 @@ import {
   FileCheck,
   Library,
   ShieldAlert,
-  BookOpen,
-  MessageSquare,
-  Target,
-  Gamepad2,
-  Lightbulb,
-  TrendingUp,
   ClipboardCheck,
   FileCode,
+  LayoutDashboard,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+
+// Student learning icons from react-icons
+import { RiDashboardHorizontalFill } from "react-icons/ri";
+import { FaBookBookmark } from "react-icons/fa6";
+import { IoIosChatboxes } from "react-icons/io";
+import { FaPencil } from "react-icons/fa6";
+import { IoGameController } from "react-icons/io5";
+import { FaLightbulb } from "react-icons/fa6";
+import { MdInsights, MdAssignment, MdQuiz } from "react-icons/md";
+import { BsFileEarmarkBarGraphFill } from "react-icons/bs";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type NavIcon = LucideIcon | React.ComponentType<any>;
@@ -38,19 +42,19 @@ export interface NavItem {
 // ── Student navigation by mode ──────────────────────────────────
 export const studentNavByMode: Record<string, NavItem[]> = {
   learning: [
-    { label: 'Overview',      href: '/student',              icon: LayoutDashboard },
-    { label: 'My Courses',    href: '/student/courses',      icon: BookOpen },
-    { label: 'AI Tutor',      href: '/student/ai-tutor',     icon: MessageSquare },
-    { label: 'Practice',      href: '/student/practice',     icon: Target },
-    { label: 'Gamification',  href: '/student/gamification', icon: Gamepad2 },
-    { label: 'Mastery',       href: '/student/mastery',      icon: Lightbulb },
-    { label: 'Insights',      href: '/student/insights',     icon: TrendingUp },
+    { label: 'Overview',      href: '/student',              icon: RiDashboardHorizontalFill },
+    { label: 'My Courses',    href: '/student/courses',      icon: FaBookBookmark },
+    { label: 'AI Tutor',      href: '/student/ai-tutor',     icon: IoIosChatboxes },
+    { label: 'Practice',      href: '/student/practice',     icon: FaPencil },
+    { label: 'Gamification',  href: '/student/gamification', icon: IoGameController },
+    { label: 'Mastery',       href: '/student/mastery',      icon: FaLightbulb },
+    { label: 'Insights',      href: '/student/insights',     icon: MdInsights },
   ],
   assessment: [
-    { label: 'Dashboard', href: '/student/assessment', icon: LayoutDashboard },
-    { label: 'Assignments', href: '/student/assessment/assignments', icon: ClipboardCheck },
-    { label: 'Quizzes', href: '/student/assessment/quizzes', icon: FileCode },
-    { label: 'Results', href: '/student/assessment/results', icon: BarChart3 },
+    { label: 'Dashboard', href: '/student/assessment', icon: RiDashboardHorizontalFill },
+    { label: 'Assignments', href: '/student/assessment/assignments', icon: MdAssignment },
+    { label: 'Quizzes', href: '/student/assessment/quizzes', icon: MdQuiz },
+    { label: 'Results', href: '/student/assessment/results', icon: BsFileEarmarkBarGraphFill },
   ],
 };
 

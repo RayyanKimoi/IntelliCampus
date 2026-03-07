@@ -121,6 +121,254 @@ async function main() {
 
   console.log('📚 Course structure seeded: CS101 -> Algorithms -> Sorting Algorithms');
 
+  // 3.1 Additional Courses for Chapter System
+  const webDevCourse = await prisma.course.upsert({
+    where: { id: 'webdev101-seed' },
+    update: {},
+    create: {
+      id: 'webdev101-seed',
+      name: 'Web Development Fundamentals',
+      description: 'Learn HTML, CSS, JavaScript, and modern web frameworks',
+      institutionId: institution.id,
+      createdBy: teacher.id,
+    },
+  });
+
+  const dataStructuresCourse = await prisma.course.upsert({
+    where: { id: 'ds201-seed' },
+    update: {},
+    create: {
+      id: 'ds201-seed',
+      name: 'Data Structures & Algorithms',
+      description: 'Advanced data structures and algorithmic problem solving',
+      institutionId: institution.id,
+      createdBy: teacher.id,
+    },
+  });
+
+  // 3.2 Teacher Course Assignments
+  await prisma.teacherCourseAssignment.upsert({
+    where: { id: 'assign-1' },
+    update: {},
+    create: {
+      id: 'assign-1',
+      teacherId: teacher.id,
+      courseId: course.id,
+    },
+  });
+
+  await prisma.teacherCourseAssignment.upsert({
+    where: { id: 'assign-2' },
+    update: {},
+    create: {
+      id: 'assign-2',
+      teacherId: teacher.id,
+      courseId: webDevCourse.id,
+    },
+  });
+
+  await prisma.teacherCourseAssignment.upsert({
+    where: { id: 'assign-3' },
+    update: {},
+    create: {
+      id: 'assign-3',
+      teacherId: teacher.id,
+      courseId: dataStructuresCourse.id,
+    },
+  });
+
+  console.log('👨‍🏫 Teacher assigned to 3 courses');
+
+  // 3.3 Chapters for CS101
+  const cs101Chapter1 = await prisma.chapter.upsert({
+    where: { id: 'cs101-ch1-seed' },
+    update: {},
+    create: {
+      id: 'cs101-ch1-seed',
+      courseId: course.id,
+      name: 'Introduction to Programming',
+      description: 'Variables, data types, and basic syntax',
+      orderIndex: 1,
+    },
+  });
+
+  const cs101Chapter2 = await prisma.chapter.upsert({
+    where: { id: 'cs101-ch2-seed' },
+    update: {},
+    create: {
+      id: 'cs101-ch2-seed',
+      courseId: course.id,
+      name: 'Control Flow',
+      description: 'Conditionals, loops, and logical operators',
+      orderIndex: 2,
+    },
+  });
+
+  const cs101Chapter3 = await prisma.chapter.upsert({
+    where: { id: 'cs101-ch3-seed' },
+    update: {},
+    create: {
+      id: 'cs101-ch3-seed',
+      courseId: course.id,
+      name: 'Functions and Modules',
+      description: 'Writing reusable code with functions',
+      orderIndex: 3,
+    },
+  });
+
+  // 3.4 Chapters for Web Development
+  const webDevChapter1 = await prisma.chapter.upsert({
+    where: { id: 'webdev-ch1-seed' },
+    update: {},
+    create: {
+      id: 'webdev-ch1-seed',
+      courseId: webDevCourse.id,
+      name: 'HTML Basics',
+      description: 'Structure of web pages with HTML5',
+      orderIndex: 1,
+    },
+  });
+
+  const webDevChapter2 = await prisma.chapter.upsert({
+    where: { id: 'webdev-ch2-seed' },
+    update: {},
+    create: {
+      id: 'webdev-ch2-seed',
+      courseId: webDevCourse.id,
+      name: 'CSS Styling',
+      description: 'Styling web pages with CSS3 and Flexbox',
+      orderIndex: 2,
+    },
+  });
+
+  const webDevChapter3 = await prisma.chapter.upsert({
+    where: { id: 'webdev-ch3-seed' },
+    update: {},
+    create: {
+      id: 'webdev-ch3-seed',
+      courseId: webDevCourse.id,
+      name: 'JavaScript Fundamentals',
+      description: 'Client-side programming with JavaScript',
+      orderIndex: 3,
+    },
+  });
+
+  const webDevChapter4 = await prisma.chapter.upsert({
+    where: { id: 'webdev-ch4-seed' },
+    update: {},
+    create: {
+      id: 'webdev-ch4-seed',
+      courseId: webDevCourse.id,
+      name: 'React Framework',
+      description: 'Building interactive UIs with React',
+      orderIndex: 4,
+    },
+  });
+
+  // 3.5 Chapters for Data Structures
+  const dsChapter1 = await prisma.chapter.upsert({
+    where: { id: 'ds-ch1-seed' },
+    update: {},
+    create: {
+      id: 'ds-ch1-seed',
+      courseId: dataStructuresCourse.id,
+      name: 'Arrays and Linked Lists',
+      description: 'Linear data structures and their operations',
+      orderIndex: 1,
+    },
+  });
+
+  const dsChapter2 = await prisma.chapter.upsert({
+    where: { id: 'ds-ch2-seed' },
+    update: {},
+    create: {
+      id: 'ds-ch2-seed',
+      courseId: dataStructuresCourse.id,
+      name: 'Stacks and Queues',
+      description: 'LIFO and FIFO data structures',
+      orderIndex: 2,
+    },
+  });
+
+  const dsChapter3 = await prisma.chapter.upsert({
+    where: { id: 'ds-ch3-seed' },
+    update: {},
+    create: {
+      id: 'ds-ch3-seed',
+      courseId: dataStructuresCourse.id,
+      name: 'Trees and Graphs',
+      description: 'Hierarchical and network data structures',
+      orderIndex: 3,
+    },
+  });
+
+  // 3.6 Chapter Content (Sample PDFs/Documents)
+  await prisma.chapterContent.upsert({
+    where: { id: 'content-1-seed' },
+    update: {},
+    create: {
+      id: 'content-1-seed',
+      chapterId: cs101Chapter1.id,
+      uploadedBy: teacher.id,
+      title: 'Introduction to Variables',
+      description: 'Understanding variables and data types',
+      fileUrl: '/sample-content/cs101-variables.pdf',
+      fileType: 'application/pdf',
+      fileSize: 1024000,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.chapterContent.upsert({
+    where: { id: 'content-2-seed' },
+    update: {},
+    create: {
+      id: 'content-2-seed',
+      chapterId: webDevChapter1.id,
+      uploadedBy: teacher.id,
+      title: 'HTML5 Semantic Tags',
+      description: 'Modern HTML structure',
+      fileUrl: '/sample-content/html5-semantics.pdf',
+      fileType: 'application/pdf',
+      fileSize: 856000,
+      orderIndex: 1,
+    },
+  });
+
+  await prisma.chapterContent.upsert({
+    where: { id: 'content-3-seed' },
+    update: {},
+    create: {
+      id: 'content-3-seed',
+      chapterId: webDevChapter1.id,
+      uploadedBy: teacher.id,
+      title: 'HTML Forms Guide',
+      description: 'Building interactive forms',
+      fileUrl: '/sample-content/html-forms.pdf',
+      fileType: 'application/pdf',
+      fileSize: 623000,
+      orderIndex: 2,
+    },
+  });
+
+  await prisma.chapterContent.upsert({
+    where: { id: 'content-4-seed' },
+    update: {},
+    create: {
+      id: 'content-4-seed',
+      chapterId: dsChapter1.id,
+      uploadedBy: teacher.id,
+      title: 'Array Operations Cheat Sheet',
+      description: 'Common array algorithms',
+      fileUrl: '/sample-content/arrays-cheatsheet.pdf',
+      fileType: 'application/pdf',
+      fileSize: 412000,
+      orderIndex: 1,
+    },
+  });
+
+  console.log('📖 Chapters and content seeded for 3 courses');
+
   // 4. Content
   const content = await prisma.curriculumContent.upsert({
     where: { id: 'sorting-content-seed' },

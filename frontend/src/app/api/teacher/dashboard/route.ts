@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 import { analyticsService } from '@/services/analytics.service';
 
 export const runtime = 'nodejs';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['teacher']);
+    requireRole(user, [UserRole.TEACHER]);
     
     const dashboard = await analyticsService.getTeacherDashboard(user.userId);
     return NextResponse.json(

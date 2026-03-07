@@ -35,15 +35,34 @@ export async function POST(req: NextRequest) {
           { status: 401 }
         );
       }
-      const token = signToken({ userId: demo.id, email: demo.email, role: demo.role as any, institutionId: demo.institutionId });
+      const token = signToken({ 
+        userId: demo.id, 
+        email: demo.email, 
+        role: demo.role as any, 
+        institutionId: demo.institutionId 
+      });
       const { password: _pw, ...user } = demo;
+      
+      console.log('[Auth API] Demo login successful:', { email: demo.email, role: demo.role });
+      
       return NextResponse.json(
         { success: true, data: { user, token }, message: 'Login successful' },
         { status: 200 }
       );
     }
 
-    // ── 2. Real database for non-demo accounts ────────────────────────────────
+    // ── 2. Real database for non-demo accounts (dev mode: skip if not available) ────
+    const isDevelopment = true; // Match other dev mode settings
+    
+    if (isDevelopment) {
+      // In dev mode, if not a demo account, return error immediately instead of trying DB
+      console.log('[Auth API] Dev mode: Non-demo login attempted, rejecting');
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password. Use demo credentials: teacher@campus.edu / teacher123' },
+        { status: 401 }
+      );
+    }
+    
     try {
       const { userService } = await import('@/services/user.service');
       const result = await userService.login(email, password);
@@ -58,9 +77,10 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: any) {
+    console.error('[Auth API] Login error:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 401 }
+      { success: false, error: error.message || 'Login failed' },
+      { status: 500 }
     );
   }
 }

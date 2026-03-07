@@ -13,6 +13,7 @@ import {
   ChevronLeft, FileQuestion, Clock, CheckCircle2, Lock, Play,
   AlertTriangle, ChevronRight, Loader2
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { format, parseISO } from '@/lib/dateUtils';
 
 type QuizSection = 'prerequisite' | 'topic';
@@ -137,7 +138,7 @@ export default function SubjectQuizzesPage() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 dark:bg-blue-900/40">
-                    <BookOpen className="h-3.5 w-3.5 text-blue-600" />
+                    <FaBook className="h-3.5 w-3.5 text-blue-600" />
                   </div>
                   <h2 className="font-semibold text-base">Topic-wise Quizzes</h2>
                 </div>

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { verifyToken } from './jwt';
-import { AuthTokenPayload } from '@intellicampus/shared';
+import { AuthTokenPayload, UserRole } from '@intellicampus/shared';
 
 export function getAuthUser(req: NextRequest): AuthTokenPayload {
   const authHeader = req.headers.get('authorization');
@@ -19,7 +19,7 @@ export function getAuthUser(req: NextRequest): AuthTokenPayload {
   }
 }
 
-export function requireRole(user: AuthTokenPayload, allowedRoles: string[]): void {
+export function requireRole(user: AuthTokenPayload, allowedRoles: UserRole[]): void {
   if (!allowedRoles.includes(user.role)) {
     throw new Error('Insufficient permissions');
   }

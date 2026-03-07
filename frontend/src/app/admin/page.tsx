@@ -17,6 +17,7 @@ import {
   Shield,
   Plus,
   FileText,
+  BookOpen,
 } from 'lucide-react';
 
 export default function AdminDashboard() {
