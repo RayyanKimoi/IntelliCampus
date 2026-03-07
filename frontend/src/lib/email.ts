@@ -15,10 +15,10 @@ interface SendOTPEmailParams {
 export async function sendAdminOTP(email: string, otp: string): Promise<void> {
   const apiKey = env.RESEND_API_KEY;
 
-  // Development fallback: log to console
-  if (!apiKey || env.isDev) {
+  // Development fallback: log to console only if no API key
+  if (!apiKey) {
     console.log('\n' + '='.repeat(60));
-    console.log('📧 ADMIN OTP EMAIL (Development Mode)');
+    console.log('📧 ADMIN OTP EMAIL (Development Mode - No API Key)');
     console.log('='.repeat(60));
     console.log(`To: ${email}`);
     console.log(`OTP Code: ${otp}`);

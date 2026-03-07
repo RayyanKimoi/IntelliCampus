@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { AuthBackground } from '@/components/ui/auth-background';
+import { useAuthStore } from '@/store/authStore';
 import {
   Shield,
   Loader2,
@@ -22,6 +23,7 @@ type LoginStep = 'credentials' | 'otp';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { setAuth } = useAuthStore();
   const [step, setStep] = useState<LoginStep>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,15 +94,14 @@ export default function AdminLoginPage() {
         throw new Error(data.error || 'OTP verification failed');
       }
 
-      // Store token and user data
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
+      // Store auth in Zustand store (which persists to localStorage)
+      setAuth(data.data.user, data.data.token);
 
       setSuccess('Login successful! Redirecting...');
       
       // Redirect to admin dashboard
       setTimeout(() => {
-        router.push('/admin/dashboard');
+        router.push('/admin');
       }, 1000);
     } catch (err: any) {
       setError(err.message || 'Invalid OTP code');
