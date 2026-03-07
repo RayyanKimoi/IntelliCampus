@@ -1,0 +1,280 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { MOCK_SUBMISSIONS_FULL } from '@/lib/mockData';
+import { teacherService } from '@/services/teacherService';
+import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2 } from 'lucide-react';
+
+export interface GradeSavePayload {
+  submissionId: string;
+  score: number;
+  comment: string;
+  rubricScores: Record<string, number>;
+  gradedAt: string;
+}
+
+interface StudentReviewSheetProps {
+  submissionId: string | null;
+  onClose: () => void;
+  onSaved: (payload: GradeSavePayload) => void;
+}
+
+// ─── Rubric data ────────────────────────────────────────────────────
+const RUBRIC_CRITERIA = [
+  { key: 'correctness',     label: 'Correctness',     defaultScore: 9 },
+  { key: 'codeQuality',     label: 'Code Quality',    defaultScore: 8 },
+  { key: 'problemSolving',  label: 'Problem Solving', defaultScore: 9 },
+  { key: 'efficiency',      label: 'Efficiency',      defaultScore: 7 },
+  { key: 'documentation',   label: 'Documentation',   defaultScore: 8 },
+];
+
+// ─── Rubric Progress Bar ────────────────────────────────────────────
+function RubricBar({ label, score, max = 10, onChange }: { label: string; score: number; max?: number; onChange: (v: number) => void }) {
+  const pct = (score / max) * 100;
+  const color =
+    pct >= 80 ? 'bg-emerald-500 dark:bg-emerald-400' :
+    pct >= 60 ? 'bg-amber-500 dark:bg-amber-400' :
+                'bg-red-500 dark:bg-red-400';
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center">
+        <span className="text-[12px] font-semibold text-foreground">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            min={0}
+            max={max}
+            value={score}
+            onChange={e => onChange(Math.min(max, Math.max(0, Number(e.target.value))))}
+            className="w-10 text-center text-xs font-bold bg-muted/50 dark:bg-muted/20 border border-border/50 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+          <span className="text-[11px] text-muted-foreground font-medium">/{max}</span>
+        </div>
+      </div>
+      <div className="h-2 w-full bg-muted dark:bg-muted/30 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${color} rounded-full transition-all duration-300`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentReviewSheetProps) {
+  const [submission, setSubmission] = useState<any | null>(null);
+  const [score, setScore] = useState<string>('');
+  const [comments, setComments] = useState<string>('');
+  const [rubricScores, setRubricScores] = useState<Record<string, number>>(() =>
+    Object.fromEntries(RUBRIC_CRITERIA.map(c => [c.key, c.defaultScore]))
+  );
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (submissionId) {
+      const sub = MOCK_SUBMISSIONS_FULL.find((s: any) => s.id === submissionId);
+      if (sub) {
+        setSubmission(sub);
+        setScore(sub.score ? String(sub.score) : '');
+        setComments(sub.teacherComment || '');
+        // Vary rubric scores based on submission id for realistic mock data
+        const seed = parseInt(sub.id?.slice(-2) || '0', 16);
+        setRubricScores({
+          correctness:    Math.min(10, 6 + (seed % 5)),
+          codeQuality:    Math.min(10, 5 + (seed % 6)),
+          problemSolving: Math.min(10, 7 + (seed % 4)),
+          efficiency:     Math.min(10, 4 + (seed % 7)),
+          documentation:  Math.min(10, 6 + (seed % 5)),
+        });
+      }
+    } else {
+      setSubmission(null);
+    }
+  }, [submissionId]);
+
+  const handleSave = async () => {
+    if (!submission) return;
+    setSaving(true);
+    try {
+      await teacherService.gradeSubmission(submission.id, {
+        score: parseInt(score, 10) || 0,
+        comment: comments,
+      });
+      onSaved();
+    } catch (err) {
+      console.error('Failed to save grade', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Derive a mock roll number from submission id
+  const rollNumber = submission?.user?.rollNumber
+    || (submission ? `22CS${100 + (parseInt(submission.id?.slice(-3) || '0', 16) % 100).toString().padStart(3, '0')}` : '—');
+  const studentId = submission?.user?.id
+    || (submission ? `STU${parseInt(submission.id?.slice(-4) || '0', 16).toString().padStart(5, '0')}` : '—');
+
+  return (
+    <Sheet open={!!submissionId} onOpenChange={(open: boolean) => !open && onClose()}>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-background dark:bg-card border-l border-border/50 shadow-2xl p-0 flex flex-col h-full">
+
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-background/90 dark:bg-card/90 backdrop-blur-xl border-b border-border/50 px-6 py-5">
+          <div className="flex justify-between items-start pr-8">
+            <SheetHeader className="text-left">
+              <SheetTitle className="text-xl font-bold flex flex-col items-start gap-1.5 tracking-tight">
+                <span className="text-foreground">{submission?.user?.name || 'Student Review'}</span>
+                <span className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground bg-muted/60 dark:bg-muted/30 px-2.5 py-1 rounded-md">
+                  {submission?.user?.email}
+                </span>
+              </SheetTitle>
+            </SheetHeader>
+          </div>
+        </div>
+
+        <div className="flex-1 px-6 py-5 pb-28 overflow-y-auto">
+          {submission ? (
+            <div className="space-y-7">
+
+              {/* Student Info Row */}
+              <div className="grid grid-cols-3 divide-x divide-border/50 bg-muted/30 dark:bg-muted/10 rounded-xl overflow-hidden border border-border/40">
+                <div className="flex flex-col items-center py-3 px-2 gap-1">
+                  <User className="w-3.5 h-3.5 text-muted-foreground mb-0.5" />
+                  <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Name</span>
+                  <span className="text-[12px] font-bold text-foreground text-center leading-tight">{submission.user?.name || '—'}</span>
+                </div>
+                <div className="flex flex-col items-center py-3 px-2 gap-1">
+                  <Hash className="w-3.5 h-3.5 text-muted-foreground mb-0.5" />
+                  <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Roll No</span>
+                  <span className="text-[12px] font-bold text-foreground">{rollNumber}</span>
+                </div>
+                <div className="flex flex-col items-center py-3 px-2 gap-1">
+                  <BadgeCheck className="w-3.5 h-3.5 text-muted-foreground mb-0.5" />
+                  <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Student ID</span>
+                  <span className="text-[12px] font-bold text-foreground">{studentId}</span>
+                </div>
+              </div>
+
+              {/* Submission Preview */}
+              <div className="bg-card w-full h-36 rounded-2xl border border-border/40 dark:border-white/5 flex flex-col items-center justify-center text-sm text-muted-foreground relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 z-0" />
+                <div className="w-10 h-10 bg-muted dark:bg-muted/40 rounded-full flex items-center justify-center mb-2 relative z-10 group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-5 h-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <span className="relative z-10 font-medium text-[13px]">Submission Preview</span>
+                <span className="text-[11px] opacity-50 relative z-10 mt-0.5">PDF Placeholder</span>
+              </div>
+
+              {/* AI Grading Section */}
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold text-[11px] tracking-widest uppercase bg-violet-50 dark:bg-violet-500/10 px-3 py-1.5 rounded-full border border-violet-200/50 dark:border-violet-500/20">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                  AI Grading Insights
+                </div>
+
+                <div className="bg-card/60 dark:bg-muted/10 rounded-2xl border border-border/50 p-5 space-y-5">
+
+                  {/* AI Score */}
+                  <div>
+                    <Label htmlFor="ai-score" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Grading Score</Label>
+                    <div className="relative mt-2">
+                      <Input
+                        id="ai-score"
+                        type="number"
+                        value={score}
+                        onChange={e => setScore(e.target.value)}
+                        className="pl-4 text-2xl font-bold h-14 bg-muted/40 dark:bg-muted/20 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/30 rounded-xl"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-muted-foreground font-bold opacity-40">/ 100</div>
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-border/50" />
+
+                  {/* Rubric Progress Bars */}
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5 block mb-3">Rubric Breakdown</Label>
+                    <div className="space-y-3">
+                      {RUBRIC_CRITERIA.map(crit => (
+                        <RubricBar
+                          key={crit.key}
+                          label={crit.label}
+                          score={rubricScores[crit.key] ?? crit.defaultScore}
+                          onChange={val => setRubricScores(prev => ({ ...prev, [crit.key]: val }))}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-px bg-border/50" />
+
+                  {/* AI Comment */}
+                  <div>
+                    <Label htmlFor="ai-comments" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Generated Comment</Label>
+                    <Textarea
+                      id="ai-comments"
+                      value={comments || 'The student demonstrated a solid understanding of the core concepts. The solution was mostly correct with minor inefficiencies in edge case handling.'}
+                      onChange={e => setComments(e.target.value)}
+                      placeholder="Add your final personalized feedback here..."
+                      rows={4}
+                      className="mt-2 resize-none text-[13px] leading-relaxed bg-muted/30 dark:bg-muted/15 border-border/40 focus-visible:border-primary/40 focus-visible:ring-0 rounded-xl px-4 py-3"
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            <div className="space-y-6 animate-pulse">
+              <div className="h-16 bg-muted/50 dark:bg-muted/20 rounded-xl" />
+              <div className="w-full h-36 bg-muted/50 dark:bg-muted/20 rounded-2xl" />
+              <div className="h-7 w-40 bg-muted/50 rounded-full" />
+              <div className="space-y-4 p-5 rounded-2xl border border-border/40 bg-muted/20 dark:bg-muted/10">
+                <div className="h-4 w-24 bg-muted/60 rounded" />
+                <div className="h-12 bg-muted/50 rounded-xl" />
+                <div className="h-px bg-border/40" />
+                <div className="h-4 w-28 bg-muted/60 rounded" />
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <div className="h-3 bg-muted/60 rounded w-28" />
+                      <div className="h-3 bg-muted/60 rounded w-8" />
+                    </div>
+                    <div className="h-2 bg-muted/50 rounded-full w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-20 bg-background/90 dark:bg-card/90 backdrop-blur-xl border-t border-border/50 px-6 py-4 flex gap-3 mt-auto">
+          <Button variant="outline" className="flex-1 font-semibold h-11 rounded-xl transition-all" onClick={onClose} disabled={saving}>
+            <X className="w-4 h-4 mr-2" /> Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {saving ? 'Saving...' : 'Confirm Grade'}
+          </Button>
+        </div>
+
+      </SheetContent>
+    </Sheet>
+  );
+}
