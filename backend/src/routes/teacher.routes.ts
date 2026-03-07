@@ -28,6 +28,18 @@ import {
   getIntegrityFlags,
   exportReport,
 } from '../controllers/teacher.controller';
+import {
+  getTeacherCourses,
+  getCourseChapters,
+  getChapterDetail,
+  createChapter,
+  updateChapter,
+  deleteChapter,
+  getChapterContent,
+  uploadContent as uploadChapterContent,
+  updateContent,
+  deleteContent,
+} from '../controllers/chapter.controller';
 
 const router = Router();
 
@@ -37,7 +49,19 @@ router.use(authenticate, authorize(UserRole.TEACHER));
 // Dashboard
 router.get('/dashboard', getTeacherDashboard);
 
-// Curriculum
+// Curriculum - New Chapter-based System
+router.get('/curriculum/courses', getTeacherCourses);
+router.get('/curriculum/courses/:courseId/chapters', getCourseChapters);
+router.post('/curriculum/chapters', createChapter);
+router.get('/curriculum/chapters/:chapterId', getChapterDetail);
+router.put('/curriculum/chapters/:chapterId', updateChapter);
+router.delete('/curriculum/chapters/:chapterId', deleteChapter);
+router.get('/curriculum/chapters/:chapterId/content', getChapterContent);
+router.post('/curriculum/content', uploadChapterContent);
+router.put('/curriculum/content/:contentId', updateContent);
+router.delete('/curriculum/content/:contentId', deleteContent);
+
+// Curriculum - Legacy (keeping for backward compatibility)
 router.post('/courses', createCourse);
 router.get('/courses', getCourses);
 router.get('/courses/:courseId', getCourseDetail);

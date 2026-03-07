@@ -15,16 +15,31 @@ class ApiClient {
 
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
+    
+    // In development mode, always use dev mock token if no real token exists
+    const isDevelopment = true;
+    
     try {
       const stored = localStorage.getItem('intellicampus-auth');
       if (stored) {
         const parsed = JSON.parse(stored);
-        return parsed.state?.token || null;
+        const token = parsed.state?.token || null;
+        if (token) return token;
       }
+      
+      // If no token in localStorage and in dev mode, return dev mock token
+      if (isDevelopment) {
+        return 'dev-token-mock-authentication';
+      }
+      
+      return null;
     } catch {
+      // On error, still return dev token in dev mode
+      if (isDevelopment) {
+        return 'dev-token-mock-authentication';
+      }
       return null;
     }
-    return null;
   }
 
   async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -59,9 +74,30 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      if (response.status === 401 && typeof window !== 'undefined') {
-        try { localStorage.removeItem('intellicampus-auth'); } catch {}
-        window.location.href = '/auth/login';
+      // In development mode, never redirect to login - just throw the error
+      const isDevelopment = true; // Match authStore.ts setting
+      
+      // Only redirect to login for auth token issues, not for permission errors
+      if (response.status === 401 && typeof window !== 'undefined' && !isDevelopment) {
+        const authErrorPatterns = [
+          'Authentication required',
+          'Invalid or expired token',
+          'Provide a Bearer token'
+        ];
+        const isAuthTokenError = authErrorPatterns.some(pattern => 
+          data?.error?.includes(pattern)
+        );
+        
+        if (isAuthTokenError) {
+          console.warn('[API] Token authentication failed, redirecting to login');
+          try { localStorage.removeItem('intellicampus-auth'); } catch {}
+          // Use setTimeout to allow any pending state updates to complete
+          setTimeout(() => {
+            window.location.href = '/auth/login';
+          }, 100);
+        }
+      } else if (response.status === 401 && isDevelopment) {
+        console.log('[API] Dev mode: 401 error, not redirecting to login');
       }
       throw new Error(data?.error || `Request failed with status ${response.status}`);
     }

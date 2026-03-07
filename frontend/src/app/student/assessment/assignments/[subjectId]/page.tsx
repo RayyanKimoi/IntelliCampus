@@ -19,6 +19,7 @@ import {
   Star, Loader2, ChevronRight, Code2, Type, AlignLeft,
   Award, BarChart3, XCircle,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { formatDistanceToNow, isPast, parseISO, format } from '@/lib/dateUtils';
 
 type AnswerType = 'text' | 'richtext' | 'code' | 'file';
@@ -463,7 +464,7 @@ function GradingBreakdown({ pct, submission, rubric }: {
         <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/60 p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-6 w-6 rounded-full bg-blue-200 dark:bg-blue-800 flex items-center justify-center">
-              <BookOpen className="h-3.5 w-3.5 text-blue-700 dark:text-blue-300" />
+              <FaBook className="h-3.5 w-3.5 text-blue-700 dark:text-blue-300" />
             </div>
             <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Teacher Feedback</p>
           </div>

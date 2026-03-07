@@ -14,8 +14,11 @@ import { teacherService } from '@/services/teacherService';
 import dynamic from 'next/dynamic';
 
 const TeacherPerformanceChart = dynamic(
-  () => import('@/components/charts/TeacherPerformanceChart'),
-  { ssr: false, loading: () => <div className="h-[280px] w-full animate-pulse rounded bg-muted/50" /> }
+  () => import('@/components/charts/TeacherPerformanceChart').then(mod => mod.default),
+  { 
+    ssr: false, 
+    loading: () => <div className="h-[280px] w-full animate-pulse rounded bg-muted/50" /> 
+  }
 );
 
 interface MasteryEntry {

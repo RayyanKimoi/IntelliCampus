@@ -43,12 +43,6 @@ export function AppSidebar() {
     .toUpperCase()
     .slice(0, 2);
 
-  const roleBadgeColors: Record<string, string> = {
-    student: 'bg-blue-600',
-    teacher: 'bg-emerald-600',
-    admin: 'bg-amber-600',
-  };
-
   return (
     <TooltipProvider delayDuration={0}>
       {/* Mobile overlay */}
@@ -68,6 +62,24 @@ export function AppSidebar() {
             : 'relative shrink-0'
         )}
       >
+        {/* IntelliCampus Logo */}
+        <Link 
+          href={`/${user.role}`} 
+          className={cn(
+            "flex items-center border-b border-white/10 transition-all hover:bg-white/5",
+            collapsed ? "justify-center px-2 py-3" : "gap-2 px-3 py-3"
+          )}
+        >
+          <div className="h-9 w-9 rounded-full bg-white flex items-center justify-center shrink-0">
+            <img src="/icons/logo.png" alt="IntelliCampus" className="h-8 w-8 object-contain" />
+          </div>
+          {!collapsed && (
+            <span className="font-bold text-lg tracking-tight text-white">
+              IntelliCampus
+            </span>
+          )}
+        </Link>
+
         {/* Collapse toggle */}
         {!isMobile && (
           <div className="flex h-10 items-center justify-end px-2 border-b border-white/10">
@@ -83,20 +95,6 @@ export function AppSidebar() {
                 <ChevronRight className="h-4 w-4" />
               )}
             </Button>
-          </div>
-        )}
-
-        {/* Role badge */}
-        {!collapsed && (
-          <div className="px-3 py-2 border-b border-white/10">
-            <span
-              className={cn(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium tracking-wider text-white uppercase',
-                roleBadgeColors[user.role] || 'bg-gray-600'
-              )}
-            >
-              {user.role}
-            </span>
           </div>
         )}
 

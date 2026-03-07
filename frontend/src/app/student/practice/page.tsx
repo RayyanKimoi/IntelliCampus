@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   TrendingUp,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
@@ -527,7 +528,7 @@ export default function PracticePage() {
             style={{ animationDelay: '60ms', backgroundColor: 'rgba(0,47,76,0.04)', borderColor: 'rgba(0,110,178,0.15)' }}
           >
             {([
-              { id: 'curriculum', label: 'Curriculum Quiz', icon: BookOpen },
+              { id: 'curriculum', label: 'Curriculum Quiz', icon: FaBook },
               { id: 'adaptive', label: 'Adaptive Quiz', icon: Brain },
             ] as { id: PracticeMode; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
               <button
@@ -577,7 +578,7 @@ export default function PracticePage() {
                 className="px-5 py-4 border-b flex items-center gap-2"
                 style={{ borderColor: 'rgba(0,110,178,0.1)', backgroundColor: 'rgba(0,47,76,0.02)' }}
               >
-                <BookOpen className="h-4 w-4" style={{ color: '#006EB2' }} />
+                <FaBook className="h-4 w-4" style={{ color: '#006EB2' }} />
                 <h2 className="font-bold text-sm tracking-wide text-foreground">Choose a Topic</h2>
               </div>
               <div className="p-5">
@@ -610,7 +611,7 @@ export default function PracticePage() {
                             <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: done ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, rgba(0,47,76,0.08), rgba(0,110,178,0.12))' }}>
                               {done
                                 ? <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#10b981' }} />
-                                : <BookOpen className="h-3.5 w-3.5" style={{ color: '#006EB2' }} />}
+                                : <FaBook className="h-3.5 w-3.5" style={{ color: '#006EB2' }} />}
                             </div>
                             {done
                               ? <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} />

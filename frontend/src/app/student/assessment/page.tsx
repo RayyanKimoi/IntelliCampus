@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment, Submission } from '@/services/assessmentService';
@@ -10,6 +11,7 @@ import { MOCK_ASSIGNMENTS, MOCK_RESULTS_SUBMISSIONS, MOCK_MASTERY } from '@/lib/
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { cn } from '@/lib/utils';
 import {
   ClipboardCheck, FileQuestion, BarChart3, AlertTriangle,
@@ -117,53 +119,74 @@ export default function AssessmentDashboardPage() {
     <DashboardLayout requiredRole="student">
       <div className="mx-auto max-w-7xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Assessment</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Track your assignments, quizzes, and academic performance.</p>
         </div>
 
         {/* ── Metric row ── */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <motion.div 
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+        >
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse h-24" />
             ))
           ) : (
             <>
-              <MetricTile
-                icon={<ClipboardCheck className="h-5 w-5 text-primary" />}
-                label="Pending Assignments"
-                value={pending.length.toString()}
-                sub="need submission"
-                href="/student/assessment/assignments"
-              />
-              <MetricTile
-                icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
-                label="Completed"
-                value={submissions.length.toString()}
-                sub="submissions total"
-                href="/student/assessment/assignments"
-              />
-              <MetricTile
-                icon={<TrendingUp className="h-5 w-5 text-blue-500" />}
-                label="Overall Mastery"
-                value={`${overallMastery}%`}
-                sub="across all topics"
-                href="/student/assessment/results"
-              />
-              <MetricTile
-                icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
-                label="Weak Topics"
-                value={weakTopics.length.toString()}
-                sub="need attention"
-                href="/student/assessment/results"
-              />
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <MetricTile
+                  icon={<ClipboardCheck className="h-5 w-5 text-primary" />}
+                  label="Pending Assignments"
+                  value={pending.length.toString()}
+                  sub="need submission"
+                  href="/student/assessment/assignments"
+                />
+              </motion.div>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <MetricTile
+                  icon={<CheckCircle2 className="h-5 w-5 text-green-500" />}
+                  label="Completed"
+                  value={submissions.length.toString()}
+                  sub="submissions total"
+                  href="/student/assessment/assignments"
+                />
+              </motion.div>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <MetricTile
+                  icon={<TrendingUp className="h-5 w-5 text-blue-500" />}
+                  label="Overall Mastery"
+                  value={`${overallMastery}%`}
+                  sub="across all topics"
+                  href="/student/assessment/results"
+                />
+              </motion.div>
+              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+                <MetricTile
+                  icon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
+                  label="Weak Topics"
+                  value={weakTopics.length.toString()}
+                  sub="need attention"
+                  href="/student/assessment/results"
+                />
+              </motion.div>
             </>
           )}
-        </div>
+        </motion.div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <motion.div 
+          className="grid gap-6 lg:grid-cols-3"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } } }}
+        >
           {/* ── Upcoming deadlines ── */}
-          <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+          <motion.div 
+            className="lg:col-span-2 rounded-xl border border-border bg-card p-5"
+            variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" /> Upcoming Deadlines
@@ -204,10 +227,13 @@ export default function AssessmentDashboardPage() {
                 })}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* ── Weak topic alerts ── */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <motion.div 
+            className="rounded-xl border border-border bg-card p-5"
+            variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500" /> Weak Topics
@@ -240,12 +266,17 @@ export default function AssessmentDashboardPage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* ── Recent scores ── */}
         {!loading && recentGraded.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <motion.div 
+            className="rounded-xl border border-border bg-card p-5"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" /> Recent Scores
@@ -272,7 +303,7 @@ export default function AssessmentDashboardPage() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </DashboardLayout>
@@ -287,14 +318,29 @@ function MetricTile({ icon, label, value, sub, href }: {
   icon: React.ReactNode; label: string; value: string; sub: string; href: string;
 }) {
   return (
-    <Link href={href} className="group rounded-xl border border-border bg-card p-5 hover:border-primary/40 transition-all block">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">{icon}</div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    <Link href={href} className="group block h-full">
+      {/* Outer shell — GlowingEffect tracks this border */}
+      <div className="relative h-full rounded-xl border border-border p-[3px] transition-all duration-200 hover:-translate-y-0.5">
+        <GlowingEffect
+          spread={40}
+          glow={false}
+          disabled={false}
+          proximity={80}
+          inactiveZone={0.05}
+          borderWidth={2}
+          variant="ic-blue"
+        />
+        {/* Inner card — actual visual background */}
+        <div className="relative h-full rounded-[calc(0.75rem-3px)] bg-card p-5 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">{icon}</div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-xs font-medium mt-0.5">{label}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
+        </div>
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs font-medium mt-0.5">{label}</p>
-      <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>
     </Link>
   );
 }
