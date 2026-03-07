@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { courseId: string } }
+  context: { params: Promise<{ courseId: string }> }
 ) {
   try {
     const user = getAuthUser(req);
-    requireRole(user, ['teacher']);
+    requireRole(user, [UserRole.TEACHER]);
 
-    const courseId = params.courseId;
+    const { courseId } = await context.params;
 
     // Mock chapters data
     const mockData: Record<string, any> = {

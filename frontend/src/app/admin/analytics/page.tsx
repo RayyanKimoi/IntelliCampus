@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   BarChart3, Users, GraduationCap, TrendingUp, TrendingDown,
-  Minus, Brain, Zap, Activity, Clock, CheckCircle2,
+  Minus, Brain, Zap, Activity, Clock, CheckCircle2, BookOpen,
 } from 'lucide-react';
 
 interface CourseAnalytic {

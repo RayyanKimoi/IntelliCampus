@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     const user = getAuthUser(req);
     // In dev mode, allow all roles to access accessibility settings
     if (!isDevelopment) {
-      requireRole(user, ['student']);
+      requireRole(user, [UserRole.STUDENT]);
     }
 
     // Return default accessibility settings
@@ -50,7 +51,7 @@ export async function PUT(req: NextRequest) {
     const user = getAuthUser(req);
     // In dev mode, allow all roles to update accessibility settings
     if (!isDevelopment) {
-      requireRole(user, ['student']);
+      requireRole(user, [UserRole.STUDENT]);
     }
 
     const body = await req.json();

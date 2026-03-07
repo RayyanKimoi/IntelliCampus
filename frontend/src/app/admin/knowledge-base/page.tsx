@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {
   Database, Upload, FileText, Search, Trash2, RefreshCw,
-  CheckCircle2, AlertTriangle, Clock, Cpu, Layers,
+  CheckCircle2, AlertTriangle, Clock, Cpu, Layers, BookOpen,
 } from 'lucide-react';
 
 interface KBDocument {
