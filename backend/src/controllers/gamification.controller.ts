@@ -79,7 +79,7 @@ export const answerBattle = asyncHandler(async (req: Request, res: Response) => 
       parsed.data.battleId,
       req.user!.userId,
       isCorrect,
-      questionData.topicId
+      questionData.topicId ?? ''
     );
 
     sendSuccess(res, {
@@ -169,7 +169,7 @@ export const submitSprintAnswer = asyncHandler(async (req: Request, res: Respons
   const { masteryService } = await import('../services/mastery.service');
   await masteryService.updateMastery(
     req.user!.userId,
-    question.topicId,
+    question.topicId ?? '',
     isCorrect,
     parsed.data.timeTaken
   );

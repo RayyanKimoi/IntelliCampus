@@ -20,7 +20,7 @@ import {
 
 export const getCourseStudents = asyncHandler(async (req: Request, res: Response) => {
   const { courseId } = req.params;
-  const students = await evaluationService.getCourseStudents(courseId);
+  const students = await evaluationService.getCourseStudents(courseId as string);
   sendSuccess(res, students);
 });
 
@@ -142,8 +142,13 @@ export const deleteQuestion = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const publishAssignment = asyncHandler(async (req: Request, res: Response) => {
-  const assignment = await prisma.assignment.findUnique({
+  const assignment = await prisma.assignment.update({
     where: { id: req.params.assignmentId as string },
+    data: { isPublished: true },
+    include: {
+      course: { select: { id: true, name: true } },
+      chapter: { select: { id: true, name: true } },
+    },
   });
   sendSuccess(res, assignment, 'Assignment published');
 });
@@ -264,6 +269,180 @@ export const generateQuiz = asyncHandler(async (req: Request, res: Response) => 
     }
   } catch { /* AI unavailable — return empty Q list for manual edit */ }
   sendSuccess(res, { assignment, questions }, 'Quiz created', 201);
+});
+
+// ========================
+// Assessment Studio
+// ========================
+
+export const getTeacherAssessments = asyncHandler(async (req: Request, res: Response) => {
+  const { courseId } = req.query;
+  const assessments = await assessmentService.getTeacherAssessments(
+    req.user!.userId,
+    courseId as string | undefined,
+  );
+  sendSuccess(res, assessments);
+});
+
+export const getAssignmentDetail = asyncHandler(async (req: Request, res: Response) => {
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: req.params.assignmentId as string },
+    include: {
+      course: { select: { id: true, name: true } },
+      chapter: { select: { id: true, name: true } },
+      questions: true,
+      _count: { select: { studentAttempts: true } },
+    },
+  });
+  if (!assignment) {
+    sendError(res, 'Assignment not found', 404);
+    return;
+  }
+  sendSuccess(res, assignment);
+});
+
+export const createAssignmentStudio = asyncHandler(async (req: Request, res: Response) => {
+  const parsed = createAssignmentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(res, parsed.error.errors[0].message, 400);
+    return;
+  }
+  const assignment = await assessmentService.createAssignment({
+    ...parsed.data,
+    teacherId: req.user!.userId,
+  });
+  sendSuccess(res, assignment, 'Assessment created', 201);
+});
+
+export const updateAssignment = asyncHandler(async (req: Request, res: Response) => {
+  const assignment = await prisma.assignment.update({
+    where: { id: req.params.assignmentId as string },
+    data: {
+      ...(req.body.title && { title: req.body.title }),
+      ...(req.body.description !== undefined && { description: req.body.description }),
+      ...(req.body.type && { type: req.body.type }),
+      ...(req.body.dueDate && { dueDate: new Date(req.body.dueDate) }),
+      ...(req.body.chapterId !== undefined && { chapterId: req.body.chapterId }),
+      ...(req.body.submissionTypes !== undefined && { submissionTypes: req.body.submissionTypes }),
+      ...(req.body.rubric !== undefined && { rubric: req.body.rubric }),
+      ...(req.body.assignmentDocumentUrl !== undefined && { assignmentDocumentUrl: req.body.assignmentDocumentUrl }),
+      ...(req.body.evaluationPoints !== undefined && { evaluationPoints: req.body.evaluationPoints }),
+      ...(req.body.isPublished !== undefined && { isPublished: req.body.isPublished }),
+    },
+    include: {
+      course: { select: { id: true, name: true } },
+      chapter: { select: { id: true, name: true } },
+    },
+  });
+  sendSuccess(res, assignment, 'Assessment updated');
+});
+
+export const deleteAssignment = asyncHandler(async (req: Request, res: Response) => {
+  await prisma.assignment.delete({ where: { id: req.params.assignmentId as string } });
+  sendSuccess(res, null, 'Assessment deleted');
+});
+
+export const generateAIQuizFromChapter = asyncHandler(async (req: Request, res: Response) => {
+  const { courseId, chapterId, title, description, dueDate, difficultyLevel, questionCount } = req.body;
+
+  if (!courseId || !chapterId || !title) {
+    sendError(res, 'courseId, chapterId and title are required', 400);
+    return;
+  }
+
+  // Fetch chapter content for AI context
+  const chapterContent = await prisma.chapterContent.findMany({
+    where: { chapterId },
+    select: { title: true, description: true, fileUrl: true, fileType: true },
+    take: 10,
+  });
+
+  // Create the quiz assignment
+  const assignment = await assessmentService.createAssignment({
+    courseId,
+    chapterId,
+    teacherId: req.user!.userId,
+    title,
+    description: description || '',
+    type: 'quiz',
+    dueDate: dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
+    isPublished: false,
+  });
+
+  // Generate questions using AI (if available)
+  let questions: any[] = [];
+  try {
+    const contextText = chapterContent
+      .map((c) => `${c.title}: ${c.description}`)
+      .join('\n');
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore – openai config is optional and may not be present
+    const openAIModule = await import('../config/openai').catch(() => null);
+    if (openAIModule?.openai) {
+      const prompt = `You are an educational quiz generator. Based on the following learning material, generate ${questionCount || 5} multiple choice questions.
+      
+Learning Material:
+${contextText}
+
+Generate questions in this exact JSON format:
+[
+  {
+    "questionText": "...",
+    "optionA": "...",
+    "optionB": "...",
+    "optionC": "...",
+    "optionD": "...",
+    "correctOption": "A|B|C|D",
+    "explanation": "...",
+    "difficultyLevel": "${difficultyLevel || 'intermediate'}"
+  }
+]
+Return ONLY valid JSON, no other text.`;
+
+      const completion = await openAIModule.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 2000,
+      });
+
+      const raw = completion.choices[0].message.content?.trim() || '[]';
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      if (Array.isArray(parsed)) {
+        questions = parsed;
+        // Save generated questions
+        for (const q of questions) {
+          await assessmentService.addQuestion({
+            assignmentId: assignment.id,
+            questionText: q.questionText,
+            optionA: q.optionA,
+            optionB: q.optionB,
+            optionC: q.optionC,
+            optionD: q.optionD,
+            correctOption: q.correctOption,
+            explanation: q.explanation,
+            difficultyLevel: q.difficultyLevel || difficultyLevel || 'intermediate',
+          });
+        }
+        questions = await prisma.question.findMany({ where: { assignmentId: assignment.id } });
+      }
+    }
+  } catch (aiError) {
+    // AI unavailable — return empty questions for manual editing
+  }
+
+  sendSuccess(res, { assignment, questions, chapterContent }, 'Quiz created', 201);
+});
+
+export const uploadAssignmentFile = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    sendError(res, 'No file uploaded', 400);
+    return;
+  }
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+  sendSuccess(res, { url: fileUrl, filename: req.file.originalname, size: req.file.size }, 'File uploaded');
 });
 
 // ========================

@@ -143,6 +143,28 @@ class ApiClient {
   delete<T = any>(endpoint: string) {
     return this.request<T>(endpoint, { method: 'DELETE' });
   }
+
+  async uploadFile<T = any>(endpoint: string, formData: FormData): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const contentType = response.headers.get('content-type') ?? '';
+    let data: any = null;
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = { error: await response.text() };
+    }
+    if (!response.ok) {
+      throw new Error(data?.error || `Upload failed with status ${response.status}`);
+    }
+    return (data?.data ?? data) as T;
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

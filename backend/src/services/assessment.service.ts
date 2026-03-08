@@ -7,20 +7,38 @@ export class AssessmentService {
    */
   async createAssignment(data: {
     courseId: string;
+    chapterId?: string;
     teacherId: string;
     title: string;
     description?: string;
+    type?: string;
     dueDate: string;
     strictMode?: boolean;
+    isPublished?: boolean;
+    submissionTypes?: string[];
+    rubric?: Array<{ name: string; maxScore: number }>;
+    assignmentDocumentUrl?: string;
+    evaluationPoints?: number;
   }) {
     const assignment = await prisma.assignment.create({
       data: {
         courseId: data.courseId,
+        chapterId: data.chapterId ?? null,
         teacherId: data.teacherId,
         title: data.title,
         description: data.description || '',
+        type: data.type || 'assignment',
         dueDate: new Date(data.dueDate),
         strictMode: data.strictMode || false,
+        isPublished: data.isPublished ?? false,
+        submissionTypes: data.submissionTypes ?? [],
+        rubric: data.rubric ?? undefined,
+        assignmentDocumentUrl: data.assignmentDocumentUrl ?? null,
+        evaluationPoints: data.evaluationPoints ?? null,
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
       },
     });
     logger.info('AssessmentService', `Assignment created: ${assignment.title}`);
@@ -34,6 +52,8 @@ export class AssessmentService {
     return prisma.assignment.findMany({
       where: { courseId },
       include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
         _count: {
           select: {
             questions: true,
@@ -42,6 +62,26 @@ export class AssessmentService {
         },
       },
       orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  /**
+   * Get all assessments created by a teacher
+   */
+  async getTeacherAssessments(teacherId: string, filterCourseId?: string) {
+    return prisma.assignment.findMany({
+      where: {
+        teacherId,
+        ...(filterCourseId ? { courseId: filterCourseId } : {}),
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
+        _count: {
+          select: { questions: true, studentAttempts: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -65,25 +105,27 @@ export class AssessmentService {
    */
   async addQuestion(data: {
     assignmentId?: string;
-    topicId: string;
+    topicId?: string;
     questionText: string;
     optionA: string;
     optionB: string;
     optionC: string;
     optionD: string;
     correctOption: string;
+    explanation?: string;
     difficultyLevel?: string;
   }) {
     return prisma.question.create({
       data: {
-        assignmentId: data.assignmentId,
-        topicId: data.topicId,
+        assignmentId: data.assignmentId ?? null,
+        topicId: data.topicId ?? null,
         questionText: data.questionText,
         optionA: data.optionA,
         optionB: data.optionB,
         optionC: data.optionC,
         optionD: data.optionD,
         correctOption: data.correctOption,
+        explanation: data.explanation ?? null,
         difficultyLevel: data.difficultyLevel || 'beginner',
       },
     });

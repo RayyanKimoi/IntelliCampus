@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import { corsOptions } from './config/cors';
 import { errorHandler } from './middleware/error.middleware';
 import { requestLogger } from './middleware/rateLimit.middleware';
@@ -24,6 +25,9 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
+
+// Static file serving for uploaded assignment documents
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
 // ========================
 // Health Check

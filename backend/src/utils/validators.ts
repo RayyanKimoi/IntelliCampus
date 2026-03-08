@@ -46,21 +46,29 @@ export const createTopicSchema = z.object({
 
 export const createAssignmentSchema = z.object({
   courseId: z.string().min(1),
+  chapterId: z.string().optional(),
   title: z.string().min(2).max(300),
   description: z.string().max(5000).optional(),
-  dueDate: z.string().datetime(),
+  type: z.enum(['assignment', 'quiz']).optional().default('assignment'),
+  dueDate: z.string().min(1),
   strictMode: z.boolean().optional(),
+  isPublished: z.boolean().optional(),
+  submissionTypes: z.array(z.string()).optional(),
+  rubric: z.array(z.object({ name: z.string(), maxScore: z.number() })).optional(),
+  assignmentDocumentUrl: z.string().optional(),
+  evaluationPoints: z.number().int().optional(),
 });
 
 export const createQuestionSchema = z.object({
   assignmentId: z.string().optional(),
-  topicId: z.string().min(1),
+  topicId: z.string().optional(),
   questionText: z.string().min(5),
   optionA: z.string().min(1),
   optionB: z.string().min(1),
   optionC: z.string().min(1),
   optionD: z.string().min(1),
   correctOption: z.enum(['A', 'B', 'C', 'D']),
+  explanation: z.string().optional(),
   difficultyLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
 });
 
