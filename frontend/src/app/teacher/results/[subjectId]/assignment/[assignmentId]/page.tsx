@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { MOCK_TEACHER_ASSIGNMENTS_FULL, MOCK_SUBMISSIONS_FULL } from '@/lib/mockData';
 import { motion, AnimatePresence } from 'motion/react';
 import { StudentReviewSheet, type GradeSavePayload } from '@/components/evaluation/StudentReviewSheet';
+import { teacherService } from '@/services/teacherService';
 
 type CategoryFilter = 'all' | 'toppers' | 'average' | 'risky';
 type StatusFilter = 'all' | 'not-submitted' | 'ai-graded' | 'teacher-graded';
@@ -90,20 +90,52 @@ export default function AssignmentGradingPage({
 
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [reviewSubmissionId, setReviewSubmissionId] = useState<string | null>(null);
+  const [reviewSubmission, setReviewSubmission] = useState<any | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const subjectAssignments = MOCK_TEACHER_ASSIGNMENTS_FULL[subjectId] || [];
-      const current = subjectAssignments.find((a: any) => a.id === assignmentId);
-      setAssignment(current);
+      // Fetch assignment results (submissions)
+      const resultsResponse = await teacherService.getAssignmentResults(assignmentId);
+      const results = resultsResponse.data || resultsResponse || [];
+      
+      // Map results to submission format
+      const mappedSubmissions = results.map((result: any) => ({
+        id: result.id,
+        assignmentId: result.assignmentId,
+        user: {
+          id: result.student?.id || result.studentId,
+          name: result.student?.name || 'Unknown Student',
+          email: result.student?.email || '',
+          avatarUrl: result.student?.profile?.avatarUrl,
+        },
+        score: result.score,
+        completedAt: result.submittedAt,
+        gradedAt: result.gradedAt,
+        gradedBy: result.gradedBy,
+        teacherComment: result.teacherComment,
+        rubricScores: result.rubricScores,
+        answers: result.studentAnswers || [],
+      }));
+      
+      setSubmissions(mappedSubmissions);
 
-      await new Promise(r => setTimeout(r, 500));
-      const assignmentSubs = MOCK_SUBMISSIONS_FULL.filter((s: any) => s.assignmentId === assignmentId);
-      setSubmissions(assignmentSubs);
+      // Fetch assignment details
+      const allAssignmentsResponse = await teacherService.getAssignments(subjectId);
+      const allAssignments = allAssignmentsResponse.data || allAssignmentsResponse || [];
+      const currentAssignment = allAssignments.find((a: any) => a.id === assignmentId);
+      
+      if (currentAssignment) {
+        setAssignment({
+          ...currentAssignment,
+          _count: {
+            attempts: mappedSubmissions.length,
+          },
+        });
+      }
     } catch (err) {
       console.error('Failed to load grading view data', err);
+      setSubmissions([]);
     } finally {
       setLoading(false);
     }
@@ -163,7 +195,7 @@ export default function AssignmentGradingPage({
       )
     );
     // Close the review sheet
-    setReviewSubmissionId(null);
+    setReviewSubmission(null);
   };
 
   return (
@@ -432,7 +464,7 @@ export default function AssignmentGradingPage({
                               else newSet.add(sub.id);
                               setSelectedIds(newSet);
                             } else {
-                              if (sub.completedAt || sub.gradedAt) setReviewSubmissionId(sub.id);
+                              if (sub.completedAt || sub.gradedAt) setReviewSubmission(sub);
                             }
                           }}
                         >
@@ -465,8 +497,8 @@ export default function AssignmentGradingPage({
       </div>
 
       <StudentReviewSheet
-        submissionId={reviewSubmissionId}
-        onClose={() => setReviewSubmissionId(null)}
+        submission={reviewSubmission}
+        onClose={() => setReviewSubmission(null)}
         onSaved={handleGradeSaved}
       />
     </DashboardLayout>

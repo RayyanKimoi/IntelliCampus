@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { MOCK_SUBMISSIONS_FULL } from '@/lib/mockData';
 import { teacherService } from '@/services/teacherService';
 import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2 } from 'lucide-react';
 
@@ -25,7 +24,7 @@ export interface GradeSavePayload {
 }
 
 interface StudentReviewSheetProps {
-  submissionId: string | null;
+  submission: any | null;
   onClose: () => void;
   onSaved: (payload: GradeSavePayload) => void;
 }
@@ -73,8 +72,7 @@ function RubricBar({ label, score, max = 10, onChange }: { label: string; score:
   );
 }
 
-export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentReviewSheetProps) {
-  const [submission, setSubmission] = useState<any | null>(null);
+export function StudentReviewSheet({ submission, onClose, onSaved }: StudentReviewSheetProps) {
   const [score, setScore] = useState<string>('');
   const [comments, setComments] = useState<string>('');
   const [rubricScores, setRubricScores] = useState<Record<string, number>>(() =>
@@ -85,32 +83,26 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
 
   useEffect(() => {
     setSaveSuccess(false); // Reset success state when opening a new submission
-    if (submissionId) {
-      const sub = MOCK_SUBMISSIONS_FULL.find((s: any) => s.id === submissionId);
-      if (sub) {
-        setSubmission(sub);
-        setScore(sub.score ? String(sub.score) : '');
-        setComments(sub.teacherComment || '');
-        
-        // Load existing rubric scores if available, otherwise use defaults
-        if (sub.rubricScores) {
-          setRubricScores(sub.rubricScores);
-        } else {
-          // Vary rubric scores based on submission id for realistic mock data
-          const seed = parseInt(sub.id?.slice(-2) || '0', 16);
-          setRubricScores({
-            correctness:    Math.min(10, 6 + (seed % 5)),
-            codeQuality:    Math.min(10, 5 + (seed % 6)),
-            problemSolving: Math.min(10, 7 + (seed % 4)),
-            efficiency:     Math.min(10, 4 + (seed % 7)),
-            documentation:  Math.min(10, 6 + (seed % 5)),
-          });
-        }
+    if (submission) {
+      setScore(submission.score ? String(submission.score) : '');
+      setComments(submission.teacherComment || '');
+      
+      // Load existing rubric scores if available, otherwise use defaults
+      if (submission.rubricScores) {
+        setRubricScores(submission.rubricScores);
+      } else {
+        // Vary rubric scores based on submission id for realistic mock data
+        const seed = parseInt(submission.id?.slice(-2) || '0', 16);
+        setRubricScores({
+          correctness:    Math.min(10, 6 + (seed % 5)),
+          codeQuality:    Math.min(10, 5 + (seed % 6)),
+          problemSolving: Math.min(10, 7 + (seed % 4)),
+          efficiency:     Math.min(10, 4 + (seed % 7)),
+          documentation:  Math.min(10, 6 + (seed % 5)),
+        });
       }
-    } else {
-      setSubmission(null);
     }
-  }, [submissionId]);
+  }, [submission]);
 
   const handleSave = async () => {
     if (!submission) return;
@@ -125,8 +117,12 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
         gradedAt: new Date().toISOString(),
       };
       
-      // Call the API (will be implemented later, for now just simulate)
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Call the actual grading API
+      await teacherService.gradeSubmission(submission.id, {
+        score: payload.score,
+        comment: payload.comment,
+        rubricScores: payload.rubricScores,
+      });
       
       // Show success message
       setSaveSuccess(true);
@@ -137,6 +133,7 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
       }, 500);
     } catch (err) {
       console.error('Failed to save grade', err);
+      alert('Failed to save grade. Please try again.');
     } finally {
       setSaving(false);
     }

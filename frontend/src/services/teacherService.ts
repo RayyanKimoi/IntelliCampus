@@ -71,7 +71,11 @@ export const teacherService = {
   getAssignmentResults: (assignmentId: string) =>
     api.get(`/teacher/assignments/${assignmentId}/results`),
   getAllSubmissions: () => api.get('/teacher/submissions'),
-  gradeSubmission: (attemptId: string, data: { score: number; comment: string }) =>
+  gradeSubmission: (attemptId: string, data: { 
+    score: number; 
+    comment?: string; 
+    rubricScores?: Record<string, number>;
+  }) =>
     api.post(`/teacher/attempts/${attemptId}/grade`, data),
 
   // Analytics

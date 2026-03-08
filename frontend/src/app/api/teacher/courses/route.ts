@@ -1,18 +1,52 @@
 import { NextResponse } from 'next/server';
-import { MOCK_TEACHER_COURSES_RICH } from '@/lib/mockData';
+import { getAuthUser, requireRole } from '@/lib/auth';
+import { UserRole } from '@intellicampus/shared';
+import { prisma } from '@/lib/prisma';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    // In a real app this would check the session and fetch from DB
+    // Check authentication and authorization
+    const user = getAuthUser();
+    requireRole(user, [UserRole.TEACHER]);
+
+    // Get courses assigned to this teacher
+    const assignments = await prisma.teacherCourseAssignment.findMany({
+      where: {
+        teacherId: user.userId,
+      },
+      include: {
+        course: {
+          include: {
+            _count: {
+              select: {
+                chapters: true,
+                assignments: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const courses = assignments.map((assignment) => assignment.course);
+
     return NextResponse.json({
       success: true,
-      data: MOCK_TEACHER_COURSES_RICH
+      data: courses,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
+    
+    const isAuthError = error.message?.includes('Authentication required') || 
+                        error.message?.includes('Invalid or expired token');
+    const statusCode = isAuthError ? 401 : 500;
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch courses' },
-      { status: 500 }
+      { success: false, error: error.message || 'Failed to fetch courses' },
+      { status: statusCode }
     );
   }
 }

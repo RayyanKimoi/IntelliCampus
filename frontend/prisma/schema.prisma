@@ -120,6 +120,7 @@ model User {
   conceptInteractions   ConceptInteraction[]
   masteryGraphs         MasteryGraph[]
   studentAttempts       StudentAttempt[]
+  gradedAttempts        StudentAttempt[] @relation("GradedAttempts")
   studentXp             StudentXP?
   xpLogs                XPLog[]
   bossBattles           BossBattle[]
@@ -439,20 +440,26 @@ model Question {
 }
 
 model StudentAttempt {
-  id            String    @id @default(cuid())
-  assignmentId  String    @map("assignment_id")
-  studentId     String    @map("student_id")
-  score         Float     @default(0)
-  startedAt     DateTime  @default(now()) @map("started_at")
-  submittedAt   DateTime? @map("submitted_at")
-  integrityFlag Boolean   @default(false) @map("integrity_flag")
+  id             String    @id @default(cuid())
+  assignmentId   String    @map("assignment_id")
+  studentId      String    @map("student_id")
+  score          Float     @default(0)
+  startedAt      DateTime  @default(now()) @map("started_at")
+  submittedAt    DateTime? @map("submitted_at")
+  integrityFlag  Boolean   @default(false) @map("integrity_flag")
+  gradedAt       DateTime? @map("graded_at")
+  gradedBy       String?   @map("graded_by")
+  teacherComment String?   @map("teacher_comment") @db.Text
+  rubricScores   Json?     @map("rubric_scores")
 
-  assignment    Assignment     @relation(fields: [assignmentId], references: [id])
-  student       User           @relation(fields: [studentId], references: [id])
+  assignment     Assignment     @relation(fields: [assignmentId], references: [id])
+  student        User           @relation(fields: [studentId], references: [id])
+  grader         User?          @relation("GradedAttempts", fields: [gradedBy], references: [id])
   studentAnswers StudentAnswer[]
 
   @@index([assignmentId])
   @@index([studentId])
+  @@index([gradedBy])
   @@map("student_attempts")
 }
 
