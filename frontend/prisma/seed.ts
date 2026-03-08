@@ -745,6 +745,43 @@ Sorting is a fundamental operation in computer science. It involves arranging da
   }
 
   console.log('🎮 Activity data seeded (XP, Sessions, Performance, Flags)');
+
+  // ──────────────────────────────────────────────────────────
+  // 6. Course Enrollments — enroll all students in all courses
+  // ──────────────────────────────────────────────────────────
+  const studentIds = [student.id, kani.id, rayyan.id, gauri.id];
+  const courseIds = [course.id, webDevCourse.id, dataStructuresCourse.id];
+
+  for (const sId of studentIds) {
+    for (const cId of courseIds) {
+      await prisma.courseEnrollment.upsert({
+        where: { courseId_studentId: { courseId: cId, studentId: sId } },
+        update: {},
+        create: { courseId: cId, studentId: sId },
+      });
+    }
+  }
+
+  console.log('🎓 Course enrollments seeded (4 students × 3 courses)');
+
+  // ──────────────────────────────────────────────────────────
+  // 7. Sample Student Evaluations
+  // ──────────────────────────────────────────────────────────
+  const evaluationData = [
+    { studentId: kani.id,   courseId: course.id,              score: 85, feedback: 'Great understanding of algorithms.' },
+    { studentId: rayyan.id, courseId: webDevCourse.id,        score: 92, feedback: 'Excellent HTML/CSS work.' },
+    { studentId: gauri.id,  courseId: dataStructuresCourse.id, score: 78, feedback: 'Good effort, review linked lists.' },
+  ];
+
+  for (const ev of evaluationData) {
+    await prisma.studentEvaluation.upsert({
+      where: { studentId_courseId: { studentId: ev.studentId, courseId: ev.courseId } },
+      update: { score: ev.score, feedback: ev.feedback },
+      create: ev,
+    });
+  }
+
+  console.log('📊 Sample evaluations seeded');
   console.log('✅ Seed completed successfully!');
 }
 

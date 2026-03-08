@@ -138,6 +138,10 @@ model User {
   createdAssignments    Assignment[]   @relation("AssignmentCreator")
   teacherInsights       TeacherInsight[] @relation("TeacherInsights")
 
+  // Enrollment & Evaluation
+  enrollments    CourseEnrollment[] @relation("StudentEnrollments")
+  evaluations    StudentEvaluation[] @relation("StudentEvaluations")
+
   @@index([institutionId])
   @@index([role])
   @@map("users")
@@ -193,6 +197,8 @@ model Course {
   aiSessions     AISession[]
   teacherInsights TeacherInsight[]
   teacherAssignments TeacherCourseAssignment[]
+  enrollments    CourseEnrollment[]
+  evaluations    StudentEvaluation[]
 
   @@index([institutionId])
   @@map("courses")
@@ -640,7 +646,44 @@ model SystemUsageLog {
 }
 
 // ========================
-// 9. Admin OTP Authentication
+// 9. Enrollment & Evaluation
+// ========================
+
+model CourseEnrollment {
+  id         String   @id @default(cuid())
+  courseId   String   @map("course_id")
+  studentId  String   @map("student_id")
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+
+  student User   @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("course_enrollments")
+}
+
+model StudentEvaluation {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  courseId  String   @map("course_id")
+  score     Float    @default(0)
+  feedback  String   @default("") @db.Text
+  gradedAt  DateTime @default(now()) @map("graded_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student User   @relation("StudentEvaluations", fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("student_evaluations")
+}
+
+// ========================
+// 10. Admin OTP Authentication
 // ========================
 
 model AdminOTP {

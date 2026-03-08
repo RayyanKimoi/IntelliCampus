@@ -3,6 +3,7 @@ import { curriculumService } from '../services/curriculum.service';
 import { assessmentService } from '../services/assessment.service';
 import { analyticsService } from '../services/analytics.service';
 import { masteryService } from '../services/mastery.service';
+import { evaluationService } from '../services/evaluation.service';
 import { prisma } from '../config/db';
 import { sendSuccess, sendError, asyncHandler } from '../utils/helpers';
 import {
@@ -12,6 +13,31 @@ import {
   createAssignmentSchema,
   createQuestionSchema,
 } from '../utils/validators';
+
+// ========================
+// Evaluation & Results
+// ========================
+
+export const getCourseStudents = asyncHandler(async (req: Request, res: Response) => {
+  const { courseId } = req.params;
+  const students = await evaluationService.getCourseStudents(courseId);
+  sendSuccess(res, students);
+});
+
+export const saveEvaluation = asyncHandler(async (req: Request, res: Response) => {
+  const { studentId, courseId, score, feedback } = req.body;
+  if (!studentId || !courseId || score === undefined) {
+    sendError(res, 'studentId, courseId and score are required', 400);
+    return;
+  }
+  const evaluation = await evaluationService.saveEvaluation({
+    studentId,
+    courseId,
+    score: Number(score),
+    feedback: feedback ?? '',
+  });
+  sendSuccess(res, evaluation, 'Evaluation saved', 201);
+});
 
 // ========================
 // Dashboard

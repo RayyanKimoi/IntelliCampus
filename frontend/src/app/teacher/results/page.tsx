@@ -7,6 +7,7 @@ import { BookMarked, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
+import { api } from '@/services/apiClient';
 
 interface Subject {
   id: string;
@@ -45,14 +46,14 @@ export default function ResultsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const courses = await chapterCurriculumService.getTeacherCourses();
-      // Map Course[] to Subject[]
-      const mappedSubjects = courses.map((course: Course) => ({
+      const resp = await api.get('/teacher/courses');
+      const courses = resp.data ?? resp ?? [];
+      const mappedSubjects: Subject[] = courses.map((course: any) => ({
         id: course.id,
         name: course.name,
         description: course.description || '',
-        enrolledStudents: 0, // TODO: Add enrollment count from DB
-        avgMastery: 0, // TODO: Add mastery calculation
+        enrolledStudents: course.studentCount ?? 0,
+        avgMastery: 0,
       }));
       setSubjects(mappedSubjects);
     } catch (err) {
@@ -118,7 +119,7 @@ export default function ResultsPage() {
               >
                 <Card
                   className="group relative h-full flex flex-col overflow-hidden border border-border/60 dark:border-white/[0.06] bg-card shadow-sm hover:shadow-xl hover:shadow-primary/5 dark:hover:shadow-primary/10 transition-all duration-400 cursor-pointer rounded-2xl"
-                  onClick={() => router.push(`/teacher/results/${subject.id}`)}
+                  onClick={() => router.push(`/teacher/evaluation/${subject.id}`)}
                 >
                   {/* Top gradient accent on hover */}
                   <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-sky-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

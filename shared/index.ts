@@ -9,6 +9,7 @@ export * from './types/course';
 export * from './types/mastery';
 export * from './types/gamification';
 export * from './types/api';
+export * from './types/evaluation';
 
 // Constants
 export * from './constants/roles';

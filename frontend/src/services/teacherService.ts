@@ -93,4 +93,17 @@ export const teacherService = {
   // Reports
   exportReport: (courseId: string) =>
     api.post('/teacher/report/export', { courseId }),
+
+  // ─── Evaluation & Results ────────────────────────────────
+  getCourses: () => api.get('/teacher/courses'),
+
+  getCourseStudents: (courseId: string) =>
+    api.get(`/teacher/courses/${courseId}/students`),
+
+  saveEvaluation: (data: {
+    studentId: string;
+    courseId: string;
+    score: number;
+    feedback?: string;
+  }) => api.post('/teacher/evaluation', data),
 };

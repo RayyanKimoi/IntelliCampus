@@ -99,6 +99,12 @@ class ApiClient {
       } else if (response.status === 401 && isDevelopment) {
         console.log('[API] Dev mode: 401 error, not redirecting to login');
       }
+      console.error('[API] Request failed:', {
+        status: response.status,
+        url: response.url,
+        error: data?.error,
+        data
+      });
       throw new Error(data?.error || `Request failed with status ${response.status}`);
     }
 
