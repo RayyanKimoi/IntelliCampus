@@ -205,30 +205,27 @@ async function main() {
 
   // 3.2 Teacher Course Assignments
   await prisma.teacherCourseAssignment.upsert({
-    where: { id: 'assign-1' },
+    where: { teacherId_courseId: { teacherId: teacher.id, courseId: course.id } },
     update: {},
     create: {
-      id: 'assign-1',
       teacherId: teacher.id,
       courseId: course.id,
     },
   });
 
   await prisma.teacherCourseAssignment.upsert({
-    where: { id: 'assign-2' },
+    where: { teacherId_courseId: { teacherId: teacher.id, courseId: webDevCourse.id } },
     update: {},
     create: {
-      id: 'assign-2',
       teacherId: teacher.id,
       courseId: webDevCourse.id,
     },
   });
 
   await prisma.teacherCourseAssignment.upsert({
-    where: { id: 'assign-3' },
+    where: { teacherId_courseId: { teacherId: teacher.id, courseId: dataStructuresCourse.id } },
     update: {},
     create: {
-      id: 'assign-3',
       teacherId: teacher.id,
       courseId: dataStructuresCourse.id,
     },
@@ -449,7 +446,52 @@ Sorting is a fundamental operation in computer science. It involves arranging da
 
   console.log('📄 Content seeded');
 
-  // 4.1 Questions (for Quizzes & Boss Battles)
+  // 4.1 Assignments
+  const assignment1 = await prisma.assignment.upsert({
+    where: { id: 'assignment-1-seed' },
+    update: {},
+    create: {
+      id: 'assignment-1-seed',
+      courseId: course.id,
+      teacherId: teacher.id,
+      title: 'Sorting Algorithms Quiz',
+      description: 'Complete this quiz to test your understanding of sorting algorithms',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      strictMode: false,
+    },
+  });
+
+  const assignment2 = await prisma.assignment.upsert({
+    where: { id: 'assignment-2-seed' },
+    update: {},
+    create: {
+      id: 'assignment-2-seed',
+      courseId: webDevCourse.id,
+      teacherId: teacher.id,
+      title: 'HTML & CSS Fundamentals',
+      description: 'Build a simple webpage using HTML5 semantic tags and CSS styling',
+      dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
+      strictMode: false,
+    },
+  });
+
+  const assignment3 = await prisma.assignment.upsert({
+    where: { id: 'assignment-3-seed' },
+    update: {},
+    create: {
+      id: 'assignment-3-seed',
+      courseId: dataStructuresCourse.id,
+      teacherId: teacher.id,
+      title: 'Array and Linked List Implementation',
+      description: 'Implement basic operations for arrays and linked lists',
+      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+      strictMode: true,
+    },
+  });
+
+  console.log('📝 Assignments seeded');
+
+  // 4.2 Questions (for Quizzes & Boss Battles)
   const questionsCount = await prisma.question.count({ where: { topicId: topic.id } });
   if (questionsCount === 0) {
     await prisma.question.createMany({
@@ -509,6 +551,65 @@ Sorting is a fundamental operation in computer science. It involves arranging da
     console.log('❓ Questions seeded for Sorting Algorithms');
   }
 
+  // 4.3 Student Attempts (submissions for assignments)
+  const attempt1 = await prisma.studentAttempt.upsert({
+    where: { id: 'attempt-kani-1' },
+    update: {},
+    create: {
+      id: 'attempt-kani-1',
+      studentId: kani.id,
+      assignmentId: assignment1.id,
+      submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      score: 85,
+      gradedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      gradedBy: teacher.id,
+      teacherComment: 'Good work! Your understanding of merge sort and quick sort is solid.',
+    },
+  });
+
+  const attempt2 = await prisma.studentAttempt.upsert({
+    where: { id: 'attempt-rayyan-1' },
+    update: {},
+    create: {
+      id: 'attempt-rayyan-1',
+      studentId: rayyan.id,
+      assignmentId: assignment2.id,
+      submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      score: 92,
+      gradedAt: new Date(),
+      gradedBy: teacher.id,
+      teacherComment: 'Excellent webpage design! Your use of semantic HTML is impressive.',
+    },
+  });
+
+  const attempt3 = await prisma.studentAttempt.upsert({
+    where: { id: 'attempt-gauri-1' },
+    update: {},
+    create: {
+      id: 'attempt-gauri-1',
+      studentId: gauri.id,
+      assignmentId: assignment1.id,
+      submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      score: 78,
+      // Not graded yet
+    },
+  });
+
+  const attempt4 = await prisma.studentAttempt.upsert({
+    where: { id: 'attempt-kani-2' },
+    update: {},
+    create: {
+      id: 'attempt-kani-2',
+      studentId: kani.id,
+      assignmentId: assignment3.id,
+      submittedAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
+      score: 88,
+      // Not graded yet
+    },
+  });
+
+  console.log('📋 Student attempts/submissions seeded');
+
   // 5. Activity Data
 
   // Student XP
@@ -520,6 +621,39 @@ Sorting is a fundamental operation in computer science. It involves arranging da
       totalXp: 1500,
       level: 5,
       streakDays: 3,
+    },
+  });
+
+  await prisma.studentXP.upsert({
+    where: { userId: kani.id },
+    update: { totalXp: 2200, level: 7, streakDays: 5 },
+    create: {
+      userId: kani.id,
+      totalXp: 2200,
+      level: 7,
+      streakDays: 5,
+    },
+  });
+
+  await prisma.studentXP.upsert({
+    where: { userId: rayyan.id },
+    update: { totalXp: 1850, level: 6, streakDays: 4 },
+    create: {
+      userId: rayyan.id,
+      totalXp: 1850,
+      level: 6,
+      streakDays: 4,
+    },
+  });
+
+  await prisma.studentXP.upsert({
+    where: { userId: gauri.id },
+    update: { totalXp: 2500, level: 8, streakDays: 7 },
+    create: {
+      userId: gauri.id,
+      totalXp: 2500,
+      level: 8,
+      streakDays: 7,
     },
   });
 
