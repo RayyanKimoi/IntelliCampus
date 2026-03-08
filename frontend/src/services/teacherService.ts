@@ -95,8 +95,6 @@ export const teacherService = {
     api.post('/teacher/report/export', { courseId }),
 
   // ─── Evaluation & Results ────────────────────────────────
-  getCourses: () => api.get('/teacher/courses'),
-
   getCourseStudents: (courseId: string) =>
     api.get(`/teacher/courses/${courseId}/students`),
 

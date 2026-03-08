@@ -119,7 +119,7 @@ export default function ResultsPage() {
               >
                 <Card
                   className="group relative h-full flex flex-col overflow-hidden border border-border/60 dark:border-white/[0.06] bg-card shadow-sm hover:shadow-xl hover:shadow-primary/5 dark:hover:shadow-primary/10 transition-all duration-400 cursor-pointer rounded-2xl"
-                  onClick={() => router.push(`/teacher/evaluation/${subject.id}`)}
+                  onClick={() => router.push(`/teacher/results/${subject.id}`)}
                 >
                   {/* Top gradient accent on hover */}
                   <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary to-sky-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
