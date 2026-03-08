@@ -80,7 +80,64 @@ async function main() {
     },
   });
 
-  console.log('👥 Users seeded (Admin, Teacher, Student)');
+  const kani = await prisma.user.upsert({
+    where: { email: 'kani@gmail.com' },
+    update: { passwordHash },
+    create: {
+      name: 'Kani',
+      email: 'kani@gmail.com',
+      passwordHash,
+      role: UserRole.student,
+      institutionId: institution.id,
+      profile: {
+        create: {
+          yearOfStudy: 2,
+          department: 'Computer Science',
+          bio: 'Passionate about algorithms and problem solving',
+        },
+      },
+    },
+  });
+
+  const rayyan = await prisma.user.upsert({
+    where: { email: 'rayyan@gmail.com' },
+    update: { passwordHash },
+    create: {
+      name: 'Rayyan',
+      email: 'rayyan@gmail.com',
+      passwordHash,
+      role: UserRole.student,
+      institutionId: institution.id,
+      profile: {
+        create: {
+          yearOfStudy: 2,
+          department: 'Computer Science',
+          bio: 'Interested in web development and AI',
+        },
+      },
+    },
+  });
+
+  const gauri = await prisma.user.upsert({
+    where: { email: 'gauri@gmail.com' },
+    update: { passwordHash },
+    create: {
+      name: 'Gauri',
+      email: 'gauri@gmail.com',
+      passwordHash,
+      role: UserRole.student,
+      institutionId: institution.id,
+      profile: {
+        create: {
+          yearOfStudy: 2,
+          department: 'Computer Science',
+          bio: 'Exploring data structures and machine learning',
+        },
+      },
+    },
+  });
+
+  console.log('👥 Users seeded (Admin, Teacher, 4 Students: Alice, Kani, Rayyan, Gauri)');
 
   // 3. Course Structure
   const course = await prisma.course.upsert({
