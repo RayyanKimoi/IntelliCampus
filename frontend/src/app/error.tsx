@@ -12,7 +12,10 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('Unhandled error:', error);
+    console.error('Unhandled error:', error?.message || error?.toString() || 'Unknown error');
+    if (error?.stack) {
+      console.error('Stack trace:', error.stack);
+    }
   }, [error]);
 
   return (
@@ -23,7 +26,7 @@ export default function GlobalError({
         </div>
         <h2 className="mb-2 text-2xl font-bold">Something went wrong</h2>
         <p className="mb-6 text-muted-foreground">
-          An unexpected error occurred. Please try again or contact support if the issue persists.
+          {error?.message || 'An unexpected error occurred. Please try again or contact support if the issue persists.'}
         </p>
         {error.digest && (
           <p className="mb-4 text-xs text-muted-foreground">Error ID: {error.digest}</p>

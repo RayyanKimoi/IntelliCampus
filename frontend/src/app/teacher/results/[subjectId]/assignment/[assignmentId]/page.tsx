@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { MOCK_TEACHER_ASSIGNMENTS_FULL, MOCK_SUBMISSIONS_FULL } from '@/lib/mockData';
 import { motion, AnimatePresence } from 'motion/react';
-import { StudentReviewSheet } from '@/components/evaluation/StudentReviewSheet';
+import { StudentReviewSheet, type GradeSavePayload } from '@/components/evaluation/StudentReviewSheet';
 
 type CategoryFilter = 'all' | 'toppers' | 'average' | 'risky';
 type StatusFilter = 'all' | 'not-submitted' | 'ai-graded' | 'teacher-graded';
@@ -144,6 +144,26 @@ export default function AssignmentGradingPage({
     );
     setIsSelectMode(false);
     setSelectedIds(new Set());
+  };
+
+  // Handle grade save from StudentReviewSheet
+  const handleGradeSaved = (payload: GradeSavePayload) => {
+    // Update the submission in the local state
+    setSubmissions(prev =>
+      prev.map((s: any) =>
+        s.id === payload.submissionId
+          ? {
+              ...s,
+              score: payload.score,
+              teacherComment: payload.comment,
+              rubricScores: payload.rubricScores,
+              gradedAt: payload.gradedAt,
+            }
+          : s
+      )
+    );
+    // Close the review sheet
+    setReviewSubmissionId(null);
   };
 
   return (
@@ -447,10 +467,7 @@ export default function AssignmentGradingPage({
       <StudentReviewSheet
         submissionId={reviewSubmissionId}
         onClose={() => setReviewSubmissionId(null)}
-        onSaved={() => {
-          setReviewSubmissionId(null);
-          loadData();
-        }}
+        onSaved={handleGradeSaved}
       />
     </DashboardLayout>
   );

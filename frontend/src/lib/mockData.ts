@@ -810,14 +810,14 @@ export const MOCK_TEACHER_ALERTS = [
 // ─── Integrity Flags (mock) ──────────────────────────────────────────────────
 
 export const MOCK_INTEGRITY_FLAGS = [
-  { attemptId: 'int-001', userId: 's041', userName: 'Deepak Verma',       userEmail: 'deepak.verma@campus.edu',     assignmentId: 'ds301-a2', assignmentTitle: 'Dynamic Programming Basics',   avgTimeSec: 1.8, correctRate: 85, totalQuestions: 7,  flags: ['rapid_guessing', 'high_anomaly'], createdAt: new Date(Date.now() - 2*86400000).toISOString()  },
-  { attemptId: 'int-002', userId: 's049', userName: 'Mia Korhonen',        userEmail: 'mia.korhonen@campus.edu',     assignmentId: 'ai501-a4', assignmentTitle: 'Backpropagation & Optimization', avgTimeSec: 2.1, correctRate: 80, totalQuestions: 8,  flags: ['rapid_guessing', 'high_anomaly'], createdAt: new Date(Date.now() - 3*86400000).toISOString()  },
-  { attemptId: 'int-003', userId: 's087', userName: 'Maxim Petrov',        userEmail: 'maxim.petrov@campus.edu',     assignmentId: 'os201-a3', assignmentTitle: 'Virtual Memory & Paging',       avgTimeSec: 2.4, correctRate: 75, totalQuestions: 8,  flags: ['rapid_guessing'],                 createdAt: new Date(Date.now() - 4*86400000).toISOString()  },
-  { attemptId: 'int-004', userId: 's050', userName: 'Imran Choudhury',     userEmail: 'imran.choudhury@campus.edu',  assignmentId: 'cn401-a2', assignmentTitle: 'Routing & Switching',            avgTimeSec: 3.2, correctRate: 72, totalQuestions: 7,  flags: ['rapid_guessing'],                 createdAt: new Date(Date.now() - 5*86400000).toISOString()  },
-  { attemptId: 'int-005', userId: 's044', userName: 'Preethi Subramaniam', userEmail: 'preethi.s@campus.edu',        assignmentId: 'ai501-a4', assignmentTitle: 'Backpropagation & Optimization', avgTimeSec: 1.5, correctRate: 90, totalQuestions: 8,  flags: ['rapid_guessing', 'high_anomaly'], createdAt: new Date(Date.now() - 6*86400000).toISOString()  },
-  { attemptId: 'int-006', userId: 's048', userName: 'Tolu Adeyemi',        userEmail: 'tolu.adeyemi@campus.edu',     assignmentId: 'cs101-a5', assignmentTitle: 'Graph Traversal Exam',           avgTimeSec: 4.1, correctRate: 45, totalQuestions: 6,  flags: ['rapid_guessing'],                 createdAt: new Date(Date.now() - 8*86400000).toISOString()  },
-  { attemptId: 'int-007', userId: 's046', userName: 'Elena Kowalski',      userEmail: 'elena.k@campus.edu',          assignmentId: 'ds301-a2', assignmentTitle: 'Dynamic Programming Basics',    avgTimeSec: 2.9, correctRate: 68, totalQuestions: 7,  flags: ['rapid_guessing'],                 createdAt: new Date(Date.now() - 10*86400000).toISOString() },
-  { attemptId: 'int-008', userId: 's042', userName: 'Aisha Okonkwo',       userEmail: 'aisha.okonkwo@campus.edu',    assignmentId: 'os201-a7', assignmentTitle: 'Midterm: OS Concepts',           avgTimeSec: 3.5, correctRate: 62, totalQuestions: 20, flags: ['rapid_guessing'],                 createdAt: new Date(Date.now() - 12*86400000).toISOString() },
+  { attemptId: 'int-001', userId: 's041', userName: 'Deepak Verma',       rollNumber: '22CS104', userEmail: 'deepak.verma@campus.edu',     assignmentId: 'ds301-a2', assignmentTitle: 'Dynamic Programming Basics', subject: 'Data Structures & Algorithms',   avgTimeSec: 1.8, correctRate: 85, totalQuestions: 7,  flags: ['rapid_guessing', 'high_anomaly', 'tab_switching'], createdAt: new Date(Date.now() - 2*86400000).toISOString()  },
+  { attemptId: 'int-002', userId: 's049', userName: 'Mia Korhonen',        rollNumber: '22CS107', userEmail: 'mia.korhonen@campus.edu',     assignmentId: 'ai501-a4', assignmentTitle: 'Backpropagation & Optimization', subject: 'AI Fundamentals', avgTimeSec: 2.1, correctRate: 80, totalQuestions: 8,  flags: ['rapid_guessing', 'high_anomaly', 'copy_paste'], createdAt: new Date(Date.now() - 3*86400000).toISOString()  },
+  { attemptId: 'int-003', userId: 's087', userName: 'Maxim Petrov',        rollNumber: '22CS132', userEmail: 'maxim.petrov@campus.edu',     assignmentId: 'os201-a3', assignmentTitle: 'Virtual Memory & Paging', subject: 'Operating Systems',       avgTimeSec: 2.4, correctRate: 75, totalQuestions: 8,  flags: ['rapid_guessing', 'unusual_pattern'],                 createdAt: new Date(Date.now() - 4*86400000).toISOString()  },
+  { attemptId: 'int-004', userId: 's050', userName: 'Imran Choudhury',     rollNumber: '22CS109', userEmail: 'imran.choudhury@campus.edu',  assignmentId: 'cn401-a2', assignmentTitle: 'Routing & Switching', subject: 'Computer Networks',            avgTimeSec: 3.2, correctRate: 72, totalQuestions: 7,  flags: ['rapid_guessing', 'fast_completion'],                 createdAt: new Date(Date.now() - 5*86400000).toISOString()  },
+  { attemptId: 'int-005', userId: 's044', userName: 'Preethi Subramaniam', rollNumber: '22CS106', userEmail: 'preethi.s@campus.edu',        assignmentId: 'ai501-a4', assignmentTitle: 'Backpropagation & Optimization', subject: 'AI Fundamentals', avgTimeSec: 1.5, correctRate: 90, totalQuestions: 8,  flags: ['rapid_guessing', 'high_anomaly', 'similarity_detected'], createdAt: new Date(Date.now() - 6*86400000).toISOString()  },
+  { attemptId: 'int-006', userId: 's048', userName: 'Tolu Adeyemi',        rollNumber: '22CS108', userEmail: 'tolu.adeyemi@campus.edu',     assignmentId: 'cs101-a5', assignmentTitle: 'Graph Traversal Exam', subject: 'Computer Science 101',           avgTimeSec: 4.1, correctRate: 45, totalQuestions: 6,  flags: ['rapid_guessing', 'multiple_reattempt'],                 createdAt: new Date(Date.now() - 8*86400000).toISOString()  },
+  { attemptId: 'int-007', userId: 's046', userName: 'Elena Kowalski',      rollNumber: '22CS105', userEmail: 'elena.k@campus.edu',          assignmentId: 'ds301-a2', assignmentTitle: 'Dynamic Programming Basics', subject: 'Data Structures & Algorithms',    avgTimeSec: 2.9, correctRate: 68, totalQuestions: 7,  flags: ['rapid_guessing', 'tab_switching'],                 createdAt: new Date(Date.now() - 10*86400000).toISOString() },
+  { attemptId: 'int-008', userId: 's042', userName: 'Aisha Okonkwo',       rollNumber: '22CS103', userEmail: 'aisha.okonkwo@campus.edu',    assignmentId: 'os201-a7', assignmentTitle: 'Midterm: OS Concepts', subject: 'Operating Systems',           avgTimeSec: 3.5, correctRate: 62, totalQuestions: 20, flags: ['rapid_guessing', 'unusual_pattern', 'copy_paste'],                 createdAt: new Date(Date.now() - 12*86400000).toISOString() },
 ];
 
 // ─── Cohort (extended — 120 students) ────────────────────────────────────────
@@ -865,13 +865,14 @@ export const MOCK_COHORT_FULL = {
     { topicId: 'overfitting',  topicName: 'Regularization',          avgScore: 59, attempts: 130 },
   ],
   studentRanking: MOCK_STUDENTS_FULL.slice()
-    .sort((a, b) => b.avgScore - a.avgScore)
+    .sort((a, b) => b.mastery - a.mastery)
     .map((s, i) => ({
       rank: i + 1,
       userId: s.id,
       name: s.name,
-      totalXP: Math.round(s.avgScore * 50 + s.engagementScore * 20 + Math.random() * 500),
-      level: Math.floor(s.avgScore / 10),
+      rollNumber: `22CS${String(i + 101).padStart(3, '0')}`,
+      mastery: s.mastery,
+      trend: Math.floor(Math.random() * 15) - 5, // Random trend between -5 and +9
     })),
 };
 

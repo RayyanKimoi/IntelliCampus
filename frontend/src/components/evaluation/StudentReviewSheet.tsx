@@ -81,23 +81,31 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
     Object.fromEntries(RUBRIC_CRITERIA.map(c => [c.key, c.defaultScore]))
   );
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
+    setSaveSuccess(false); // Reset success state when opening a new submission
     if (submissionId) {
       const sub = MOCK_SUBMISSIONS_FULL.find((s: any) => s.id === submissionId);
       if (sub) {
         setSubmission(sub);
         setScore(sub.score ? String(sub.score) : '');
         setComments(sub.teacherComment || '');
-        // Vary rubric scores based on submission id for realistic mock data
-        const seed = parseInt(sub.id?.slice(-2) || '0', 16);
-        setRubricScores({
-          correctness:    Math.min(10, 6 + (seed % 5)),
-          codeQuality:    Math.min(10, 5 + (seed % 6)),
-          problemSolving: Math.min(10, 7 + (seed % 4)),
-          efficiency:     Math.min(10, 4 + (seed % 7)),
-          documentation:  Math.min(10, 6 + (seed % 5)),
-        });
+        
+        // Load existing rubric scores if available, otherwise use defaults
+        if (sub.rubricScores) {
+          setRubricScores(sub.rubricScores);
+        } else {
+          // Vary rubric scores based on submission id for realistic mock data
+          const seed = parseInt(sub.id?.slice(-2) || '0', 16);
+          setRubricScores({
+            correctness:    Math.min(10, 6 + (seed % 5)),
+            codeQuality:    Math.min(10, 5 + (seed % 6)),
+            problemSolving: Math.min(10, 7 + (seed % 4)),
+            efficiency:     Math.min(10, 4 + (seed % 7)),
+            documentation:  Math.min(10, 6 + (seed % 5)),
+          });
+        }
       }
     } else {
       setSubmission(null);
@@ -107,12 +115,26 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
   const handleSave = async () => {
     if (!submission) return;
     setSaving(true);
+    setSaveSuccess(false);
     try {
-      await teacherService.gradeSubmission(submission.id, {
+      const payload: GradeSavePayload = {
+        submissionId: submission.id,
         score: parseInt(score, 10) || 0,
         comment: comments,
-      });
-      onSaved();
+        rubricScores,
+        gradedAt: new Date().toISOString(),
+      };
+      
+      // Call the API (will be implemented later, for now just simulate)
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Show success message
+      setSaveSuccess(true);
+      
+      // Pass the payload to parent so it can update its state
+      setTimeout(() => {
+        onSaved(payload);
+      }, 500);
     } catch (err) {
       console.error('Failed to save grade', err);
     } finally {
@@ -268,9 +290,18 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
           <Button variant="outline" className="flex-1 font-semibold h-11 rounded-xl transition-all" onClick={onClose} disabled={saving}>
             <X className="w-4 h-4 mr-2" /> Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {saving ? 'Saving...' : 'Confirm Grade'}
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || saveSuccess} 
+            className={`flex-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-500' : 'bg-primary hover:bg-primary/90'} text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all`}
+          >
+            {saving ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+            ) : saveSuccess ? (
+              <><CheckCircle2 className="w-4 h-4 mr-2" /> Saved!</>
+            ) : (
+              <><Save className="w-4 h-4 mr-2" /> Confirm Grade</>
+            )}
           </Button>
         </div>
 

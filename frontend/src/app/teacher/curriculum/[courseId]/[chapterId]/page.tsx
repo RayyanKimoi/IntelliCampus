@@ -115,7 +115,7 @@ export default function ChapterContentPage() {
     if (!selectedContent || !editTitle.trim()) return;
     setSubmitting(true);
     try {
-      await chapterCurriculumService.updateContent(selectedContent.id, { title: editTitle });
+      await chapterCurriculumService.updateContent(chapterId, selectedContent.id, { title: editTitle });
       setContent((prev) =>
         prev.map((item) =>
           item.id === selectedContent.id ? { ...item, title: editTitle } : item
@@ -136,7 +136,7 @@ export default function ChapterContentPage() {
     if (!selectedContent) return;
     setSubmitting(true);
     try {
-      await chapterCurriculumService.deleteContent(selectedContent.id);
+      await chapterCurriculumService.deleteContent(chapterId, selectedContent.id);
       setContent((prev) => prev.filter((item) => item.id !== selectedContent.id));
       setShowDeleteModal(false);
       setSelectedContent(null);

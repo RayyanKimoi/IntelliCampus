@@ -5,18 +5,28 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teacherService } from '@/services/teacherService';
 import {
   ShieldAlert, AlertTriangle, Zap, Clock, ChevronDown,
-  ChevronUp, Loader2, AlertCircle, Filter, User,
+  ChevronUp, Loader2, AlertCircle, Filter, User, Copy, Eye,
+  RefreshCw, Users, BookOpen,
 } from 'lucide-react';
-import { MOCK_INTEGRITY_FLAGS } from '@/lib/mockData';
+import { MOCK_INTEGRITY_FLAGS, MOCK_TEACHER_COURSES } from '@/lib/mockData';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // ───────────────────────────── Types
 interface IntegrityFlag {
   attemptId: string;
   userId: string;
   userName: string;
+  rollNumber: string;
   userEmail: string;
   assignmentId: string;
   assignmentTitle: string;
+  subject: string;
   avgTimeSec: number;
   correctRate: number;
   totalQuestions: number;
@@ -60,9 +70,45 @@ function FlagBadge({ flag }: { flag: string }) {
         <AlertTriangle className="w-3 h-3" /> High Anomaly
       </span>
     );
+  if (flag === 'tab_switching')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 text-xs rounded-full">
+        <Eye className="w-3 h-3" /> Tab Switching
+      </span>
+    );
+  if (flag === 'copy_paste')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 text-xs rounded-full">
+        <Copy className="w-3 h-3" /> Copy-Paste Detected
+      </span>
+    );
+  if (flag === 'unusual_pattern')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400 text-xs rounded-full">
+        <AlertTriangle className="w-3 h-3" /> Unusual Answer Pattern
+      </span>
+    );
+  if (flag === 'fast_completion')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400 text-xs rounded-full">
+        <Zap className="w-3 h-3" /> Extremely Fast Completion
+      </span>
+    );
+  if (flag === 'multiple_reattempt')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 text-xs rounded-full">
+        <RefreshCw className="w-3 h-3" /> Multiple Reattempt Pattern
+      </span>
+    );
+  if (flag === 'similarity_detected')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 text-xs rounded-full">
+        <Users className="w-3 h-3" /> Similarity With Other Student
+      </span>
+    );
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">
-      {flag}
+      {flag.replace(/_/g, ' ')}
     </span>
   );
 }
@@ -73,6 +119,7 @@ export default function IntegrityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterSeverity, setFilterSeverity] = useState<'all' | Severity>('all');
+  const [filterSubject, setFilterSubject] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -89,9 +136,20 @@ export default function IntegrityPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Get unique subjects
+  const subjects = Array.from(new Set(flags.map(f => f.subject))).sort();
+  
   // Enhance with severity
   const enriched = flags.map(f => ({ ...f, severity: getSeverity(f) }));
-  const filtered = filterSeverity === 'all' ? enriched : enriched.filter(f => f.severity === filterSeverity);
+  
+  // Apply filters
+  let filtered = enriched;
+  if (filterSeverity !== 'all') {
+    filtered = filtered.filter(f => f.severity === filterSeverity);
+  }
+  if (filterSubject !== 'all') {
+    filtered = filtered.filter(f => f.subject === filterSubject);
+  }
 
   const highCount = enriched.filter(f => f.severity === 'high').length;
   const medCount = enriched.filter(f => f.severity === 'medium').length;
@@ -116,7 +174,7 @@ export default function IntegrityPage() {
         )}
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'High Risk', value: highCount, colour: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900' },
             { label: 'Medium Risk', value: medCount, colour: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900' },
@@ -127,6 +185,25 @@ export default function IntegrityPage() {
               <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
             </div>
           ))}
+          
+          {/* Subject Selector Card */}
+          <div className="border rounded-xl p-4 bg-card border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <BookOpen className="w-4 h-4 text-primary" />
+              <p className="text-xs font-medium text-muted-foreground">Subject</p>
+            </div>
+            <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <SelectTrigger className="w-full h-8 text-sm">
+                <SelectValue placeholder="All Subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {subjects.map(subject => (
+                  <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Filter */}
@@ -162,6 +239,7 @@ export default function IntegrityPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground">{flag.userName}</p>
+                    <p className="text-xs text-muted-foreground">Roll No: {flag.rollNumber}</p>
                     <p className="text-xs text-muted-foreground truncate">{flag.assignmentTitle}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

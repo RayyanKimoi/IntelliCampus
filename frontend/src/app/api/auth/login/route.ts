@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 // ─── Demo accounts ────────────────────────────────────────────────────────────
 const DEMO_USERS: Record<string, { id: string; name: string; email: string; password: string; role: string; institutionId: string }> = {
   'student@campus.edu': { id: 'demo-student-1', name: 'Alex Johnson',   email: 'student@campus.edu', password: 'student123', role: 'student', institutionId: 'demo-inst' },
-  'teacher@campus.edu': { id: 'demo-teacher-1', name: 'Dr. Sarah Chen', email: 'teacher@campus.edu', password: 'teacher123', role: 'teacher', institutionId: 'demo-inst' },
+  'teacher@campus.edu': { id: 'cmlsdjpz40005wsxkb3j2mdah', name: 'Dr. Sarah Chen', email: 'teacher@campus.edu', password: 'teacher123', role: 'teacher', institutionId: 'cmlsdjpz10003wsxk8v8s00gg' },
   'admin@campus.edu':   { id: 'demo-admin-1',   name: 'Admin User',     email: 'admin@campus.edu',   password: 'admin123',   role: 'admin',   institutionId: 'demo-inst' },
 };
 

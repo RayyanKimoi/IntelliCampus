@@ -12,7 +12,10 @@ export default function TeacherError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('Teacher section error:', error);
+    console.error('Teacher section error:', error?.message || error?.toString() || 'Unknown error');
+    if (error?.stack) {
+      console.error('Stack trace:', error.stack);
+    }
   }, [error]);
 
   return (
@@ -23,7 +26,7 @@ export default function TeacherError({
         </div>
         <h2 className="mb-2 text-xl font-bold">Something went wrong</h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          We couldn&apos;t load this page. Please try again.
+          {error?.message || "We couldn't load this page. Please try again."}
         </p>
         <div className="flex gap-3">
           <Button variant="outline" onClick={() => (window.location.href = '/teacher')}>
