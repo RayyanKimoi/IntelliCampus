@@ -146,7 +146,7 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
     || (submission ? `STU${parseInt(submission.id?.slice(-4) || '0', 16).toString().padStart(5, '0')}` : '—');
 
   return (
-    <Sheet open={!!submissionId} onOpenChange={(open: boolean) => !open && onClose()}>
+    <Sheet open={!!submission} onOpenChange={(open: boolean) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-background dark:bg-card border-l border-border/50 shadow-2xl p-0 flex flex-col h-full">
 
         {/* Sticky Header */}
