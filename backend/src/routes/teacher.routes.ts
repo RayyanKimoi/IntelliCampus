@@ -3,6 +3,8 @@ import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { UserRole } from '@intellicampus/shared';
 import {
+  getCourseStudents,
+  saveEvaluation,
   getTeacherDashboard,
   createCourse,
   getCourses,
@@ -48,6 +50,10 @@ router.use(authenticate, authorize(UserRole.TEACHER));
 
 // Dashboard
 router.get('/dashboard', getTeacherDashboard);
+
+// Evaluation & Results
+router.get('/courses/:courseId/students', getCourseStudents);
+router.post('/evaluation', saveEvaluation);
 
 // Curriculum - New Chapter-based System
 router.get('/curriculum/courses', getTeacherCourses);
