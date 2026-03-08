@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { MOCK_SUBMISSIONS_FULL } from '@/lib/mockData';
 import { teacherService } from '@/services/teacherService';
 import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2 } from 'lucide-react';
 
@@ -25,7 +24,7 @@ export interface GradeSavePayload {
 }
 
 interface StudentReviewSheetProps {
-  submissionId: string | null;
+  submission: any | null;
   onClose: () => void;
   onSaved: (payload: GradeSavePayload) => void;
 }
@@ -73,24 +72,27 @@ function RubricBar({ label, score, max = 10, onChange }: { label: string; score:
   );
 }
 
-export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentReviewSheetProps) {
-  const [submission, setSubmission] = useState<any | null>(null);
+export function StudentReviewSheet({ submission, onClose, onSaved }: StudentReviewSheetProps) {
   const [score, setScore] = useState<string>('');
   const [comments, setComments] = useState<string>('');
   const [rubricScores, setRubricScores] = useState<Record<string, number>>(() =>
     Object.fromEntries(RUBRIC_CRITERIA.map(c => [c.key, c.defaultScore]))
   );
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (submissionId) {
-      const sub = MOCK_SUBMISSIONS_FULL.find((s: any) => s.id === submissionId);
-      if (sub) {
-        setSubmission(sub);
-        setScore(sub.score ? String(sub.score) : '');
-        setComments(sub.teacherComment || '');
+    setSaveSuccess(false); // Reset success state when opening a new submission
+    if (submission) {
+      setScore(submission.score ? String(submission.score) : '');
+      setComments(submission.teacherComment || '');
+      
+      // Load existing rubric scores if available, otherwise use defaults
+      if (submission.rubricScores) {
+        setRubricScores(submission.rubricScores);
+      } else {
         // Vary rubric scores based on submission id for realistic mock data
-        const seed = parseInt(sub.id?.slice(-2) || '0', 16);
+        const seed = parseInt(submission.id?.slice(-2) || '0', 16);
         setRubricScores({
           correctness:    Math.min(10, 6 + (seed % 5)),
           codeQuality:    Math.min(10, 5 + (seed % 6)),
@@ -99,22 +101,39 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
           documentation:  Math.min(10, 6 + (seed % 5)),
         });
       }
-    } else {
-      setSubmission(null);
     }
-  }, [submissionId]);
+  }, [submission]);
 
   const handleSave = async () => {
     if (!submission) return;
     setSaving(true);
+    setSaveSuccess(false);
     try {
-      await teacherService.gradeSubmission(submission.id, {
+      const payload: GradeSavePayload = {
+        submissionId: submission.id,
         score: parseInt(score, 10) || 0,
         comment: comments,
+        rubricScores,
+        gradedAt: new Date().toISOString(),
+      };
+      
+      // Call the actual grading API
+      await teacherService.gradeSubmission(submission.id, {
+        score: payload.score,
+        comment: payload.comment,
+        rubricScores: payload.rubricScores,
       });
-      onSaved();
+      
+      // Show success message
+      setSaveSuccess(true);
+      
+      // Pass the payload to parent so it can update its state
+      setTimeout(() => {
+        onSaved(payload);
+      }, 500);
     } catch (err) {
       console.error('Failed to save grade', err);
+      alert('Failed to save grade. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -127,7 +146,7 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
     || (submission ? `STU${parseInt(submission.id?.slice(-4) || '0', 16).toString().padStart(5, '0')}` : '—');
 
   return (
-    <Sheet open={!!submissionId} onOpenChange={(open: boolean) => !open && onClose()}>
+    <Sheet open={!!submission} onOpenChange={(open: boolean) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto bg-background dark:bg-card border-l border-border/50 shadow-2xl p-0 flex flex-col h-full">
 
         {/* Sticky Header */}
@@ -268,9 +287,18 @@ export function StudentReviewSheet({ submissionId, onClose, onSaved }: StudentRe
           <Button variant="outline" className="flex-1 font-semibold h-11 rounded-xl transition-all" onClick={onClose} disabled={saving}>
             <X className="w-4 h-4 mr-2" /> Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {saving ? 'Saving...' : 'Confirm Grade'}
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || saveSuccess} 
+            className={`flex-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-500' : 'bg-primary hover:bg-primary/90'} text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all`}
+          >
+            {saving ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+            ) : saveSuccess ? (
+              <><CheckCircle2 className="w-4 h-4 mr-2" /> Saved!</>
+            ) : (
+              <><Save className="w-4 h-4 mr-2" /> Confirm Grade</>
+            )}
           </Button>
         </div>
 

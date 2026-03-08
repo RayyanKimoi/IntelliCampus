@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { BookMarked, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
+import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
 
 interface Subject {
   id: string;
@@ -44,12 +45,19 @@ export default function ResultsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { MOCK_TEACHER_COURSES_RICH } = await import('@/lib/mockData');
-      // Simulate a small loading delay for skeleton visibility
-      await new Promise(r => setTimeout(r, 600));
-      setSubjects(MOCK_TEACHER_COURSES_RICH);
+      const courses = await chapterCurriculumService.getTeacherCourses();
+      // Map Course[] to Subject[]
+      const mappedSubjects = courses.map((course: Course) => ({
+        id: course.id,
+        name: course.name,
+        description: course.description || '',
+        enrolledStudents: 0, // TODO: Add enrollment count from DB
+        avgMastery: 0, // TODO: Add mastery calculation
+      }));
+      setSubjects(mappedSubjects);
     } catch (err) {
       console.error('Failed to load subjects', err);
+      setSubjects([]);
     } finally {
       setLoading(false);
     }

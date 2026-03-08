@@ -143,8 +143,26 @@ export const getAllSubmissions = asyncHandler(async (req: Request, res: Response
   const attempts = await prisma.studentAttempt.findMany({
     where: { assignmentId: { in: assignmentIds } },
     include: {
-      student: { select: { id: true, name: true, email: true } },
+      student: { 
+        select: { 
+          id: true, 
+          name: true, 
+          email: true,
+          profile: {
+            select: {
+              avatarUrl: true,
+            },
+          },
+        } 
+      },
       assignment: { select: { id: true, title: true, courseId: true } },
+      grader: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     },
     orderBy: { startedAt: 'desc' },
     take: 200,
@@ -153,10 +171,34 @@ export const getAllSubmissions = asyncHandler(async (req: Request, res: Response
 });
 
 export const gradeSubmission = asyncHandler(async (req: Request, res: Response) => {
-  const { score } = req.body;
+  const { score, comment, rubricScores } = req.body;
+  const updateData: any = {
+    score,
+    gradedAt: new Date(),
+    gradedBy: req.user!.userId,
+  };
+  
+  if (comment !== undefined) updateData.teacherComment = comment;
+  if (rubricScores !== undefined) updateData.rubricScores = rubricScores;
+
   const attempt = await prisma.studentAttempt.update({
     where: { id: req.params.attemptId as string },
-    data: { score },
+    data: updateData,
+    include: {
+      student: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      assignment: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
   });
   sendSuccess(res, attempt, 'Graded successfully');
 });

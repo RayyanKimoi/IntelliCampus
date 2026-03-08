@@ -72,26 +72,48 @@ export default function ChapterContentPage() {
 
   // ── Upload handler (file) ────────────────────────────────────────
   const handleUploadFile = async (file: File, title: string) => {
-    // Determine type from MIME
-    const getType = (mimeType: string) => {
-      if (mimeType.includes('pdf')) return 'pdf';
-      if (mimeType.includes('word') || mimeType.includes('document')) return 'doc';
-      if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'ppt';
-      if (mimeType.includes('image')) return 'image';
-      return 'pdf';
-    };
+    try {
+      // Step 1: Upload the actual file
+      const formData = new FormData();
+      formData.append('file', file);
 
-    const newContent = await chapterCurriculumService.uploadFile({
-      chapterId,
-      title,
-      fileUrl: `/uploads/${Date.now()}_${file.name}`,
-      fileType: file.type,
-      fileSize: file.size,
-      type: getType(file.type),
-    });
+      const uploadResponse = await fetch('/api/upload/file', {
+        method: 'POST',
+        body: formData,
+      });
 
-    // Optimistic update → prepend to list
-    setContent((prev) => [newContent, ...prev]);
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'File upload failed');
+      }
+
+      const uploadResult = await uploadResponse.json();
+
+      // Step 2: Determine type from MIME
+      const getType = (mimeType: string) => {
+        if (mimeType.includes('pdf')) return 'pdf';
+        if (mimeType.includes('word') || mimeType.includes('document')) return 'doc';
+        if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'ppt';
+        if (mimeType.includes('image')) return 'image';
+        return 'pdf';
+      };
+
+      // Step 3: Create the content record with the real file URL
+      const newContent = await chapterCurriculumService.uploadFile({
+        chapterId,
+        title,
+        fileUrl: uploadResult.fileUrl,
+        fileType: uploadResult.fileType,
+        fileSize: uploadResult.fileSize,
+        type: getType(uploadResult.fileType),
+      });
+
+      // Optimistic update → prepend to list
+      setContent((prev) => [newContent, ...prev]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw error;
+    }
   };
 
   // ── Upload handler (YouTube) ─────────────────────────────────────
@@ -115,7 +137,7 @@ export default function ChapterContentPage() {
     if (!selectedContent || !editTitle.trim()) return;
     setSubmitting(true);
     try {
-      await chapterCurriculumService.updateContent(selectedContent.id, { title: editTitle });
+      await chapterCurriculumService.updateContent(chapterId, selectedContent.id, { title: editTitle });
       setContent((prev) =>
         prev.map((item) =>
           item.id === selectedContent.id ? { ...item, title: editTitle } : item
@@ -136,7 +158,7 @@ export default function ChapterContentPage() {
     if (!selectedContent) return;
     setSubmitting(true);
     try {
-      await chapterCurriculumService.deleteContent(selectedContent.id);
+      await chapterCurriculumService.deleteContent(chapterId, selectedContent.id);
       setContent((prev) => prev.filter((item) => item.id !== selectedContent.id));
       setShowDeleteModal(false);
       setSelectedContent(null);

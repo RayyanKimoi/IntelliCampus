@@ -78,7 +78,7 @@ export const chapterCurriculumService = {
     description?: string;
     orderIndex?: number;
   }): Promise<Chapter> {
-    const response = await api.post('/teacher/curriculum/chapters', data);
+    const response = await api.post(`/teacher/curriculum/courses/${data.courseId}/chapters`, data);
     return response.data || response;
   },
 
@@ -116,7 +116,7 @@ export const chapterCurriculumService = {
     fileSize?: number;
     type?: string;
   }): Promise<ChapterContent> {
-    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content/file`, data);
+    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content`, data);
     return response.data || response;
   },
 
@@ -126,7 +126,11 @@ export const chapterCurriculumService = {
     title: string;
     youtubeUrl: string;
   }): Promise<ChapterContent> {
-    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content/youtube`, data);
+    const response = await api.post(`/teacher/curriculum/chapters/${data.chapterId}/content`, {
+      ...data,
+      fileUrl: data.youtubeUrl,
+      fileType: 'video/youtube',
+    });
     return response.data || response;
   },
 
@@ -151,19 +155,20 @@ export const chapterCurriculumService = {
 
   // Update content
   async updateContent(
+    chapterId: string,
     contentId: string,
     data: {
       title?: string;
       description?: string;
     }
   ): Promise<ChapterContent> {
-    const response = await api.put(`/teacher/curriculum/content/${contentId}`, data);
+    const response = await api.put(`/teacher/curriculum/chapters/${chapterId}/content/${contentId}`, data);
     return response.data || response;
   },
 
   // Delete content
-  async deleteContent(contentId: string): Promise<void> {
-    await api.delete(`/teacher/curriculum/content/${contentId}`);
+  async deleteContent(chapterId: string, contentId: string): Promise<void> {
+    await api.delete(`/teacher/curriculum/chapters/${chapterId}/content/${contentId}`);
   },
 };
 

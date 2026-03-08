@@ -199,8 +199,21 @@ export class AssessmentService {
             id: true,
             name: true,
             email: true,
+            profile: {
+              select: {
+                avatarUrl: true,
+              },
+            },
           },
         },
+        grader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        studentAnswers: true,
       },
       orderBy: { score: 'desc' },
     });

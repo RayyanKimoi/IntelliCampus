@@ -1,17 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teacherService } from '@/services/teacherService';
 import {
   Users, BarChart2, TrendingDown, TrendingUp, Loader2, AlertCircle,
-  Trophy, Target,
+  Trophy, Target, Search, ArrowUpDown, BookOpen, ChevronLeft,
 } from 'lucide-react';
-import { MOCK_COHORT_DATA } from '@/lib/mockData';
+import { MOCK_COHORT_DATA, MOCK_TEACHER_COURSES } from '@/lib/mockData';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 // ───────────────────────────── Types
 interface TopicMastery {
@@ -24,12 +33,19 @@ interface TopicAccuracy {
 }
 interface StudentRank {
   rank: number; userId: string; name: string;
-  totalXP: number; level: number;
+  rollNumber: string; mastery: number; trend: number;
 }
 interface CohortData {
   masteryByTopic: TopicMastery[];
   topicAccuracy: TopicAccuracy[];
   studentRanking: StudentRank[];
+}
+interface Subject {
+  id: string;
+  name: string;
+  description?: string;
+  studentCount?: number;
+  avgMastery?: number;
 }
 
 // ───────────────────────────── Helpers
@@ -52,26 +68,98 @@ const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 // ───────────────────────────── Page
 export default function CohortIntelligencePage() {
   const [data, setData] = useState<CohortData | null>(null);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeView, setActiveView] = useState<'heatmap' | 'accuracy' | 'ranking'>('heatmap');
+  
+  // Student ranking filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'mastery-asc' | 'mastery-desc'>('default');
 
-  const loadData = useCallback(async () => {
+  const loadSubjects = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await teacherService.getCohortAnalytics();
-      const d = result as any;
-      const hasData = d?.masteryByTopic?.length > 0 || d?.studentRanking?.length > 0;
-      setData(hasData ? result : MOCK_COHORT_DATA);
-    } catch { setData(MOCK_COHORT_DATA); }
-    finally { setLoading(false); }
+      const courses = MOCK_TEACHER_COURSES as any[];
+      console.log('[Cohort] Loading subjects, found:', courses.length, 'courses');
+      const subjectList = courses.map(c => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        studentCount: c.enrolledStudents || Math.floor(Math.random() * 50) + 30,
+        avgMastery: c.avgMastery || Math.floor(Math.random() * 30) + 60,
+      }));
+      setSubjects(subjectList);
+      console.log('[Cohort] Subjects loaded:', subjectList.length);
+    } catch (err) {
+      console.error('Error loading subjects:', err);
+      setSubjects([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const loadData = useCallback(async () => {
+    if (!selectedSubject) return;
+    
+    setLoading(true);
+    try {
+      // Always use mock data for now - in production this would call the API
+      console.log('[Cohort] Loading mock data for subject:', selectedSubject.name);
+      console.log('[Cohort] MOCK_COHORT_DATA:', MOCK_COHORT_DATA);
+      setData(MOCK_COHORT_DATA);
+    } catch (err) {
+      console.error('Error loading cohort data:', err);
+      setData(MOCK_COHORT_DATA);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    console.log('[Cohort] useEffect - selectedSubject:', selectedSubject);
+    console.log('[Cohort] useEffect - subjects length:', subjects.length);
+    
+    if (!selectedSubject) {
+      loadSubjects();
+    } else {
+      loadData();
+    }
+  }, [selectedSubject, loadSubjects, loadData]);
 
   // Derived
   const weakTopics = data?.masteryByTopic.filter(t => t.avgMastery < 50) ?? [];
   const strongTopics = data?.masteryByTopic.filter(t => t.avgMastery >= 70) ?? [];
+
+  // Filtered and sorted student ranking
+  const filteredAndSortedStudents = useMemo(() => {
+    if (!data?.studentRanking) return [];
+    
+    // Filter by search query
+    let filtered = data.studentRanking.filter(student => {
+      const query = searchQuery.toLowerCase();
+      return (
+        student.name.toLowerCase().includes(query) ||
+        student.rollNumber.toLowerCase().includes(query)
+      );
+    });
+    
+    // Sort
+    let sorted = [...filtered];
+    if (sortBy === 'mastery-asc') {
+      sorted.sort((a, b) => a.mastery - b.mastery);
+    } else if (sortBy === 'mastery-desc') {
+      sorted.sort((a, b) => b.mastery - a.mastery);
+    }
+    // For 'default', keep original order (already sorted by mastery desc)
+    
+    // Update ranks based on sorted order
+    return sorted.map((student, index) => ({
+      ...student,
+      rank: index + 1,
+    }));
+  }, [data?.studentRanking, searchQuery, sortBy]);
 
   const views = [
     { id: 'heatmap' as const, label: 'Mastery Heatmap', icon: <Target className="w-4 h-4" /> },
@@ -79,14 +167,100 @@ export default function CohortIntelligencePage() {
     { id: 'ranking' as const, label: 'Student Ranking', icon: <Trophy className="w-4 h-4" /> },
   ];
 
+  // ───────────────────────────── SUBJECT LIST VIEW
+  if (!selectedSubject) {
+    return (
+      <DashboardLayout requiredRole="teacher">
+        <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Cohort Intelligence</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Select a subject to analyse class-wide mastery, topic performance and student rankings.
+            </p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded-lg text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : subjects.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>No subjects assigned yet.</p>
+            </div>
+          ) : (
+            <>
+              {/* Subject Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {subjects.map(subject => (
+                  <div
+                    key={subject.id}
+                    onClick={() => setSelectedSubject(subject)}
+                    className="bg-card border border-border rounded-xl p-6 hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                        <BookOpen className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          {subject.name}
+                        </h3>
+                        {subject.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {subject.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Students</p>
+                        <p className="text-lg font-bold text-foreground">{subject.studentCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Avg Mastery</p>
+                        <p className="text-lg font-bold text-primary">{subject.avgMastery}%</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ───────────────────────────── SUBJECT ANALYTICS VIEW
   return (
     <DashboardLayout requiredRole="teacher">
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
 
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Cohort Intelligence</h1>
-          <p className="text-sm text-muted-foreground mt-1">Analyse class-wide mastery, topic performance and student rankings.</p>
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedSubject(null)}
+            className="flex items-center gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{selectedSubject.name}</h1>
+            <p className="text-sm text-muted-foreground mt-1">Cohort Analytics</p>
+          </div>
         </div>
 
         {error && (
@@ -132,15 +306,17 @@ export default function CohortIntelligencePage() {
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 bg-muted rounded-lg p-1 w-fit">
-              {views.map(v => (
-                <button key={v.id} onClick={() => setActiveView(v.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all
-                    ${activeView === v.id ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                  {v.icon} {v.label}
-                </button>
-              ))}
+            {/* Tabs - Centered in greyish rounded box */}
+            <div className="flex justify-center">
+              <div className="flex gap-1 bg-muted/60 rounded-full p-1.5 border border-border/50 shadow-sm">
+                {views.map(v => (
+                  <button key={v.id} onClick={() => setActiveView(v.id)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all
+                      ${activeView === v.id ? 'bg-card text-primary shadow-md' : 'text-muted-foreground hover:text-foreground hover:bg-card/50'}`}>
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* ── Heatmap */}
@@ -249,33 +425,88 @@ export default function CohortIntelligencePage() {
             {/* ── Ranking */}
             {activeView === 'ranking' && (
               <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
-                <h2 className="text-base font-semibold text-foreground">Student XP Ranking</h2>
+                <h2 className="text-base font-semibold text-foreground">Student Mastery Ranking</h2>
+                
                 {data.studentRanking.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">No ranking data available.</p>
                 ) : (
-                  <div className="space-y-2">
-                    {data.studentRanking.slice(0, 30).map(student => (
-                      <div key={student.userId}
-                        className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all
-                          ${student.rank <= 3 ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800' : 'border-border hover:bg-muted/40'}`}>
-                        <div className="w-8 text-center">
-                          {MEDAL[student.rank] ? (
-                            <span className="text-lg">{MEDAL[student.rank]}</span>
-                          ) : (
-                            <span className="text-sm font-bold text-muted-foreground">#{student.rank}</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground truncate">{student.name}</p>
-                          <p className="text-xs text-muted-foreground">Level {student.level}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-primary">{student.totalXP.toLocaleString()}</p>
-                          <p className="text-xs text-muted-foreground">XP</p>
-                        </div>
+                  <>
+                    {/* Search and Sort Controls */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Search by name or roll number..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center gap-2 sm:w-auto">
+                        <ArrowUpDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                          <SelectTrigger className="w-full sm:w-[200px]">
+                            <SelectValue placeholder="Sort by..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="default">Default</SelectItem>
+                            <SelectItem value="mastery-desc">Mastery High → Low</SelectItem>
+                            <SelectItem value="mastery-asc">Mastery Low → High</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Student List */}
+                    {filteredAndSortedStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">No students match your search.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {filteredAndSortedStudents.slice(0, 30).map(student => (
+                          <div key={student.userId}
+                            className={`flex items-center gap-4 px-4 py-3 rounded-xl border transition-all hover:shadow-md hover:scale-[1.01] cursor-pointer
+                              ${student.rank <= 3 ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800' : 'border-border hover:bg-muted/40'}`}>
+                            <div className="w-8 text-center flex-shrink-0">
+                              {MEDAL[student.rank] ? (
+                                <span className="text-lg">{MEDAL[student.rank]}</span>
+                              ) : (
+                                <span className="text-sm font-bold text-muted-foreground">#{student.rank}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground truncate">{student.name}</p>
+                              <p className="text-xs text-muted-foreground">Roll No: {student.rollNumber}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                <div>
+                                  <p className="font-bold text-primary text-lg">{student.mastery}%</p>
+                                  <p className="text-xs text-muted-foreground">Mastery</p>
+                                </div>
+                                {student.trend !== 0 && (
+                                  <div className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-md
+                                    ${student.trend > 0 ? 'text-green-600 bg-green-50 dark:bg-green-950/30 dark:text-green-400' : 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400'}`}>
+                                    {student.trend > 0 ? (
+                                      <>
+                                        <TrendingUp className="w-3 h-3" />
+                                        <span>+{student.trend}%</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <TrendingDown className="w-3 h-3" />
+                                        <span>{student.trend}%</span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

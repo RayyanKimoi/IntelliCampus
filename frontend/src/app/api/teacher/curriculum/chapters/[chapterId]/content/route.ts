@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,785 +16,69 @@ export async function GET(
 
     const { chapterId } = await context.params;
 
-    // Mock content data
-    const mockContent: Record<string, any> = {
-      'ch-1-1': {
-        chapterName: 'Introduction to Programming',
-        content: [
-          {
-            id: 'content-1',
-            chapterId: 'ch-1-1',
-            uploadedBy: user.userId,
-            title: 'Introduction to Variables',
-            description: 'Understanding variables and data types',
-            fileUrl: '/sample-content/cs101-variables.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1024000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
+    // Get chapter with content from database
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+      include: {
+        content: {
+          include: {
+            uploader: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
-          {
-            id: 'content-2',
-            chapterId: 'ch-1-1',
-            uploadedBy: user.userId,
-            title: 'Python Syntax Guide',
-            description: 'Basic Python syntax and conventions',
-            fileUrl: '/sample-content/python-syntax.pdf',
-            fileType: 'application/pdf',
-            fileSize: 856000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
+          orderBy: {
+            orderIndex: 'asc',
           },
-        ],
+        },
       },
-      'ch-1-2': {
-        chapterName: 'Control Flow',
-        content: [
-          {
-            id: 'content-cf-1',
-            chapterId: 'ch-1-2',
-            uploadedBy: user.userId,
-            title: 'If-Else Statements',
-            description: 'Conditional logic in programming',
-            fileUrl: '/sample-content/if-else.pdf',
-            fileType: 'application/pdf',
-            fileSize: 723000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-cf-2',
-            chapterId: 'ch-1-2',
-            uploadedBy: user.userId,
-            title: 'For Loops Guide',
-            description: 'Iteration and loops',
-            fileUrl: '/sample-content/loops.pdf',
-            fileType: 'application/pdf',
-            fileSize: 945000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-cf-3',
-            chapterId: 'ch-1-2',
-            uploadedBy: user.userId,
-            title: 'While Loops',
-            description: 'Conditional iteration',
-            fileUrl: '/sample-content/while-loops.pdf',
-            fileType: 'application/pdf',
-            fileSize: 532000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-2-1': {
-        chapterName: 'HTML Basics',
-        content: [
-          {
-            id: 'content-3',
-            chapterId: 'ch-2-1',
-            uploadedBy: user.userId,
-            title: 'HTML5 Semantic Tags',
-            description: 'Modern HTML structure',
-            fileUrl: '/sample-content/html5-semantics.pdf',
-            fileType: 'application/pdf',
-            fileSize: 623000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-4',
-            chapterId: 'ch-2-1',
-            uploadedBy: user.userId,
-            title: 'HTML Forms Guide',
-            description: 'Building interactive forms',
-            fileUrl: '/sample-content/html-forms.pdf',
-            fileType: 'application/pdf',
-            fileSize: 412000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-3-1': {
-        chapterName: 'Arrays and Linked Lists',
-        content: [
-          {
-            id: 'content-ds-1',
-            chapterId: 'ch-3-1',
-            uploadedBy: user.userId,
-            title: 'Array Operations Cheat Sheet',
-            description: 'Common array algorithms',
-            fileUrl: '/sample-content/arrays-cheatsheet.pdf',
-            fileType: 'application/pdf',
-            fileSize: 412000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-ds-2',
-            chapterId: 'ch-3-1',
-            uploadedBy: user.userId,
-            title: 'Linked List Implementation',
-            description: 'Building linked lists from scratch',
-            fileUrl: '/sample-content/linked-lists.pdf',
-            fileType: 'application/pdf',
-            fileSize: 789000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-ds-3',
-            chapterId: 'ch-3-1',
-            uploadedBy: user.userId,
-            title: 'Time Complexity Analysis',
-            description: 'Big O notation explained',
-            fileUrl: '/sample-content/big-o.pdf',
-            fileType: 'application/pdf',
-            fileSize: 654000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-1-3': {
-        chapterName: 'Functions and Modules',
-        content: [
-          {
-            id: 'content-fn-1',
-            chapterId: 'ch-1-3',
-            uploadedBy: user.userId,
-            title: 'Function Basics',
-            description: 'Defining and calling functions',
-            fileUrl: '/sample-content/function-basics.pdf',
-            fileType: 'application/pdf',
-            fileSize: 567000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-fn-2',
-            chapterId: 'ch-1-3',
-            uploadedBy: user.userId,
-            title: 'Parameters and Return Values',
-            description: 'Working with function inputs and outputs',
-            fileUrl: '/sample-content/params-returns.pdf',
-            fileType: 'application/pdf',
-            fileSize: 634000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-fn-3',
-            chapterId: 'ch-1-3',
-            uploadedBy: user.userId,
-            title: 'Scope and Closures',
-            description: 'Understanding variable scope',
-            fileUrl: '/sample-content/scope-closures.pdf',
-            fileType: 'application/pdf',
-            fileSize: 701000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-fn-4',
-            chapterId: 'ch-1-3',
-            uploadedBy: user.userId,
-            title: 'Modules and Imports',
-            description: 'Organizing code with modules',
-            fileUrl: '/sample-content/modules-imports.pdf',
-            fileType: 'application/pdf',
-            fileSize: 823000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-1-4': {
-        chapterName: 'Object-Oriented Programming',
-        content: [
-          {
-            id: 'content-oop-1',
-            chapterId: 'ch-1-4',
-            uploadedBy: user.userId,
-            title: 'Introduction to OOP',
-            description: 'Object-oriented programming concepts',
-            fileUrl: '/sample-content/oop-intro.pdf',
-            fileType: 'application/pdf',
-            fileSize: 978000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-oop-2',
-            chapterId: 'ch-1-4',
-            uploadedBy: user.userId,
-            title: 'Classes and Objects',
-            description: 'Creating and using classes',
-            fileUrl: '/sample-content/classes-objects.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1120000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-oop-3',
-            chapterId: 'ch-1-4',
-            uploadedBy: user.userId,
-            title: 'Inheritance and Polymorphism',
-            description: 'Code reuse through inheritance',
-            fileUrl: '/sample-content/inheritance.pdf',
-            fileType: 'application/pdf',
-            fileSize: 956000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-oop-4',
-            chapterId: 'ch-1-4',
-            uploadedBy: user.userId,
-            title: 'Encapsulation',
-            description: 'Data hiding and access control',
-            fileUrl: '/sample-content/encapsulation.pdf',
-            fileType: 'application/pdf',
-            fileSize: 745000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-oop-5',
-            chapterId: 'ch-1-4',
-            uploadedBy: user.userId,
-            title: 'Design Patterns Basics',
-            description: 'Common OOP design patterns',
-            fileUrl: '/sample-content/design-patterns.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1234000,
-            orderIndex: 5,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-1-5': {
-        chapterName: 'File I/O and Exception Handling',
-        content: [
-          {
-            id: 'content-io-1',
-            chapterId: 'ch-1-5',
-            uploadedBy: user.userId,
-            title: 'Reading and Writing Files',
-            description: 'File operations in Python',
-            fileUrl: '/sample-content/file-io.pdf',
-            fileType: 'application/pdf',
-            fileSize: 678000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-io-2',
-            chapterId: 'ch-1-5',
-            uploadedBy: user.userId,
-            title: 'Exception Handling',
-            description: 'Try-except blocks and error handling',
-            fileUrl: '/sample-content/exceptions.pdf',
-            fileType: 'application/pdf',
-            fileSize: 534000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-io-3',
-            chapterId: 'ch-1-5',
-            uploadedBy: user.userId,
-            title: 'Working with JSON and CSV',
-            description: 'Reading and writing structured data',
-            fileUrl: '/sample-content/json-csv.pdf',
-            fileType: 'application/pdf',
-            fileSize: 892000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-2-2': {
-        chapterName: 'CSS Styling',
-        content: [
-          {
-            id: 'content-css-1',
-            chapterId: 'ch-2-2',
-            uploadedBy: user.userId,
-            title: 'CSS Selectors and Properties',
-            description: 'Targeting elements and applying styles',
-            fileUrl: '/sample-content/css-selectors.pdf',
-            fileType: 'application/pdf',
-            fileSize: 789000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-css-2',
-            chapterId: 'ch-2-2',
-            uploadedBy: user.userId,
-            title: 'Flexbox Layout',
-            description: 'Modern layouts with Flexbox',
-            fileUrl: '/sample-content/flexbox.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1045000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-css-3',
-            chapterId: 'ch-2-2',
-            uploadedBy: user.userId,
-            title: 'CSS Grid System',
-            description: 'Creating grid-based layouts',
-            fileUrl: '/sample-content/css-grid.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1123000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-css-4',
-            chapterId: 'ch-2-2',
-            uploadedBy: user.userId,
-            title: 'Animations and Transitions',
-            description: 'Adding motion to web pages',
-            fileUrl: '/sample-content/css-animations.pdf',
-            fileType: 'application/pdf',
-            fileSize: 934000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-2-3': {
-        chapterName: 'JavaScript Fundamentals',
-        content: [
-          {
-            id: 'content-js-1',
-            chapterId: 'ch-2-3',
-            uploadedBy: user.userId,
-            title: 'JavaScript Basics',
-            description: 'Variables, types, and operators',
-            fileUrl: '/sample-content/js-basics.pdf',
-            fileType: 'application/pdf',
-            fileSize: 856000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-js-2',
-            chapterId: 'ch-2-3',
-            uploadedBy: user.userId,
-            title: 'DOM Manipulation',
-            description: 'Interacting with HTML elements',
-            fileUrl: '/sample-content/dom-manipulation.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1012000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-js-3',
-            chapterId: 'ch-2-3',
-            uploadedBy: user.userId,
-            title: 'Event Handling',
-            description: 'Responding to user interactions',
-            fileUrl: '/sample-content/events.pdf',
-            fileType: 'application/pdf',
-            fileSize: 723000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-js-4',
-            chapterId: 'ch-2-3',
-            uploadedBy: user.userId,
-            title: 'Async JavaScript',
-            description: 'Promises, async/await, and AJAX',
-            fileUrl: '/sample-content/async-js.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1145000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-js-5',
-            chapterId: 'ch-2-3',
-            uploadedBy: user.userId,
-            title: 'ES6+ Features',
-            description: 'Modern JavaScript syntax',
-            fileUrl: '/sample-content/es6-features.pdf',
-            fileType: 'application/pdf',
-            fileSize: 987000,
-            orderIndex: 5,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-2-4': {
-        chapterName: 'React Framework',
-        content: [
-          {
-            id: 'content-react-1',
-            chapterId: 'ch-2-4',
-            uploadedBy: user.userId,
-            title: 'React Components',
-            description: 'Building UI with components',
-            fileUrl: '/sample-content/react-components.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1234000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-react-2',
-            chapterId: 'ch-2-4',
-            uploadedBy: user.userId,
-            title: 'State and Props',
-            description: 'Managing component data',
-            fileUrl: '/sample-content/state-props.pdf',
-            fileType: 'application/pdf',
-            fileSize: 945000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-react-3',
-            chapterId: 'ch-2-4',
-            uploadedBy: user.userId,
-            title: 'React Hooks',
-            description: 'useState, useEffect, and custom hooks',
-            fileUrl: '/sample-content/react-hooks.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1089000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-react-4',
-            chapterId: 'ch-2-4',
-            uploadedBy: user.userId,
-            title: 'React Router',
-            description: 'Navigation in React applications',
-            fileUrl: '/sample-content/react-router.pdf',
-            fileType: 'application/pdf',
-            fileSize: 678000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-2-5': {
-        chapterName: 'Responsive Design',
-        content: [
-          {
-            id: 'content-resp-1',
-            chapterId: 'ch-2-5',
-            uploadedBy: user.userId,
-            title: 'Mobile-First Design',
-            description: 'Building for mobile devices',
-            fileUrl: '/sample-content/mobile-first.pdf',
-            fileType: 'application/pdf',
-            fileSize: 834000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-resp-2',
-            chapterId: 'ch-2-5',
-            uploadedBy: user.userId,
-            title: 'Media Queries',
-            description: 'Responsive breakpoints',
-            fileUrl: '/sample-content/media-queries.pdf',
-            fileType: 'application/pdf',
-            fileSize: 567000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-resp-3',
-            chapterId: 'ch-2-5',
-            uploadedBy: user.userId,
-            title: 'Responsive Images',
-            description: 'Optimizing images for different screens',
-            fileUrl: '/sample-content/responsive-images.pdf',
-            fileType: 'application/pdf',
-            fileSize: 923000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-3-2': {
-        chapterName: 'Stacks and Queues',
-        content: [
-          {
-            id: 'content-sq-1',
-            chapterId: 'ch-3-2',
-            uploadedBy: user.userId,
-            title: 'Stack Implementation',
-            description: 'LIFO data structure',
-            fileUrl: '/sample-content/stack-impl.pdf',
-            fileType: 'application/pdf',
-            fileSize: 645000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-sq-2',
-            chapterId: 'ch-3-2',
-            uploadedBy: user.userId,
-            title: 'Queue Implementation',
-            description: 'FIFO data structure',
-            fileUrl: '/sample-content/queue-impl.pdf',
-            fileType: 'application/pdf',
-            fileSize: 712000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-3-3': {
-        chapterName: 'Trees and Graphs',
-        content: [
-          {
-            id: 'content-tg-1',
-            chapterId: 'ch-3-3',
-            uploadedBy: user.userId,
-            title: 'Binary Trees',
-            description: 'Tree structure and traversal',
-            fileUrl: '/sample-content/binary-trees.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1023000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-tg-2',
-            chapterId: 'ch-3-3',
-            uploadedBy: user.userId,
-            title: 'Binary Search Trees',
-            description: 'Efficient searching and insertion',
-            fileUrl: '/sample-content/bst.pdf',
-            fileType: 'application/pdf',
-            fileSize: 894000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-tg-3',
-            chapterId: 'ch-3-3',
-            uploadedBy: user.userId,
-            title: 'Graph Representation',
-            description: 'Adjacency lists and matrices',
-            fileUrl: '/sample-content/graph-rep.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1167000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-tg-4',
-            chapterId: 'ch-3-3',
-            uploadedBy: user.userId,
-            title: 'Graph Traversal (BFS/DFS)',
-            description: 'Searching graphs',
-            fileUrl: '/sample-content/bfs-dfs.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1234000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-3-4': {
-        chapterName: 'Sorting Algorithms',
-        content: [
-          {
-            id: 'content-sort-1',
-            chapterId: 'ch-3-4',
-            uploadedBy: user.userId,
-            title: 'Bubble Sort and Selection Sort',
-            description: 'Simple sorting algorithms',
-            fileUrl: '/sample-content/simple-sorts.pdf',
-            fileType: 'application/pdf',
-            fileSize: 678000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-sort-2',
-            chapterId: 'ch-3-4',
-            uploadedBy: user.userId,
-            title: 'Merge Sort',
-            description: 'Divide and conquer sorting',
-            fileUrl: '/sample-content/merge-sort.pdf',
-            fileType: 'application/pdf',
-            fileSize: 823000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-sort-3',
-            chapterId: 'ch-3-4',
-            uploadedBy: user.userId,
-            title: 'Quick Sort',
-            description: 'Efficient in-place sorting',
-            fileUrl: '/sample-content/quick-sort.pdf',
-            fileType: 'application/pdf',
-            fileSize: 945000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-sort-4',
-            chapterId: 'ch-3-4',
-            uploadedBy: user.userId,
-            title: 'Heap Sort',
-            description: 'Sorting with heaps',
-            fileUrl: '/sample-content/heap-sort.pdf',
-            fileType: 'application/pdf',
-            fileSize: 787000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-sort-5',
-            chapterId: 'ch-3-4',
-            uploadedBy: user.userId,
-            title: 'Comparison of Sorting Algorithms',
-            description: 'Time and space complexity analysis',
-            fileUrl: '/sample-content/sort-comparison.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1089000,
-            orderIndex: 5,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
-      'ch-3-5': {
-        chapterName: 'Dynamic Programming',
-        content: [
-          {
-            id: 'content-dp-1',
-            chapterId: 'ch-3-5',
-            uploadedBy: user.userId,
-            title: 'Introduction to Dynamic Programming',
-            description: 'Optimization and memoization',
-            fileUrl: '/sample-content/dp-intro.pdf',
-            fileType: 'application/pdf',
-            fileSize: 1123000,
-            orderIndex: 1,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-dp-2',
-            chapterId: 'ch-3-5',
-            uploadedBy: user.userId,
-            title: 'Fibonacci and DP',
-            description: 'Classic DP problem',
-            fileUrl: '/sample-content/fibonacci-dp.pdf',
-            fileType: 'application/pdf',
-            fileSize: 634000,
-            orderIndex: 2,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-dp-3',
-            chapterId: 'ch-3-5',
-            uploadedBy: user.userId,
-            title: 'Knapsack Problem',
-            description: '0/1 Knapsack with DP',
-            fileUrl: '/sample-content/knapsack.pdf',
-            fileType: 'application/pdf',
-            fileSize: 956000,
-            orderIndex: 3,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-          {
-            id: 'content-dp-4',
-            chapterId: 'ch-3-5',
-            uploadedBy: user.userId,
-            title: 'Longest Common Subsequence',
-            description: 'String matching with DP',
-            fileUrl: '/sample-content/lcs.pdf',
-            fileType: 'application/pdf',
-            fileSize: 878000,
-            orderIndex: 4,
-            createdAt: new Date().toISOString(),
-            uploader: { id: user.userId, email: user.email },
-          },
-        ],
-      },
+    });
+
+    if (!chapter) {
+      return NextResponse.json(
+        { error: 'Chapter not found' },
+        { status: 404 }
+      );
+    }
+
+    const result = {
+      chapterName: chapter.name,
+      content: chapter.content.map((item) => {
+        const isYouTube = item.fileType === 'video/youtube';
+        let youtubeId = '';
+        let thumbnailUrl = '';
+
+        // Extract YouTube video ID from URL
+        if (isYouTube && item.fileUrl) {
+          const match = item.fileUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+          if (match) {
+            youtubeId = match[1];
+            thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+          }
+        }
+
+        return {
+          id: item.id,
+          chapterId: item.chapterId,
+          uploadedBy: item.uploadedBy,
+          title: item.title,
+          description: item.description,
+          type: isYouTube ? 'youtube' : 'pdf',
+          fileUrl: item.fileUrl,
+          youtubeUrl: isYouTube ? item.fileUrl : undefined,
+          thumbnailUrl: thumbnailUrl || undefined,
+          fileType: item.fileType,
+          fileSize: item.fileSize,
+          orderIndex: item.orderIndex,
+          createdAt: item.createdAt.toISOString(),
+          uploader: item.uploader,
+        };
+      }),
     };
 
-    const result = mockContent[chapterId] || { chapterName: 'Unknown Chapter', content: [] };
-    // Enrich mock content items with new fields if missing
-    if (result.content) {
-      result.content = result.content.map((item: any) => ({
-        ...item,
-        type: item.type || 'pdf',
-        thumbnailUrl: item.thumbnailUrl || null,
-        youtubeUrl: item.youtubeUrl || null,
-        teacherNotes: item.teacherNotes || null,
-      }));
-    }
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
     console.error('[API] /api/teacher/curriculum/chapters/[chapterId]/content error:', error);
@@ -821,46 +106,103 @@ export async function POST(
 
     const { chapterId } = await context.params;
     const body = await req.json();
-    const { title, description, fileUrl, fileType, fileSize, type } = body;
 
-    if (!title) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    // Verify chapter exists
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+    });
+
+    if (!chapter) {
+      return NextResponse.json(
+        { error: 'Chapter not found' },
+        { status: 404 }
+      );
     }
 
-    // Determine content type from fileType if not provided
-    const contentType = type || (() => {
-      if (fileType?.includes('pdf')) return 'pdf';
-      if (fileType?.includes('word') || fileType?.includes('document')) return 'doc';
-      if (fileType?.includes('presentation') || fileType?.includes('powerpoint')) return 'ppt';
-      if (fileType?.includes('image')) return 'image';
-      return 'pdf';
-    })();
+    // Get the current max order index
+    const maxOrderContent = await prisma.chapterContent.findFirst({
+      where: { chapterId },
+      orderBy: { orderIndex: 'desc' },
+      select: { orderIndex: true },
+    });
 
-    const newContent = {
-      id: `content-${Date.now()}`,
-      chapterId,
-      uploadedBy: user.userId,
-      title,
-      description: description || '',
-      type: contentType,
-      fileUrl: fileUrl || `/uploads/${Date.now()}_${title.replace(/\s+/g, '-')}`,
-      youtubeUrl: null,
-      thumbnailUrl: null,
-      teacherNotes: null,
-      fileType: fileType || 'application/pdf',
-      fileSize: fileSize || 0,
-      orderIndex: 0,
-      createdAt: new Date().toISOString(),
-      uploader: { id: user.userId, email: user.email },
+    const nextOrderIndex = (maxOrderContent?.orderIndex ?? -1) + 1;
+
+    // Determine file type
+    let fileType = body.fileType;
+    if (!fileType) {
+      // Auto-detect from URL
+      if (body.fileUrl.includes('youtube.com') || body.fileUrl.includes('youtu.be')) {
+        fileType = 'video/youtube';
+      } else if (body.fileUrl.endsWith('.pdf')) {
+        fileType = 'application/pdf';
+      } else {
+        fileType = 'application/octet-stream';
+      }
+    }
+
+    // Create content
+    const content = await prisma.chapterContent.create({
+      data: {
+        chapterId,
+        uploadedBy: user.userId,
+        title: body.title,
+        description: body.description || '',
+        fileUrl: body.fileUrl,
+        fileType,
+        fileSize: body.fileSize || 0,
+        orderIndex: body.orderIndex ?? nextOrderIndex,
+      },
+      include: {
+        uploader: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Format response
+    const isYouTube = content.fileType === 'video/youtube';
+    let youtubeId = '';
+    let thumbnailUrl = '';
+
+    if (isYouTube && content.fileUrl) {
+      const match = content.fileUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+      if (match) {
+        youtubeId = match[1];
+        thumbnailUrl = `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`;
+      }
+    }
+
+    const result = {
+      id: content.id,
+      chapterId: content.chapterId,
+      uploadedBy: content.uploadedBy,
+      title: content.title,
+      description: content.description,
+      type: isYouTube ? 'youtube' : 'pdf',
+      fileUrl: content.fileUrl,
+      youtubeUrl: isYouTube ? content.fileUrl : undefined,
+      thumbnailUrl: thumbnailUrl || undefined,
+      fileType: content.fileType,
+      fileSize: content.fileSize,
+      orderIndex: content.orderIndex,
+      createdAt: content.createdAt.toISOString(),
+      uploader: content.uploader,
     };
 
-    return NextResponse.json({ success: true, data: newContent }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     console.error('[API] POST /api/teacher/curriculum/chapters/[chapterId]/content error:', error);
     
     const isAuthError = error.message?.includes('Authentication required') || 
                         error.message?.includes('Invalid or expired token');
-    const statusCode = isAuthError ? 401 : 500;
+    const isPermissionError = error.message?.includes('Insufficient permissions');
+    
+    const statusCode = isAuthError ? 401 : isPermissionError ? 403 : 500;
     
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -868,4 +210,3 @@ export async function POST(
     );
   }
 }
-

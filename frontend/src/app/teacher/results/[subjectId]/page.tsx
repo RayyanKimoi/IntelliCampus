@@ -13,8 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MOCK_TEACHER_ASSIGNMENTS_FULL } from '@/lib/mockData';
 import { motion, AnimatePresence } from 'motion/react';
+import { teacherService } from '@/services/teacherService';
+import { chapterCurriculumService } from '@/services/chapterCurriculumService';
 
 // ─── Mock quiz data ────────────────────────────────────────────────────────
 const MOCK_QUIZZES = [
@@ -59,16 +60,49 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const { MOCK_TEACHER_COURSES_RICH } = await import('@/lib/mockData');
-      const course = MOCK_TEACHER_COURSES_RICH.find((c: any) => c.id === subjectId);
+      // Fetch course name
+      const courses = await chapterCurriculumService.getTeacherCourses();
+      const course = courses.find((c: any) => c.id === subjectId);
       setCourseName(course?.name || 'Unknown Subject');
 
-      await new Promise(r => setTimeout(r, 500));
-      const fetchedAssignments = MOCK_TEACHER_ASSIGNMENTS_FULL[subjectId] || [];
-      setAssignments(fetchedAssignments);
-      setQuizzes(MOCK_QUIZZES);
+      // Fetch assignments for this course
+      const response = await teacherService.getAssignments(subjectId);
+      const fetchedAssignments = response.data || response || [];
+      
+      // Calculate grading stats for each assignment
+      const assignmentsWithStats = await Promise.all(
+        fetchedAssignments.map(async (assignment: any) => {
+          try {
+            const resultsResponse = await teacherService.getAssignmentResults(assignment.id);
+            const results = resultsResponse.data || resultsResponse || [];
+            const gradedCount = results.filter((r: any) => r.gradedAt).length;
+            const pendingCount = results.length - gradedCount;
+            
+            return {
+              ...assignment,
+              totalSubmissions: results.length,
+              graded: gradedCount,
+              pendingCount,
+              _count: assignment._count || { studentAttempts: results.length },
+            };
+          } catch (err) {
+            console.error(`Failed to fetch results for assignment ${assignment.id}`, err);
+            return {
+              ...assignment,
+              totalSubmissions: assignment._count?.studentAttempts || 0,
+              graded: 0,
+              pendingCount: assignment._count?.studentAttempts || 0,
+            };
+          }
+        })
+      );
+      
+      setAssignments(assignmentsWithStats);
+      setQuizzes(MOCK_QUIZZES); // TODO: Replace with real quizzes when backend supports them
     } catch (err) {
       console.error('Error loading subject evaluation data', err);
+      setCourseName('Unknown Subject');
+      setAssignments([]);
     } finally {
       setLoading(false);
     }
