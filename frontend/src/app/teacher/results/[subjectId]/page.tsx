@@ -240,9 +240,24 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
                               <div className="p-2.5 bg-primary/10 dark:bg-primary/15 text-primary dark:text-blue-400 rounded-lg group-hover:scale-105 transition-transform duration-200">
                                 <FileText className="w-4.5 h-4.5 w-[18px] h-[18px]" />
                               </div>
-                              <span className="font-semibold text-[15px] text-foreground group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-200 leading-tight">
-                                {assignment.title}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-[15px] text-foreground group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-200 leading-tight">
+                                  {assignment.title}
+                                </span>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <span className="text-xs text-muted-foreground">
+                                    {assignment.totalSubmissions || 0} submission{(assignment.totalSubmissions || 0) !== 1 ? 's' : ''}
+                                  </span>
+                                  {assignment.dueDate && (
+                                    <>
+                                      <span className="text-xs text-muted-foreground">•</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        Due {new Date(assignment.dueDate).toLocaleDateString()}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -256,7 +271,7 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
                                 </span>
                               )}
                               <div className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:block">
-                                <ArrowLeft className="w-4 h-4 rotate-180" />
+                                <ChevronRight className="w-4 h-4" />
                               </div>
                             </div>
                           </CardContent>
