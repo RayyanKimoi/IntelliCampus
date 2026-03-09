@@ -73,7 +73,7 @@ export default function StudentAssignmentsPage() {
               </div>
               <div className="ml-4">
                 {assignment.status === 'pending' || assignment.status === 'late' ? (
-                   <Link href={`/student/assignments/${assignment.id}`}>
+                   <Link href={`/student/assignments/${assignment.id}/workspace`}>
                      <Button size="sm">Start <ChevronRight className="ml-1 h-3 w-3" /></Button>
                    </Link>
                 ) : (
