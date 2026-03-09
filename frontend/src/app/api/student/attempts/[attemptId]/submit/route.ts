@@ -19,7 +19,7 @@ export async function POST(
     let body: any = {};
     try { body = await req.json(); } catch { /* no body for quiz submits */ }
 
-    const { textContent, codeContent, submissionFileUrl } = body ?? {};
+    const { textContent, codeContent, codeLanguage, labReportContent, submissionFileUrl } = body ?? {};
 
     // Verify the attempt belongs to this student
     const attempt: any = await (prisma.studentAttempt.findUnique as any)({
@@ -43,14 +43,20 @@ export async function POST(
     // Calculate score for MCQ attempts
     let score = attempt.score;
     if (attempt.studentAnswers.length > 0) {
-      const correct = attempt.studentAnswers.filter((a) => a.isCorrect).length;
+      const correct = attempt.studentAnswers.filter((a: any) => a.isCorrect).length;
       score = (correct / attempt.studentAnswers.length) * 100;
     }
 
     // Build answers payload for open-ended submissions
     let answersJson: any = undefined;
-    if (textContent || codeContent) {
-      answersJson = { textContent, codeContent };
+    if (textContent || codeContent || labReportContent) {
+      answersJson = {
+        textContent,
+        codeContent,
+        codeLanguage,
+        labReportContent,
+        submittedAt: new Date().toISOString(),
+      };
     }
 
     const updated: any = await (prisma.studentAttempt.update as any)({
