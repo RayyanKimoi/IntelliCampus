@@ -79,7 +79,7 @@ export default function LoginPage() {
             <div className="flex justify-center mb-4">
               <img src="/icons/logo.png" alt="IntelliCampus" className="h-16 w-16 object-contain" />
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Welcome back</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900">IntelliCampus</h1>
             <p className="text-sm" style={{ color: 'rgba(12,26,46,0.5)' }}>Sign in to your IntelliCampus account</p>
           </div>
 

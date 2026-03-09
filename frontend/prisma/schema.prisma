@@ -98,6 +98,7 @@ model Institution {
   users          User[]
   courses        Course[]
   aiPolicySettings AIPolicySettings?
+  integrityPolicy  IntegrityPolicy?
 
   @@map("institutions")
 }
@@ -643,6 +644,36 @@ model AIPolicySettings {
   institution Institution @relation(fields: [institutionId], references: [id])
 
   @@map("ai_policy_settings")
+}
+
+model IntegrityPolicy {
+  id            String   @id @default(cuid())
+  institutionId String   @unique @map("institution_id")
+
+  rapidGuessingEnabled   Boolean @default(true) @map("rapid_guessing_enabled")
+  rapidGuessingThreshold Int     @default(10)   @map("rapid_guessing_threshold")
+
+  tabSwitchingEnabled   Boolean @default(true) @map("tab_switching_enabled")
+  tabSwitchingThreshold Int     @default(5)    @map("tab_switching_threshold")
+
+  copyPasteEnabled Boolean @default(true) @map("copy_paste_enabled")
+  highAnomalyEnabled Boolean @default(true) @map("high_anomaly_enabled")
+  unusualPatternEnabled Boolean @default(true) @map("unusual_pattern_enabled")
+
+  fastCompletionEnabled   Boolean @default(true) @map("fast_completion_enabled")
+  fastCompletionThreshold Int     @default(40)   @map("fast_completion_threshold")
+
+  multipleReattemptEnabled Boolean @default(true) @map("multiple_reattempt_enabled")
+
+  similarityDetectedEnabled Boolean @default(true) @map("similarity_detected_enabled")
+  similarityThreshold       Int     @default(80)   @map("similarity_threshold")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@map("integrity_policies")
 }
 
 model SystemUsageLog {

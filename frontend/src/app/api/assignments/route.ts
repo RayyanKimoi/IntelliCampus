@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
         submissionTypes: submissionTypes ?? undefined,
         rubric: rubric ?? undefined,
         assignmentDocumentUrl: resolvedDocumentUrl,
-        evaluationPoints: evaluationPoints ? Number(evaluationPoints) : null,
+        evaluationPoints: evaluationPoints ? String(evaluationPoints) : null,
         isPublished: false,
       },
       include: {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -10,14 +10,48 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { Shield, Loader2, CheckCircle2, AlertTriangle, Brain, Lock } from 'lucide-react';
-import { adminService, AIPolicy } from '@/services/adminService';
+import { Shield, Loader2, CheckCircle2, AlertTriangle, Eye, Zap, Clipboard, BarChart2, Clock, RefreshCw, Search, Copy } from 'lucide-react';
+import { api } from '@/services/apiClient';
+import { useToast } from '@/hooks/use-toast';
+
+interface IntegrityPolicy {
+  id?: string;
+  institutionId?: string;
+  rapidGuessingEnabled: boolean;
+  rapidGuessingThreshold: number;
+  tabSwitchingEnabled: boolean;
+  tabSwitchingThreshold: number;
+  copyPasteEnabled: boolean;
+  highAnomalyEnabled: boolean;
+  unusualPatternEnabled: boolean;
+  fastCompletionEnabled: boolean;
+  fastCompletionThreshold: number;
+  multipleReattemptEnabled: boolean;
+  similarityDetectedEnabled: boolean;
+  similarityThreshold: number;
+}
+
+const DEFAULT_POLICY: IntegrityPolicy = {
+  rapidGuessingEnabled: true,
+  rapidGuessingThreshold: 10,
+  tabSwitchingEnabled: true,
+  tabSwitchingThreshold: 5,
+  copyPasteEnabled: true,
+  highAnomalyEnabled: true,
+  unusualPatternEnabled: true,
+  fastCompletionEnabled: true,
+  fastCompletionThreshold: 40,
+  multipleReattemptEnabled: true,
+  similarityDetectedEnabled: true,
+  similarityThreshold: 80,
+};
 
 export default function AdminAIPolicyPage() {
-  const [policy, setPolicy] = useState<AIPolicy | null>(null);
+  const [policy, setPolicy] = useState<IntegrityPolicy>(DEFAULT_POLICY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadPolicy();
@@ -25,31 +59,29 @@ export default function AdminAIPolicyPage() {
 
   const loadPolicy = async () => {
     try {
-      const res = await adminService.getAIPolicy();
-      const d = (res as any)?.data || res;
-      setPolicy(d);
+      const res: any = await api.get('/admin/integrity-policy');
+      const d = res?.data || res;
+      if (d) setPolicy({ ...DEFAULT_POLICY, ...d });
     } catch {
-      setPolicy({
-        institutionId: '',
-        hintModeOnly: false,
-        strictExamMode: false,
-        maxTokens: 1024,
-      });
+      setPolicy(DEFAULT_POLICY);
     } finally {
       setLoading(false);
     }
   };
 
+  const update = <K extends keyof IntegrityPolicy>(key: K, value: IntegrityPolicy[K]) =>
+    setPolicy(p => ({ ...p, [key]: value }));
+
   const savePolicy = async () => {
-    if (!policy) return;
     setSaving(true);
     setSaved(false);
     try {
-      await adminService.updateAIPolicy(policy);
+      await api.patch('/admin/integrity-policy', policy);
       setSaved(true);
+      toast({ title: 'Policy saved', description: 'Integrity monitoring settings updated.' });
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
-      alert(err.message || 'Failed to update policy');
+      toast({ title: 'Error', description: err.message || 'Failed to save policy', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -70,9 +102,9 @@ export default function AdminAIPolicyPage() {
     <DashboardLayout requiredRole="admin">
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">AI Policy Settings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Policy Control</h1>
           <p className="text-muted-foreground">
-            Control how AI interacts with students across your institution
+            Configure integrity monitoring policies for your institution
           </p>
         </div>
 
@@ -80,83 +112,222 @@ export default function AdminAIPolicyPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-primary" />
-              Governance Controls
+              Integrity Monitoring Controls
             </CardTitle>
             <CardDescription>
-              These settings apply institution-wide and control AI behavior for all students.
+              Configure how IntelliCampus detects suspicious student behavior during assessments.
+              These settings apply institution-wide to all quizzes, assignments, and coding assessments.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Hint Mode Only */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-blue-500" />
-                  <Label className="font-semibold">Hint Mode Only</Label>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  When enabled, the AI will only provide hints and guiding questions. It will never give direct answers.
-                </p>
-              </div>
-              <Switch
-                checked={policy?.hintModeOnly || false}
-                onCheckedChange={v => setPolicy(p => p ? { ...p, hintModeOnly: v } : p)}
-              />
-            </div>
+          <CardContent className="space-y-5">
 
-            {/* Strict Exam Mode */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-red-500" />
-                  <Label className="font-semibold">Strict Exam Mode</Label>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  When enabled globally, AI will refuse to help with any assessment-related questions.
-                  Individual assignments can also enable this per-assessment.
-                </p>
-              </div>
-              <Switch
-                checked={policy?.strictExamMode || false}
-                onCheckedChange={v => setPolicy(p => p ? { ...p, strictExamMode: v } : p)}
-              />
-            </div>
-
-            <Separator />
-
-            {/* Max Tokens */}
+            {/* Rapid Guessing */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Label className="font-semibold">Max Response Tokens</Label>
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                    <Label className="font-semibold">Rapid Guessing Detection</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Detects students answering many questions in extremely short time intervals.
+                  </p>
+                </div>
+                <Switch
+                  checked={policy.rapidGuessingEnabled}
+                  onCheckedChange={v => update('rapidGuessingEnabled', v)}
+                />
               </div>
-              <p className="text-sm text-muted-foreground">
-                Maximum number of tokens (roughly words) the AI can use in a single response. Lower values reduce costs and keep answers concise.
-              </p>
-              <Input
-                type="number"
-                min={128}
-                max={4096}
-                value={policy?.maxTokens || 1024}
-                onChange={e => setPolicy(p => p ? { ...p, maxTokens: parseInt(e.target.value) || 1024 } : p)}
-                className="w-40"
+              {policy.rapidGuessingEnabled && (
+                <div className="flex items-center gap-3 px-4">
+                  <Label className="text-sm text-muted-foreground w-60">Rapid Guessing Threshold (answers/min)</Label>
+                  <Input
+                    type="number" min={1} max={120}
+                    value={policy.rapidGuessingThreshold}
+                    onChange={e => update('rapidGuessingThreshold', parseInt(e.target.value) || 10)}
+                    className="w-24"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* High Anomaly */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-purple-500" />
+                  <Label className="font-semibold">High Anomaly Detection</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Flags statistically unusual answer patterns compared to the rest of the class.
+                </p>
+              </div>
+              <Switch
+                checked={policy.highAnomalyEnabled}
+                onCheckedChange={v => update('highAnomalyEnabled', v)}
               />
-              <p className="text-xs text-muted-foreground">Range: 128 - 4096</p>
+            </div>
+
+            {/* Tab Switching */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-blue-500" />
+                    <Label className="font-semibold">Tab Switching Detection</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Flags students who frequently switch browser tabs during assessments.
+                  </p>
+                </div>
+                <Switch
+                  checked={policy.tabSwitchingEnabled}
+                  onCheckedChange={v => update('tabSwitchingEnabled', v)}
+                />
+              </div>
+              {policy.tabSwitchingEnabled && (
+                <div className="flex items-center gap-3 px-4">
+                  <Label className="text-sm text-muted-foreground w-60">Max allowed tab switches</Label>
+                  <Input
+                    type="number" min={1} max={50}
+                    value={policy.tabSwitchingThreshold}
+                    onChange={e => update('tabSwitchingThreshold', parseInt(e.target.value) || 5)}
+                    className="w-24"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Copy Paste */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-orange-500" />
+                  <Label className="font-semibold">Copy Paste Detection</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Detects copy/paste activity in text or coding assignments.
+                </p>
+              </div>
+              <Switch
+                checked={policy.copyPasteEnabled}
+                onCheckedChange={v => update('copyPasteEnabled', v)}
+              />
+            </div>
+
+            {/* Unusual Pattern */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-teal-500" />
+                  <Label className="font-semibold">Unusual Pattern Detection</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Detects abnormal answer patterns compared to class averages.
+                </p>
+              </div>
+              <Switch
+                checked={policy.unusualPatternEnabled}
+                onCheckedChange={v => update('unusualPatternEnabled', v)}
+              />
+            </div>
+
+            {/* Fast Completion */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-red-500" />
+                    <Label className="font-semibold">Extremely Fast Completion</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Flags submissions completed far faster than expected time.
+                  </p>
+                </div>
+                <Switch
+                  checked={policy.fastCompletionEnabled}
+                  onCheckedChange={v => update('fastCompletionEnabled', v)}
+                />
+              </div>
+              {policy.fastCompletionEnabled && (
+                <div className="flex items-center gap-3 px-4">
+                  <Label className="text-sm text-muted-foreground w-60">Flag if completed faster than (% of expected time)</Label>
+                  <Input
+                    type="number" min={5} max={95}
+                    value={policy.fastCompletionThreshold}
+                    onChange={e => update('fastCompletionThreshold', parseInt(e.target.value) || 40)}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              )}
+            </div>
+
+            {/* Multiple Reattempt */}
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-indigo-500" />
+                  <Label className="font-semibold">Multiple Reattempt Pattern</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Flags suspicious repeated attempts across questions.
+                </p>
+              </div>
+              <Switch
+                checked={policy.multipleReattemptEnabled}
+                onCheckedChange={v => update('multipleReattemptEnabled', v)}
+              />
+            </div>
+
+            {/* Similarity Detection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clipboard className="h-4 w-4 text-pink-500" />
+                    <Label className="font-semibold">Similarity Detection</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Detects high similarity between student answers.
+                  </p>
+                </div>
+                <Switch
+                  checked={policy.similarityDetectedEnabled}
+                  onCheckedChange={v => update('similarityDetectedEnabled', v)}
+                />
+              </div>
+              {policy.similarityDetectedEnabled && (
+                <div className="flex items-center gap-3 px-4">
+                  <Label className="text-sm text-muted-foreground w-60">Flag if similarity exceeds</Label>
+                  <Input
+                    type="number" min={10} max={100}
+                    value={policy.similarityThreshold}
+                    onChange={e => update('similarityThreshold', parseInt(e.target.value) || 80)}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              )}
             </div>
 
             <Separator />
 
-            {/* Status overview */}
+            {/* Current Status */}
             <div className="p-4 bg-muted/50 rounded-lg">
               <h4 className="font-medium mb-3">Current Status</h4>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={policy?.hintModeOnly ? 'default' : 'secondary'}>
-                  Hint Mode: {policy?.hintModeOnly ? 'ON' : 'OFF'}
+                <Badge variant={policy.rapidGuessingEnabled ? 'default' : 'secondary'}>
+                  Rapid Guessing: {policy.rapidGuessingEnabled ? 'ON' : 'OFF'}
                 </Badge>
-                <Badge variant={policy?.strictExamMode ? 'destructive' : 'secondary'}>
-                  Strict Exam: {policy?.strictExamMode ? 'ON' : 'OFF'}
+                <Badge variant={policy.tabSwitchingEnabled ? 'default' : 'secondary'}>
+                  Tab Switching: {policy.tabSwitchingEnabled ? 'ON' : 'OFF'}
                 </Badge>
-                <Badge variant="outline">
-                  Max Tokens: {policy?.maxTokens || 1024}
+                <Badge variant={policy.copyPasteEnabled ? 'default' : 'secondary'}>
+                  Copy Paste Detection: {policy.copyPasteEnabled ? 'ON' : 'OFF'}
+                </Badge>
+                <Badge variant={policy.similarityDetectedEnabled ? 'default' : 'secondary'}>
+                  Similarity Detection: {policy.similarityDetectedEnabled ? 'ON' : 'OFF'}
                 </Badge>
               </div>
             </div>
@@ -176,15 +347,14 @@ export default function AdminAIPolicyPage() {
           </CardContent>
         </Card>
 
-        {/* Info card */}
+        {/* Warning card */}
         <Card className="border-yellow-500/20 bg-yellow-500/5">
           <CardContent className="flex items-start gap-3 py-4">
             <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
             <div className="text-sm">
               <p className="font-medium">Important</p>
               <p className="text-muted-foreground">
-                Changes to AI policy take effect immediately for all new conversations.
-                Active chat sessions will use the updated policy on their next message.
+                Changes to integrity policies apply immediately to new assessment attempts.
               </p>
             </div>
           </CardContent>
