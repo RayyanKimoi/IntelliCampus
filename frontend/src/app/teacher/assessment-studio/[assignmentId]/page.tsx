@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import {
   AlertCircle,
-  BookOpen,
+  CheckCircle2,
   ChevronLeft,
   Edit2,
   ExternalLink,
@@ -30,6 +30,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import {
   assessmentStudioService,
   Assessment,
@@ -525,7 +526,7 @@ export default function AssessmentDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
+                <FaBook className="h-5 w-5" />
                 Questions
                 <Badge variant="outline">{questions.length}</Badge>
               </h2>
@@ -538,44 +539,50 @@ export default function AssessmentDetailPage() {
 
             {/* Existing questions */}
             {questions.map((q, idx) => (
-              <Card key={q.id || idx}>
-                <CardContent className="pt-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 space-y-2">
-                      <p className="font-medium text-sm">
-                        <span className="text-muted-foreground mr-2">{idx + 1}.</span>
-                        {q.questionText}
-                      </p>
-                      <div className="grid grid-cols-2 gap-1 text-sm">
-                        {(['A', 'B', 'C', 'D'] as const).map(opt => {
-                          const text = q[`option${opt}` as 'optionA' | 'optionB' | 'optionC' | 'optionD'];
-                          const isCorrect = q.correctOption === opt;
-                          return (
-                            <span
-                              key={opt}
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
-                                isCorrect ? 'bg-green-50 text-green-700 font-semibold border border-green-200' : 'text-muted-foreground'
-                              }`}
-                            >
-                              <span className="font-medium">{opt}.</span> {text}
-                              {isCorrect && <span className="ml-auto">✓</span>}
-                            </span>
-                          );
-                        })}
-                      </div>
-                      {q.explanation && (
-                        <p className="text-xs text-muted-foreground italic">{q.explanation}</p>
-                      )}
-                      <Badge variant="outline" className="text-xs capitalize">{q.difficultyLevel}</Badge>
+              <Card key={q.id || idx} className="overflow-hidden hover:border-primary/30 transition-colors">
+                <CardContent className="p-0">
+                  {/* Question row */}
+                  <div className="flex items-start gap-4 p-5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-bold">
+                      {idx + 1}
                     </div>
+                    <p className="flex-1 pt-0.5 text-base font-semibold leading-snug">{q.questionText}</p>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive hover:text-destructive shrink-0"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0 -mt-0.5"
                       onClick={() => handleDeleteQuestion(q.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                  </div>
+                  {/* Options grid */}
+                  <div className="grid grid-cols-2 gap-2 px-5 pb-5">
+                    {(['A', 'B', 'C', 'D'] as const).map(opt => {
+                      const text = q[`option${opt}` as 'optionA' | 'optionB' | 'optionC' | 'optionD'];
+                      const isCorrect = q.correctOption === opt;
+                      return (
+                        <div
+                          key={opt}
+                          className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm ${
+                            isCorrect
+                              ? 'bg-green-50 border-green-300 text-green-800 font-medium dark:bg-green-950/40 dark:border-green-700 dark:text-green-300'
+                              : 'bg-muted/40 border-border text-muted-foreground'
+                          }`}
+                        >
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            isCorrect ? 'bg-green-600 text-white' : 'bg-muted-foreground/20 text-muted-foreground'
+                          }`}>{opt}</span>
+                          <span className="flex-1 leading-tight">{text}</span>
+                          {isCorrect && <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Footer */}
+                  <div className="border-t border-border bg-muted/20 px-5 py-2.5 flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground italic flex-1">{q.explanation || '\u00a0'}</p>
+                    <Badge variant="outline" className="text-xs capitalize shrink-0">{q.difficultyLevel}</Badge>
                   </div>
                 </CardContent>
               </Card>

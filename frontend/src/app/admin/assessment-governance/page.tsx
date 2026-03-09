@@ -12,8 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import {
   Scale, ClipboardCheck, Clock, Shield, AlertTriangle,
-  CheckCircle2, Settings, FileText, BarChart3, Lock, Eye, BookOpen,
+  CheckCircle2, Settings, FileText, BarChart3, Lock, Eye,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 
 interface AssessmentPolicy {
   strictExamMode: boolean;
@@ -201,7 +202,7 @@ export default function AdminAssessmentGovernancePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+              <FaBook className="h-5 w-5 text-primary" />
               Question Bank Overview
             </CardTitle>
             <CardDescription>Distribution of questions by subject and difficulty</CardDescription>

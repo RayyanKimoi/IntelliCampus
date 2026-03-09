@@ -5,8 +5,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teacherService } from '@/services/teacherService';
 import {
   Users, BarChart2, TrendingDown, TrendingUp, Loader2, AlertCircle,
-  Trophy, Target, Search, ArrowUpDown, BookOpen, ChevronLeft,
+  Trophy, Target, Search, ArrowUpDown, ChevronLeft,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { MOCK_COHORT_DATA, MOCK_TEACHER_COURSES } from '@/lib/mockData';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -192,7 +193,7 @@ export default function CohortIntelligencePage() {
             </div>
           ) : subjects.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <FaBook className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>No subjects assigned yet.</p>
             </div>
           ) : (
@@ -207,7 +208,7 @@ export default function CohortIntelligencePage() {
                   >
                     <div className="flex items-start gap-3">
                       <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                        <BookOpen className="w-6 h-6 text-primary" />
+                        <FaBook className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">

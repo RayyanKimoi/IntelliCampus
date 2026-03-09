@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    // Fetch quizzes using Supabase Admin
+    // Fetch quizzes using Supabase Admin (LEFT JOIN — shows quizzes even with no attempts)
     const { data: assignments, error: assignError } = await supabaseAdmin
       .from('assignments')
       .select(`
@@ -54,19 +54,25 @@ export async function GET(req: NextRequest) {
         chapters (
           id,
           name
-        ),
-        student_attempts!inner (
-          id,
-          student_id,
-          score,
-          submitted_at,
-          graded_at
         )
       `)
       .eq('type', 'quiz')
       .eq('is_published', true)
       .in('course_id', courseIds)
       .order('due_date', { ascending: true });
+
+    // Fetch this student's quiz attempts separately to avoid inner-join exclusion
+    const { data: allAttempts } = await supabaseAdmin
+      .from('student_attempts')
+      .select('id, assignment_id, student_id, score, submitted_at, graded_at')
+      .eq('student_id', user.userId);
+
+    const attemptsByQuizId = new Map<string, any>();
+    for (const attempt of allAttempts ?? []) {
+      if (!attemptsByQuizId.has(attempt.assignment_id)) {
+        attemptsByQuizId.set(attempt.assignment_id, attempt);
+      }
+    }
 
     if (assignError) {
       console.error('[Student Quizzes API] Assignment fetch error:', assignError);
@@ -75,12 +81,11 @@ export async function GET(req: NextRequest) {
 
     // Format the response
     const formattedQuizzes = (assignments || []).map((assignment: any) => {
-      const userAttempts = assignment.student_attempts?.filter((a: any) => a.student_id === user.userId) || [];
-      const latestAttempt = userAttempts[0];
+      const latestAttempt = attemptsByQuizId.get(assignment.id) ?? null;
       const isPastDue = new Date(assignment.due_date) < new Date();
 
       let status: 'pending' | 'submitted' | 'graded' | 'late' = 'pending';
-      if (latestAttempt) {
+      if (latestAttempt?.submitted_at) {
         status = latestAttempt.graded_at ? 'graded' : 'submitted';
       } else if (isPastDue) {
         status = 'late';

@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
       const isPastDue = new Date(assignment.dueDate) < new Date();
 
       let status: 'pending' | 'submitted' | 'graded' | 'late' = 'pending';
-      if (latestAttempt) {
+      if (latestAttempt?.submittedAt) {
+        // Only mark as submitted/graded once the student has actually submitted
         status = latestAttempt.gradedAt ? 'graded' : 'submitted';
       } else if (isPastDue) {
         status = 'late';

@@ -23,8 +23,8 @@ import {
   Plus,
   Trash2,
   Wand2,
-  BookOpen,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { assessmentStudioService, Question as ServiceQuestion } from '@/services/assessmentStudioService';
 import { chapterCurriculumService, Course, Chapter } from '@/services/chapterCurriculumService';
 
@@ -329,7 +329,7 @@ export default function CreateQuizPage() {
                 {submitting ? (
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 ) : (
-                  <BookOpen className="h-8 w-8 text-primary" />
+                  <FaBook className="h-8 w-8 text-primary" />
                 )}
                 <div>
                   <h3 className="font-semibold">Manual Quiz</h3>
