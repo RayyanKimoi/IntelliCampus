@@ -149,13 +149,15 @@ export const assessmentStudioService = {
     );
   },
 
-  /** Upload an assignment document file, returns { url, filename, size } */
+  /** Upload an assignment document file to Supabase Storage, returns { url, filename, size } */
   async uploadFile(file: File): Promise<{ url: string; filename: string; size: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    return api.uploadFile<{ url: string; filename: string; size: number }>(
-      '/upload/file',
+    formData.append('bucket', 'guidelines'); // Store in "guidelines" bucket
+    const result = await api.uploadFile<{ url: string; filename: string; size: number }>(
+      '/upload',
       formData,
     );
+    return result;
   },
 };

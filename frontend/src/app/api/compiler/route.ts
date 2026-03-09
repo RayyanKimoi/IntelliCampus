@@ -4,18 +4,21 @@ import { UserRole } from '@intellicampus/shared';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Allow up to 60 seconds for compilation
 
-// Judge0 API Configuration
+// Judge0 API Configuration - use RAPIDAPI_KEY from .env
 const JUDGE0_API_URL = process.env.JUDGE0_API_URL || 'https://judge0-ce.p.rapidapi.com';
-const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY || '';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
 
 // Language ID mapping for Judge0
 const LANGUAGE_MAP: Record<string, number> = {
   'cpp': 54,      // C++ (GCC 9.2.0)
+  'c++': 54,
   'java': 62,     // Java (OpenJDK 13.0.1)
   'python': 71,   // Python (3.8.1)
   'c': 50,        // C (GCC 9.2.0)
   'javascript': 63, // JavaScript (Node.js 12.14.0)
+  'js': 63,
 };
 
 export async function POST(req: NextRequest) {
@@ -41,12 +44,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Submit code to Judge0
-    const submissionResponse = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true`, {
+    // Submit code to Judge0 with async pattern to prevent timeouts
+    const submissionResponse = await fetch(`${JUDGE0_API_URL}/submissions?base64_encoded=false`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-RapidAPI-Key': JUDGE0_API_KEY,
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
         'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
       },
       body: JSON.stringify({
@@ -57,14 +60,58 @@ export async function POST(req: NextRequest) {
     });
 
     if (!submissionResponse.ok) {
-      console.error('[Compiler API] Judge0 submission failed:', await submissionResponse.text());
+      const errorText = await submissionResponse.text();
+      console.error('[Compiler API] Judge0 submission failed:', errorText);
       return NextResponse.json(
         { success: false, error: 'Failed to submit code to compiler' },
         { status: 500 }
       );
     }
 
-    const result = await submissionResponse.json();
+    const submissionData = await submissionResponse.json();
+    const token = submissionData.token;
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'No submission token received' },
+        { status: 500 }
+      );
+    }
+
+    // Poll for result (max 10 attempts, 1 second intervals)
+    let attempts = 0;
+    const maxAttempts = 10;
+    let result: any = null;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const resultResponse = await fetch(`${JUDGE0_API_URL}/submissions/${token}?base64_encoded=false`, {
+        method: 'GET',
+        headers: {
+          'X-RapidAPI-Key': RAPIDAPI_KEY,
+          'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+        },
+      });
+
+      if (resultResponse.ok) {
+        result = await resultResponse.json();
+        
+        // Check if processing is complete
+        if (result.status?.id > 2) { // Status ID > 2 means completed/error/rejected
+          break;
+        }
+      }
+
+      attempts++;
+    }
+
+    if (!result) {
+      return NextResponse.json(
+        { success: false, error: 'Compilation timeout' },
+        { status: 408 }
+      );
+    }
 
     // Format the response
     return NextResponse.json({
