@@ -104,17 +104,23 @@ export class UserService {
    * Login user
    */
   async login(email: string, password: string) {
+    logger.info('UserService', `Login attempt for: ${email}`);
+    
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      logger.warn('UserService', `User not found: ${email}`);
       throw new Error('Invalid email or password');
     }
 
+    logger.info('UserService', `User found, comparing password. Hash starts with: ${user.passwordHash.substring(0, 10)}...`);
     const isValid = await bcrypt.compare(password, user.passwordHash);
+    logger.info('UserService', `Password comparison result: ${isValid}`);
 
     if (!isValid) {
+      logger.warn('UserService', `Invalid password for: ${email}`);
       throw new Error('Invalid email or password');
     }
 

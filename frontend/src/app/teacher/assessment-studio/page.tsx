@@ -44,13 +44,30 @@ export default function AssessmentStudioPage() {
     setLoading(true);
     setError('');
     try {
+      console.log('[Assessment Studio] Loading assessments and courses...');
       const [assessmentRes, courseRes] = await Promise.allSettled([
         assessmentStudioService.getAssessments(selectedCourseId !== 'all' ? selectedCourseId : undefined),
         chapterCurriculumService.getTeacherCourses(),
       ]);
-      if (assessmentRes.status === 'fulfilled') setAssessments(assessmentRes.value);
-      else setError('Failed to load assessments');
-      if (courseRes.status === 'fulfilled') setCourses(courseRes.value);
+      
+      if (assessmentRes.status === 'fulfilled') {
+        console.log('[Assessment Studio] Assessments loaded:', assessmentRes.value?.length || 0);
+        setAssessments(assessmentRes.value || []);
+      } else {
+        console.error('[Assessment Studio] Failed to load assessments:', assessmentRes.reason);
+        setError('Failed to load assessments. Please refresh the page.');
+      }
+      
+      if (courseRes.status === 'fulfilled') {
+        console.log('[Assessment Studio] Courses loaded:', courseRes.value?.length || 0);
+        setCourses(courseRes.value || []);
+      } else {
+        console.warn('[Assessment Studio] Failed to load courses:', courseRes.reason);
+        // Don't set error for courses, as assignments can still be shown
+      }
+    } catch (err) {
+      console.error('[Assessment Studio] Unexpected error:', err);
+      setError('An unexpected error occurred. Please refresh the page.');
     } finally {
       setLoading(false);
     }

@@ -87,7 +87,8 @@ export const getWeakTopics = asyncHandler(async (req: Request, res: Response) =>
 // ========================
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
-  const assignments = await assessmentService.getStudentAssignments(req.user!.userId);
+  const courseId = req.query.courseId as string | undefined;
+  const assignments = await assessmentService.getStudentAssignments(req.user!.userId, courseId);
   sendSuccess(res, assignments);
 });
 
@@ -119,7 +120,12 @@ export const submitAnswer = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const submitAttempt = asyncHandler(async (req: Request, res: Response) => {
-  const result = await assessmentService.submitAttempt(req.params.attemptId as string);
+  const { textContent, codeContent, submissionFileUrl } = req.body ?? {};
+  const content =
+    textContent || codeContent || submissionFileUrl
+      ? { textContent, codeContent, submissionFileUrl }
+      : undefined;
+  const result = await assessmentService.submitAttempt(req.params.attemptId as string, content);
   sendSuccess(res, result, 'Assignment submitted');
 });
 
@@ -148,4 +154,18 @@ export const updateAccessibility = asyncHandler(async (req: Request, res: Respon
     req.body
   );
   sendSuccess(res, settings, 'Accessibility settings updated');
+});
+
+// ========================
+// File Uploads
+// ========================
+
+export const uploadSubmissionFile = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    sendError(res, 'No file uploaded', 400);
+    return;
+  }
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+  sendSuccess(res, { url: fileUrl, filename: req.file.originalname, size: req.file.size }, 'File uploaded');
 });

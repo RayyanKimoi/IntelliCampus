@@ -39,17 +39,26 @@ export async function GET(req: NextRequest) {
     // Transform the data to match the expected format
     const formattedAssignments = assignments.map((assignment) => ({
       id: assignment.id,
+      courseId: assignment.courseId,
+      chapterId: assignment.chapterId,
+      teacherId: assignment.teacherId,
       title: assignment.title,
-      description: assignment.description,
+      description: assignment.description || '',
+      type: (assignment.type as 'assignment' | 'quiz') || 'assignment',
       dueDate: assignment.dueDate.toISOString(),
       isPublished: true, // Assuming published if it exists
+      submissionTypes: assignment.submissionTypes || null,
+      rubric: assignment.rubric as any || null,
+      assignmentDocumentUrl: assignment.assignmentDocumentUrl || null,
+      evaluationPoints: assignment.evaluationPoints || null,
+      createdAt: assignment.createdAt.toISOString(),
       course: {
         id: assignment.course.id,
         name: assignment.course.name,
       },
       _count: {
         questions: assignment._count.questions,
-        submissions: assignment._count.studentAttempts,
+        studentAttempts: assignment._count.studentAttempts,
       },
     }));
 
@@ -68,6 +77,57 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: false,
       error: error.message || 'Failed to fetch assignments',
+    }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const user = getAuthUser(req);
+    requireRole(user, [UserRole.TEACHER]);
+
+    const body = await req.json();
+    const { courseId, chapterId, title, description, type, dueDate, submissionTypes, rubric, assignmentDocumentUrl, evaluationPoints } = body;
+
+    if (!courseId || !title || !dueDate) {
+      return NextResponse.json({ success: false, error: 'courseId, title, and dueDate are required' }, { status: 400 });
+    }
+
+    const assignment = await prisma.assignment.create({
+      data: {
+        courseId,
+        chapterId: chapterId || null,
+        teacherId: user.userId,
+        title,
+        description: description || '',
+        type: type || 'assignment',
+        dueDate: new Date(dueDate),
+        submissionTypes: submissionTypes || null,
+        rubric: rubric || null,
+        assignmentDocumentUrl: assignmentDocumentUrl || null,
+        evaluationPoints: evaluationPoints || null,
+        isPublished: false,
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
+        _count: { select: { questions: true, studentAttempts: true } },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...assignment,
+        dueDate: assignment.dueDate.toISOString(),
+        createdAt: assignment.createdAt.toISOString(),
+      },
+    }, { status: 201 });
+  } catch (error: any) {
+    console.error('[Teacher Assignments API] POST Error:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Failed to create assignment',
     }, { status: 500 });
   }
 }

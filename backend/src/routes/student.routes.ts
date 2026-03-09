@@ -19,7 +19,9 @@ import {
   getPerformanceTrend,
   getAccessibility,
   updateAccessibility,
+  uploadSubmissionFile,
 } from '../controllers/student.controller';
+import { uploadMiddleware } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -33,6 +35,11 @@ router.get('/dashboard', getDashboard);
 router.get('/courses', getCourses);
 router.get('/courses/:courseId', getCourseDetail);
 router.get('/courses/:courseId/subjects', getSubjects);
+// Course-scoped assignments (convenience alias that filters by courseId)
+router.get('/courses/:courseId/assignments', (req, res, next) => {
+  req.query.courseId = req.params.courseId;
+  return getAssignments(req, res, next);
+});
 router.get('/subjects/:subjectId/topics', getTopics);
 
 // Mastery
@@ -46,6 +53,9 @@ router.get('/assignments/:assignmentId', getAssignment);
 router.post('/assignments/:assignmentId/attempt', startAttempt);
 router.post('/attempts/:attemptId/answer', submitAnswer);
 router.post('/attempts/:attemptId/submit', submitAttempt);
+
+// File upload for submissions
+router.post('/upload', uploadMiddleware.single('file'), uploadSubmissionFile);
 
 // Insights
 router.get('/performance/trend', getPerformanceTrend);
