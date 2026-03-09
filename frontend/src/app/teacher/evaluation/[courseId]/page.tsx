@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { ArrowLeft, BookMarked, Users } from 'lucide-react';
+import { ArrowLeft, Users } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { motion } from 'motion/react';
 import { chapterCurriculumService } from '@/services/chapterCurriculumService';
 import { teacherService } from '@/services/teacherService';
@@ -105,7 +106,7 @@ export default function EvaluationCoursePage({
             transition={{ duration: 0.35 }}
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary dark:text-blue-400 text-xs font-semibold tracking-widest uppercase w-fit mb-2 border border-primary/20">
-              <BookMarked className="w-3.5 h-3.5" />
+              <FaBook className="w-3.5 h-3.5" />
               Course Evaluation
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">

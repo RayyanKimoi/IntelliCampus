@@ -28,7 +28,6 @@ export async function POST(
         studentAnswers: {
           include: { question: { select: { correctOption: true } } },
         },
-        answers: true,
       },
     });
 

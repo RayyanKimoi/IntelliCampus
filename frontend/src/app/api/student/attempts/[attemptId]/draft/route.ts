@@ -20,7 +20,7 @@ export async function PATCH(
     const { attemptId } = await params;
 
     const body = await req.json();
-    const { codeContent, labReportContent, language, files } = body;
+    const { codeContent, textContent, labReportContent, language, files } = body;
 
     // Verify the attempt belongs to this student
     const attempt = await prisma.studentAttempt.findUnique({
@@ -46,6 +46,7 @@ export async function PATCH(
       ...(attempt.answers as any || {}),
       draft: {
         codeContent,
+        textContent,
         labReportContent,
         language,
         files,

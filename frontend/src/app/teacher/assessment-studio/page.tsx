@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,7 +17,6 @@ import {
 } from '@/components/ui/select';
 import {
   AlertCircle,
-  BookOpen,
   Calendar,
   ClipboardList,
   Globe,
@@ -26,6 +24,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { assessmentStudioService, Assessment } from '@/services/assessmentStudioService';
 import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
 
@@ -170,67 +169,99 @@ export default function AssessmentStudioPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {filtered.map(assessment => (
-              <Card key={assessment.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-base truncate">{assessment.title}</h3>
-                        <Badge variant={assessment.type === 'quiz' ? 'default' : 'secondary'}>
-                          {assessment.type === 'quiz' ? 'Quiz' : 'Assignment'}
-                        </Badge>
-                        {assessment.isPublished ? (
-                          <Badge className="bg-green-600 hover:bg-green-700">Published</Badge>
-                        ) : (
-                          <Badge variant="outline">Draft</Badge>
-                        )}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map(assessment => {
+              const isQuiz = assessment.type === 'quiz';
+              return (
+                <div
+                  key={assessment.id}
+                  className="group relative flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Top accent bar */}
+                  <div className={`h-1 w-full ${isQuiz ? 'bg-gradient-to-r from-primary to-sky-400' : 'bg-gradient-to-r from-violet-500 to-purple-400'}`} />
+
+                  <div className="flex flex-col flex-1 p-5 gap-4">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Icon */}
+                      <div className={`p-2.5 rounded-xl ring-1 shrink-0 ${isQuiz ? 'bg-primary/10 text-primary ring-primary/20' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20'}`}>
+                        {isQuiz ? <ClipboardList className="h-5 w-5" /> : <FaBook className="h-5 w-5" />}
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
-                        {assessment.course && (
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="h-3.5 w-3.5" />{assessment.course.name}
-                          </span>
-                        )}
-                        {assessment.chapter && (
-                          <span className="flex items-center gap-1">
-                            <ClipboardList className="h-3.5 w-3.5" />{assessment.chapter.name}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5" />
-                          Due: {new Date(assessment.dueDate).toLocaleDateString()}
+                      {/* Status badge */}
+                      {assessment.isPublished ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border border-green-200 dark:border-green-800">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                          Published
                         </span>
-                        {assessment._count && (
-                          <span>{assessment._count.questions} question{assessment._count.questions !== 1 ? 's' : ''}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {!assessment.isPublished && (
-                        <Button size="sm" variant="outline"
-                          onClick={() => handlePublish(assessment.id)}
-                          disabled={publishing === assessment.id}>
-                          <Globe className="h-3.5 w-3.5 mr-1" />
-                          {publishing === assessment.id ? 'Publishing...' : 'Publish'}
-                        </Button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
+                          Draft
+                        </span>
                       )}
-                      <Button size="sm" variant="outline"
-                        onClick={() => router.push(`/teacher/assessment-studio/${assessment.id}`)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(assessment.id)}
-                        disabled={deleting === assessment.id}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    </div>
+
+                    {/* Title + Type */}
+                    <div>
+                      <div className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${isQuiz ? 'text-primary' : 'text-violet-600 dark:text-violet-400'}`}>
+                        {isQuiz ? 'Quiz' : 'Assignment'}
+                      </div>
+                      <h3 className="font-semibold text-[15px] leading-snug text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-2">
+                        {assessment.title}
+                      </h3>
+                    </div>
+
+                    {/* Meta info */}
+                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                      {assessment.course && (
+                        <span className="flex items-center gap-1.5">
+                          <FaBook className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{assessment.course.name}</span>
+                        </span>
+                      )}
+                      {assessment.chapter && (
+                        <span className="flex items-center gap-1.5">
+                          <ClipboardList className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{assessment.chapter.name}</span>
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        Due {new Date(assessment.dueDate).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {/* Footer: questions count + actions */}
+                    <div className="mt-auto pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {assessment._count ? `${assessment._count.questions} question${assessment._count.questions !== 1 ? 's' : ''}` : '—'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {!assessment.isPublished && (
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => handlePublish(assessment.id)}
+                            disabled={publishing === assessment.id}>
+                            <Globe className="h-3 w-3 mr-1" />
+                            {publishing === assessment.id ? 'Publishing…' : 'Publish'}
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline"
+                          className="h-7 text-xs px-2.5"
+                          onClick={() => router.push(`/teacher/assessment-studio/${assessment.id}`)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(assessment.id)}
+                          disabled={deleting === assessment.id}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

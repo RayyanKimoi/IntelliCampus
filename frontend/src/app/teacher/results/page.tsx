@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { BookMarked, Users, ChevronRight } from 'lucide-react';
+import { Users, ChevronRight } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { motion } from 'motion/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
@@ -78,7 +79,7 @@ export default function ResultsPage() {
           className="flex flex-col gap-1.5"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary dark:text-blue-400 text-xs font-semibold tracking-widest uppercase w-fit mb-2 border border-primary/20">
-            <BookMarked className="w-3.5 h-3.5" />
+            <FaBook className="w-3.5 h-3.5" />
             Teacher Portal
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
@@ -102,7 +103,7 @@ export default function ResultsPage() {
             className="text-center py-24 flex flex-col items-center justify-center bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl shadow-sm"
           >
             <div className="p-4 bg-muted/60 rounded-full mb-4 ring-1 ring-border/50">
-              <BookMarked className="w-8 h-8 opacity-40 text-foreground" />
+              <FaBook className="w-8 h-8 opacity-40 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">No subjects found</h3>
             <p className="text-muted-foreground mt-1 max-w-sm text-sm">You haven't been assigned any subjects to evaluate yet.</p>
@@ -130,7 +131,7 @@ export default function ResultsPage() {
                   <CardContent className="p-6 flex flex-col h-full relative z-10">
                     <div className="flex justify-between items-start mb-6">
                       <div className="p-3 bg-primary/10 dark:bg-primary/15 text-primary dark:text-blue-400 rounded-xl ring-1 ring-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                        <BookMarked className="w-5 h-5" />
+                        <FaBook className="w-5 h-5" />
                       </div>
                       <div className="p-1.5 rounded-full bg-muted/60 text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300">
                         <ChevronRight className="w-4 h-4" />

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
 import { FaBook } from 'react-icons/fa';
-import { ChevronRight, FileText, BookMarked } from 'lucide-react';
+import { ChevronRight, FileText } from 'lucide-react';
 
 export default function TeacherCurriculumPage() {
   const router = useRouter();
@@ -115,7 +115,7 @@ export default function TeacherCurriculumPage() {
                   <CardContent>
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <BookMarked className="h-4 w-4" />
+                        <FaBook className="h-4 w-4" />
                         <span>
                           {course._count?.chapters || 0}{' '}
                           {course._count?.chapters === 1 ? 'chapter' : 'chapters'}

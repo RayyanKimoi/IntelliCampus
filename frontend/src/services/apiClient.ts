@@ -96,16 +96,30 @@ class ApiClient {
             window.location.href = '/auth/login';
           }, 100);
         }
-      } else if (response.status === 401 && isDevelopment) {
-        console.log('[API] Dev mode: 401 error, not redirecting to login');
       }
-      console.error('[API] Request failed:', {
+      
+      // Improved error logging with proper stringification
+      const errorDetails = {
         status: response.status,
+        statusText: response.statusText,
         url: response.url,
-        error: data?.error,
-        data
-      });
-      throw new Error(data?.error || `Request failed with status ${response.status}`);
+        endpoint: endpoint,
+        method: options.method || 'GET',
+        errorMessage: data?.error || data?.message,
+        responseData: data
+      };
+      
+      if (isDevelopment) {
+        console.error('[API] Request failed:', JSON.stringify(errorDetails, null, 2));
+      } else {
+        console.error('[API] Request failed:', {
+          status: response.status,
+          endpoint: endpoint,
+          error: data?.error || data?.message
+        });
+      }
+      
+      throw new Error(data?.error || data?.message || `Request failed with status ${response.status}`);
     }
 
     return data;

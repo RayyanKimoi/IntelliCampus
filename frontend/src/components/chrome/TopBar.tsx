@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,16 @@ import { ModeToggle } from '@/components/ui/mode-toggle';
 
 export function TopBar() {
   const { user } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
   const { activeTab, setActiveTab, theme, setTheme } = useUIStore();
+
+  // Sync the mode toggle with the current URL so it always reflects the active section
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+    const isAssessment = pathname.startsWith('/student/assessment');
+    setActiveTab(isAssessment ? 'assessment' : 'learning');
+  }, [pathname, user, setActiveTab]);
 
   if (!user) return null;
 
@@ -46,7 +56,10 @@ export function TopBar() {
         <div className="absolute left-1/2 -translate-x-1/2" data-focus-hide>
           <ModeToggle
             value={activeTab as 'learning' | 'assessment'}
-            onModeChange={(m) => setActiveTab(m)}
+            onModeChange={(m) => {
+              setActiveTab(m);
+              router.push(m === 'assessment' ? '/student/assessment' : '/student');
+            }}
           />
         </div>
       )}

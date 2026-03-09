@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Test - IntelliCampus</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 10px 0;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.show {
+            display: block;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📁 IntelliCampus File Upload Test</h1>
+    
+    <div class="info">
+        <strong>Note:</strong> Make sure the dev server is running on port 3003 and you have created the Supabase Storage buckets (<code>guidelines</code> and <code>submissions</code>).
+    </div>
+
+    <!-- Teacher Upload Test -->
+    <div class="test-section">
+        <h2>👨‍🏫 Teacher Upload (Guidelines)</h2>
+        <p>Upload assignment documents (PDF, DOCX, PPT) - Max 10MB</p>
+        <input type="file" id="teacherFile" accept=".pdf,.doc,.docx,.ppt,.pptx">
+        <button onclick="testTeacherUpload()">Upload as Teacher</button>
+        <div id="teacherResult" class="result"></div>
+    </div>
+
+    <!-- Student Upload Test -->
+    <div class="test-section">
+        <h2>👨‍🎓 Student Upload (Submissions)</h2>
+        <p>Upload submission files (any type) - Max 50MB</p>
+        <input type="file" id="studentFile">
+        <button onclick="testStudentUpload()">Upload as Student</button>
+        <div id="studentResult" class="result"></div>
+    </div>
+
+    <!-- API Endpoints Test -->
+    <div class="test-section">
+        <h2>🔌 API Endpoints Test</h2>
+        <button onclick="testTeacherCourses()">Test Teacher Courses API</button>
+        <button onclick="testAccessibility()">Test Accessibility API</button>
+        <button onclick="testQuizzes()">Test Student Quizzes API</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3003/api';
+        const DEV_TEACHER_TOKEN = 'dev-token-mock-authentication';
+        const DEV_STUDENT_TOKEN = 'dev-token-mock-authentication';
+
+        function showResult(elementId, success, message, data = null) {
+            const resultEl = document.getElementById(elementId);
+            resultEl.className = `result show ${success ? 'success' : 'error'}`;
+            let html = `<strong>${success ? '✅ Success' : '❌ Error'}:</strong> ${message}`;
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            resultEl.innerHTML = html;
+        }
+
+        async function testTeacherUpload() {
+            const fileInput = document.getElementById('teacherFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('teacherResult', false, 'Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${DEV_TEACHER_TOKEN}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('teacherResult', true, 'File uploaded successfully!', data);
+                } else {
+                    showResult('teacherResult', false, data.error || 'Upload failed', data);
+                }
+            } catch (error) {
+                showResult('teacherResult', false, error.message);
+            }
+        }
+
+        async function testStudentUpload() {
+            const fileInput = document.getElementById('studentFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showResult('studentResult', false, 'Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/student/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${DEV_STUDENT_TOKEN}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('studentResult', true, 'File uploaded successfully!', data);
+                } else {
+                    showResult('studentResult', false, data.error || 'Upload failed', data);
+                }
+            } catch (error) {
+                showResult('studentResult', false, error.message);
+            }
+        }
+
+        async function testTeacherCourses() {
+            try {
+                const response = await fetch(`${API_BASE}/teacher/curriculum/courses`, {
+                    headers: {
+                        'Authorization': `Bearer ${DEV_TEACHER_TOKEN}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('apiResult', true, `Found ${data.length} courses`, data);
+                } else {
+                    showResult('apiResult', false, data.error || 'API call failed', data);
+                }
+            } catch (error) {
+                showResult('apiResult', false, error.message);
+            }
+        }
+
+        async function testAccessibility() {
+            try {
+                const response = await fetch(`${API_BASE}/student/accessibility`, {
+                    headers: {
+                        'Authorization': `Bearer ${DEV_STUDENT_TOKEN}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('apiResult', true, 'Accessibility settings retrieved', data);
+                } else {
+                    showResult('apiResult', false, data.error || 'API call failed', data);
+                }
+            } catch (error) {
+                showResult('apiResult', false, error.message);
+            }
+        }
+
+        async function testQuizzes() {
+            try {
+                const response = await fetch(`${API_BASE}/student/quizzes`, {
+                    headers: {
+                        'Authorization': `Bearer ${DEV_STUDENT_TOKEN}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('apiResult', true, `Found ${data.data?.length || 0} quizzes`, data);
+                } else {
+                    showResult('apiResult', false, data.error || 'API call failed', data);
+                }
+            } catch (error) {
+                showResult('apiResult', false, error.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -6,8 +6,9 @@ import { teacherService } from '@/services/teacherService';
 import {
   ShieldAlert, AlertTriangle, Zap, Clock, ChevronDown,
   ChevronUp, Loader2, AlertCircle, Filter, User, Copy, Eye,
-  RefreshCw, Users, BookOpen,
+  RefreshCw, Users,
 } from 'lucide-react';
+import { FaBook } from 'react-icons/fa';
 import { MOCK_INTEGRITY_FLAGS, MOCK_TEACHER_COURSES } from '@/lib/mockData';
 import {
   Select,
@@ -189,7 +190,7 @@ export default function IntegrityPage() {
           {/* Subject Selector Card */}
           <div className="border rounded-xl p-4 bg-card border-border">
             <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="w-4 h-4 text-primary" />
+              <FaBook className="w-4 h-4 text-primary" />
               <p className="text-xs font-medium text-muted-foreground">Subject</p>
             </div>
             <Select value={filterSubject} onValueChange={setFilterSubject}>
