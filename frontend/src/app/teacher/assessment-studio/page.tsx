@@ -28,6 +28,9 @@ import { FaBook } from 'react-icons/fa';
 import { assessmentStudioService, Assessment } from '@/services/assessmentStudioService';
 import { chapterCurriculumService, Course } from '@/services/chapterCurriculumService';
 
+// Prevent static generation for this page
+export const dynamic = 'force-dynamic';
+
 export default function AssessmentStudioPage() {
   const router = useRouter();
   const [assessments, setAssessments] = useState<Assessment[]>([]);

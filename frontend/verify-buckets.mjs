@@ -9,9 +9,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Load environment variables
-const SUPABASE_URL = 'https://kzjjyrqicmhyohgmsxhg.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6amp5cnFpY21oeW9oZ21zeGhnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczMzk5MjcyNCwiZXhwIjoyMDQ5NTY4NzI0fQ.HXWiUDUxbLFvfVe_Fv0VFjlEfmWqM-YGZ4qONfSMfxg';
+// Load environment variables (Note: Run with dotenv in production)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kzjjyrqicmhyohgmsxhg.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const requiredBuckets = [
   { name: 'guidelines', maxSize: 10 * 1024 * 1024, description: 'Teacher assignment documents' },
