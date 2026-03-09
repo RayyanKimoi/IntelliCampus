@@ -1,13 +1,30 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Server-side Supabase client using service role key (bypasses RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+let supabaseAdminInstance: SupabaseClient | null = null;
+
+// Lazy-initialized server-side Supabase client using service role key (bypasses RLS)
+export const getSupabaseAdmin = () => {
+  if (!supabaseAdminInstance && supabaseUrl && supabaseServiceKey) {
+    supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  if (!supabaseAdminInstance) {
+    throw new Error('Supabase Admin client not initialized. Check environment variables.');
+  }
+  return supabaseAdminInstance;
+};
+
+// For backwards compatibility
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get: (target, prop) => {
+    return getSupabaseAdmin()[prop as keyof SupabaseClient];
   },
 });
 
