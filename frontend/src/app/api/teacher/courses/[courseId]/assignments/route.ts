@@ -17,12 +17,14 @@ export async function GET(
     const { courseId } = await params;
 
     // Fetch all assignments for this course
-    const assignments = await prisma.assignment.findMany({
+    const assignments: any = await (prisma.assignment.findMany as any)({
       where: {
         courseId,
         teacherId: user.userId,
       },
       include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
         _count: {
           select: {
             studentAttempts: true,

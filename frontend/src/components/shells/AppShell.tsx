@@ -41,36 +41,18 @@ export function AppShell({ children, requiredRole }: AppShellProps) {
 
   // Auth guard - simplified with proper dependencies
   useEffect(() => {
-    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : 'unknown';
-    
-    console.log(`[AppShell ${timestamp}] Auth check:`, { 
-      isLoading, 
-      isAuthenticated,
-      _hasHydrated,
-      hasUser: !!user,
-      userEmail: user?.email,
-      userRole: user?.role,
-      requiredRole,
-      pathname,
-      hasRedirected: hasRedirectedRef.current
-    });
-
     // Wait for store to hydrate from localStorage before checking auth
     if (!_hasHydrated) {
-      console.log(`[AppShell ${timestamp}] Waiting for store hydration...`);
       return;
     }
     
     // Don't redirect if still loading
     if (isLoading) {
-      console.log(`[AppShell ${timestamp}] Still loading, waiting...`);
       return;
     }
     
     // Prevent duplicate redirects
     if (hasRedirectedRef.current) {
-      console.log(`[AppShell ${timestamp}] Already redirected, skipping`);
       return;
     }
     
@@ -81,17 +63,9 @@ export function AppShell({ children, requiredRole }: AppShellProps) {
     
     lastAuthCheckRef.current = { isAuthenticated, hasHydrated: _hasHydrated };
     
-    if (!stateChanged && hasRedirectedRef.current === false) {
-      // State hasn't changed since last check, and we haven't redirected
-      // This prevents infinite loops from router changes
-    }
-    
-    // Check if we have auth data in localStorage as backup
-    const hasStoredAuth = typeof window !== 'undefined' && localStorage.getItem('intellicampus-auth');
-    
-    // Only redirect to login if definitely not authenticated and no stored auth
-    if (!isAuthenticated && !hasStoredAuth) {
-      console.log(`[AppShell ${timestamp}] ⚠️ No authentication found, redirecting to login`);
+    // Only redirect to login if definitely not authenticated
+    if (!isAuthenticated) {
+      console.log('[AppShell] No authentication found, redirecting to login');
       hasRedirectedRef.current = true;
       router.push('/auth/login');
       return;
@@ -99,28 +73,12 @@ export function AppShell({ children, requiredRole }: AppShellProps) {
     
     // Check role mismatch
     if (isAuthenticated && requiredRole && user?.role && user.role !== requiredRole) {
-      console.log(`[AppShell ${timestamp}] ⚠️ Role mismatch (has: ${user.role}, needs: ${requiredRole}), redirecting to ${user.role}`);
+      console.log(`[AppShell] Role mismatch (has: ${user.role}, needs: ${requiredRole}), redirecting to /${user.role}`);
       hasRedirectedRef.current = true;
       router.push(`/${user.role}`);
       return;
     }
-    
-    console.log(`[AppShell ${timestamp}] ✅ Auth check passed, rendering page`);
-  }, [_hasHydrated, isLoading, isAuthenticated]);
-
-  // Separate effect for role-based redirects to avoid dependency issues
-  useEffect(() => {
-    if (!_hasHydrated || isLoading || !isAuthenticated || hasRedirectedRef.current) {
-      return;
-    }
-    
-    if (requiredRole && user?.role && user.role !== requiredRole) {
-      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-      console.log(`[AppShell ${timestamp}] Role-based redirect: ${user.role} -> ${user.role}`);
-      hasRedirectedRef.current = true;
-      router.push(`/${user.role}`);
-    }
-  }, [requiredRole, user?.role, _hasHydrated, isLoading, isAuthenticated]);
+  }, [_hasHydrated, isLoading, isAuthenticated, user?.role, requiredRole, router]);
 
   // Show loading state until store hydrates and auth check completes
   if (!_hasHydrated || isLoading) {

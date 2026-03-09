@@ -51,26 +51,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 2. Real database for non-demo accounts (dev mode: skip if not available) ────
-    const isDevelopment = true; // Match other dev mode settings
-    
-    if (isDevelopment) {
-      // In dev mode, if not a demo account, return error immediately instead of trying DB
-      console.log('[Auth API] Dev mode: Non-demo login attempted, rejecting');
-      return NextResponse.json(
-        { success: false, error: 'Invalid email or password. Use demo credentials: teacher@campus.edu / teacher123' },
-        { status: 401 }
-      );
-    }
+    // ── 2. Real database for non-demo accounts ────
+    console.log('[Auth API] Attempting database login for:', email);
     
     try {
       const { userService } = await import('@/services/user.service');
+      
+      // Perform database login with bcrypt comparison
+      console.log('[Auth API] Calling userService.login...');
       const result = await userService.login(email, password);
+      
+      console.log('[Auth API] Database login successful:', {
+        email: result.user.email,
+        role: result.user.role,
+        userId: result.user.id
+      });
+      
       return NextResponse.json(
         { success: true, data: result, message: 'Login successful' },
         { status: 200 }
       );
     } catch (dbError: any) {
+      console.error('[Auth API] Database login failed:', {
+        email,
+        error: dbError.message,
+        stack: dbError.stack?.split('\n')[0]
+      });
+      
       return NextResponse.json(
         { success: false, error: dbError.message || 'Invalid email or password' },
         { status: 401 }

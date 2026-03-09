@@ -82,13 +82,70 @@ export interface AssignmentComment {
 
 export const assessmentService = {
   // ── Assignment CRUD ───────────────────────────────
-  getAssignments: () => api.get<Assignment[]>('/student/assignments'),
+  getAssignments: async () => {
+    try {
+      console.log('[assessmentService] Fetching all assignments...');
+      const result = await api.get<Assignment[]>('/student/assignments');
+      console.log('[assessmentService] Assignments loaded:', result?.data?.length || result?.length || 0);
+      return result;
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch assignments:', error);
+      return { success: true, data: [] };
+    }
+  },
 
-  getAssignment: (assignmentId: string) => api.get<AssignmentWithQuestions>(`/student/assignments/${assignmentId}`),
+  /** Fetch published assignments for a specific course (used by the per-course Assignments tab) */
+  getAssignmentsByCourse: async (courseId: string): Promise<Assignment[]> => {
+    try {
+      const result = await api.get<Assignment[]>(`/student/courses/${courseId}/assignments`);
+      const data: any = result;
+      return (data?.data ?? data ?? []) as Assignment[];
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch course assignments:', error);
+      return [];
+    }
+  },
 
-  getAssignmentsBySubject: (subjectId: string) => api.get<Assignment[]>(`/student/subjects/${subjectId}/assignments`),
+  getAssignment: async (assignmentId: string) => {
+    try {
+      console.log('[assessmentService] Fetching assignment:', assignmentId);
+      const result = await api.get<AssignmentWithQuestions>(`/student/assignments/${assignmentId}`);
+      console.log('[assessmentService] Assignment loaded:', result?.data?.title || result?.title);
+      return result;
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch assignment:', error);
+      throw error;
+    }
+  },
 
-  getSubmissions: () => api.get<Submission[]>('/student/submissions'),
+  getAssignmentsBySubject: async (subjectId: string) => {
+    try {
+      console.log('[assessmentService] Fetching assignments for subject:', subjectId);
+      // For now, filter from all assignments since we don't have a subject-specific route
+      const allAssignments = await assessmentService.getAssignments();
+      const assignments = allAssignments?.data || allAssignments || [];
+      const filtered = Array.isArray(assignments) 
+        ? assignments.filter((a: Assignment) => a.subjectId === subjectId || a.courseId === subjectId)
+        : [];
+      console.log('[assessmentService] Subject assignments loaded:', filtered.length);
+      return { success: true, data: filtered };
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch subject assignments:', error);
+      return { success: true, data: [] };
+    }
+  },
+
+  getSubmissions: async () => {
+    try {
+      console.log('[assessmentService] Fetching all submissions...');
+      const result = await api.get<Submission[]>('/student/submissions');
+      console.log('[assessmentService] Submissions loaded:', result?.data?.length || result?.length || 0);
+      return result;
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch submissions:', error);
+      return { success: true, data: [] };
+    }
+  },
 
   getSubmission: (assignmentId: string) => api.get<Submission>(`/student/assignments/${assignmentId}/submission`),
 
@@ -101,7 +158,21 @@ export const assessmentService = {
   submitAnswer: (attemptId: string, data: { questionId: string; selectedOption: string; timeTaken: number }) =>
     api.post<AnswerResult>(`/student/attempts/${attemptId}/answer`, data),
 
+  /** Submit a quiz attempt (no extra content) */
   submitAttempt: (attemptId: string) => api.post<Attempt>(`/student/attempts/${attemptId}/submit`),
+
+  /** Submit an open-ended assignment attempt with text/code/file content */
+  submitAssignmentWork: (
+    attemptId: string,
+    content: { textContent?: string; codeContent?: string; submissionFileUrl?: string },
+  ) => api.post<Attempt>(`/student/attempts/${attemptId}/submit`, content),
+
+  /** Upload a file for a student submission; returns { url, filename, size } */
+  uploadSubmissionFile: async (file: File): Promise<{ url: string; filename: string; size: number }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.uploadFile<{ url: string; filename: string; size: number }>('/student/upload', formData);
+  },
 
   getAttemptResult: (attemptId: string) => api.get<Attempt>(`/student/attempts/${attemptId}`),
 

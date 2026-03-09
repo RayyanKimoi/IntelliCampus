@@ -226,8 +226,9 @@ model Chapter {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  course  Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  content ChapterContent[]
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  content      ChapterContent[]
+  assignments  Assignment[]
 
   @@index([courseId])
   @@map("chapters")
@@ -403,40 +404,50 @@ model MasteryGraph {
 // ========================
 
 model Assignment {
-  id          String   @id @default(cuid())
-  courseId     String   @map("course_id")
-  teacherId   String   @map("teacher_id")
-  title       String
-  description String   @default("")
-  dueDate     DateTime @map("due_date")
-  strictMode  Boolean  @default(false) @map("strict_mode")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id                    String    @id @default(cuid())
+  courseId              String    @map("course_id")
+  chapterId             String?   @map("chapter_id")
+  teacherId             String    @map("teacher_id")
+  title                 String
+  description           String    @default("")
+  type                  String    @default("assignment") // assignment | quiz
+  dueDate               DateTime  @map("due_date")
+  strictMode            Boolean   @default(false) @map("strict_mode")
+  isPublished           Boolean   @default(false) @map("is_published")
+  submissionTypes       Json?     @map("submission_types") // ["code","file","text"]
+  rubric                Json?     // [{name, maxScore}]
+  assignmentDocumentUrl String?   @map("assignment_document_url")
+  evaluationPoints      Int?      @map("evaluation_points")
+  createdAt             DateTime  @default(now()) @map("created_at")
 
-  course   Course @relation(fields: [courseId], references: [id])
-  teacher  User   @relation("AssignmentCreator", fields: [teacherId], references: [id])
+  course   Course   @relation(fields: [courseId], references: [id])
+  chapter  Chapter? @relation(fields: [chapterId], references: [id])
+  teacher  User     @relation("AssignmentCreator", fields: [teacherId], references: [id])
 
-  questions      Question[]
+  questions       Question[]
   studentAttempts StudentAttempt[]
 
   @@index([courseId])
   @@index([teacherId])
+  @@index([chapterId])
   @@map("assignments")
 }
 
 model Question {
   id              String  @id @default(cuid())
   assignmentId    String? @map("assignment_id")
-  topicId         String  @map("topic_id")
+  topicId         String? @map("topic_id")
   questionText    String  @map("question_text") @db.Text
   optionA         String  @map("option_a")
   optionB         String  @map("option_b")
   optionC         String  @map("option_c")
   optionD         String  @map("option_d")
   correctOption   String  @map("correct_option")
+  explanation     String? @db.Text
   difficultyLevel String  @default("beginner") @map("difficulty_level")
 
-  assignment    Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  topic         Topic          @relation(fields: [topicId], references: [id])
+  assignment     Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  topic          Topic?         @relation(fields: [topicId], references: [id])
   studentAnswers StudentAnswer[]
 
   @@index([assignmentId])
@@ -445,17 +456,19 @@ model Question {
 }
 
 model StudentAttempt {
-  id             String    @id @default(cuid())
-  assignmentId   String    @map("assignment_id")
-  studentId      String    @map("student_id")
-  score          Float     @default(0)
-  startedAt      DateTime  @default(now()) @map("started_at")
-  submittedAt    DateTime? @map("submitted_at")
-  integrityFlag  Boolean   @default(false) @map("integrity_flag")
-  gradedAt       DateTime? @map("graded_at")
-  gradedBy       String?   @map("graded_by")
-  teacherComment String?   @map("teacher_comment") @db.Text
-  rubricScores   Json?     @map("rubric_scores")
+  id                String    @id @default(cuid())
+  assignmentId      String    @map("assignment_id")
+  studentId         String    @map("student_id")
+  score             Float     @default(0)
+  answers           Json?     // {questionId: selectedOption}
+  submissionFileUrl String?   @map("submission_file_url")
+  startedAt         DateTime  @default(now()) @map("started_at")
+  submittedAt       DateTime? @map("submitted_at")
+  integrityFlag     Boolean   @default(false) @map("integrity_flag")
+  gradedAt          DateTime? @map("graded_at")
+  gradedBy          String?   @map("graded_by")
+  teacherComment    String?   @map("teacher_comment") @db.Text
+  rubricScores      Json?     @map("rubric_scores")
 
   assignment     Assignment     @relation(fields: [assignmentId], references: [id])
   student        User           @relation(fields: [studentId], references: [id])

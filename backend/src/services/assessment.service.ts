@@ -7,20 +7,38 @@ export class AssessmentService {
    */
   async createAssignment(data: {
     courseId: string;
+    chapterId?: string;
     teacherId: string;
     title: string;
     description?: string;
+    type?: string;
     dueDate: string;
     strictMode?: boolean;
+    isPublished?: boolean;
+    submissionTypes?: string[];
+    rubric?: Array<{ name: string; maxScore: number }>;
+    assignmentDocumentUrl?: string;
+    evaluationPoints?: number;
   }) {
     const assignment = await prisma.assignment.create({
       data: {
         courseId: data.courseId,
+        chapterId: data.chapterId ?? null,
         teacherId: data.teacherId,
         title: data.title,
         description: data.description || '',
+        type: data.type || 'assignment',
         dueDate: new Date(data.dueDate),
         strictMode: data.strictMode || false,
+        isPublished: data.isPublished ?? false,
+        submissionTypes: data.submissionTypes ?? [],
+        rubric: data.rubric ?? undefined,
+        assignmentDocumentUrl: data.assignmentDocumentUrl ?? null,
+        evaluationPoints: data.evaluationPoints ?? null,
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
       },
     });
     logger.info('AssessmentService', `Assignment created: ${assignment.title}`);
@@ -34,6 +52,8 @@ export class AssessmentService {
     return prisma.assignment.findMany({
       where: { courseId },
       include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
         _count: {
           select: {
             questions: true,
@@ -42,6 +62,26 @@ export class AssessmentService {
         },
       },
       orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  /**
+   * Get all assessments created by a teacher
+   */
+  async getTeacherAssessments(teacherId: string, filterCourseId?: string) {
+    return prisma.assignment.findMany({
+      where: {
+        teacherId,
+        ...(filterCourseId ? { courseId: filterCourseId } : {}),
+      },
+      include: {
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
+        _count: {
+          select: { questions: true, studentAttempts: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -65,25 +105,27 @@ export class AssessmentService {
    */
   async addQuestion(data: {
     assignmentId?: string;
-    topicId: string;
+    topicId?: string;
     questionText: string;
     optionA: string;
     optionB: string;
     optionC: string;
     optionD: string;
     correctOption: string;
+    explanation?: string;
     difficultyLevel?: string;
   }) {
     return prisma.question.create({
       data: {
-        assignmentId: data.assignmentId,
-        topicId: data.topicId,
+        assignmentId: data.assignmentId ?? null,
+        topicId: data.topicId ?? null,
         questionText: data.questionText,
         optionA: data.optionA,
         optionB: data.optionB,
         optionC: data.optionC,
         optionD: data.optionD,
         correctOption: data.correctOption,
+        explanation: data.explanation ?? null,
         difficultyLevel: data.difficultyLevel || 'beginner',
       },
     });
@@ -142,10 +184,16 @@ export class AssessmentService {
   }
 
   /**
-   * Submit/complete an attempt
+   * Submit/complete an attempt.
+   * For quiz-type: score is calculated from MCQ answers.
+   * For assignment-type: content (text/code/file) is stored and score stays 0
+   * until a teacher grades it.
    */
-  async submitAttempt(attemptId: string) {
-    // Calculate score
+  async submitAttempt(
+    attemptId: string,
+    content?: { textContent?: string; codeContent?: string; submissionFileUrl?: string },
+  ) {
+    // Calculate score from MCQ answers (will be 0 for open-ended assignments)
     const answers = await prisma.studentAnswer.findMany({
       where: { attemptId },
     });
@@ -154,11 +202,22 @@ export class AssessmentService {
     const correctAnswers = answers.filter((a) => a.isCorrect).length;
     const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
+    // Build the submission content stored in the answers JSON field
+    const answersJson =
+      content?.textContent || content?.codeContent
+        ? {
+            ...(content.textContent ? { textContent: content.textContent } : {}),
+            ...(content.codeContent ? { codeContent: content.codeContent } : {}),
+          }
+        : undefined;
+
     const attempt = await prisma.studentAttempt.update({
       where: { id: attemptId },
       data: {
         score,
         submittedAt: new Date(),
+        ...(answersJson ? { answers: answersJson } : {}),
+        ...(content?.submissionFileUrl ? { submissionFileUrl: content.submissionFileUrl } : {}),
       },
       include: {
         studentAnswers: {
@@ -231,24 +290,23 @@ export class AssessmentService {
   }
 
   /**
-   * Get student assignments with due dates
+   * Get student assignments with due dates.
+   * Only returns published assignments. When courseId is provided the result
+   * is scoped to that course (used by the per-course assignments tab).
    */
-  async getStudentAssignments(studentId: string) {
-    // Get courses the student might be enrolled in
-    // For now, return all assignments (enrollment system to be built)
+  async getStudentAssignments(studentId: string, courseId?: string) {
     return prisma.assignment.findMany({
+      where: {
+        isPublished: true,
+        ...(courseId ? { courseId } : {}),
+      },
       include: {
-        course: true,
-        _count: {
-          select: { questions: true },
-        },
+        course: { select: { id: true, name: true } },
+        chapter: { select: { id: true, name: true } },
+        _count: { select: { questions: true } },
         studentAttempts: {
           where: { studentId },
-          select: {
-            id: true,
-            score: true,
-            submittedAt: true,
-          },
+          select: { id: true, score: true, submittedAt: true },
         },
       },
       orderBy: { dueDate: 'asc' },

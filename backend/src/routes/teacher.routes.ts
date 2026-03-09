@@ -29,7 +29,16 @@ import {
   getCohortAnalytics,
   getIntegrityFlags,
   exportReport,
+  // Assessment Studio
+  getTeacherAssessments,
+  getAssignmentDetail,
+  createAssignmentStudio,
+  updateAssignment,
+  deleteAssignment,
+  generateAIQuizFromChapter,
+  uploadAssignmentFile,
 } from '../controllers/teacher.controller';
+import { uploadMiddleware } from '../middleware/upload.middleware';
 import {
   getTeacherCourses,
   getCourseChapters,
@@ -93,7 +102,7 @@ router.get('/topics/:topicId/content', async (req, res) => {
   sendSuccess(res, content);
 });
 
-// Assignments
+// Assignments (legacy)
 router.get('/assignments', getAllAssignments);
 router.post('/assignments', createAssignment);
 router.post('/assignments/:assignmentId/questions', addQuestion);
@@ -102,6 +111,17 @@ router.delete('/questions/:questionId', deleteQuestion);
 router.post('/assignments/:assignmentId/publish', publishAssignment);
 router.get('/courses/:courseId/assignments', getAssignments);
 router.get('/assignments/:assignmentId/results', getAssignmentResults);
+
+// Assessment Studio
+router.get('/assessment-studio', getTeacherAssessments);
+router.post('/assessment-studio', createAssignmentStudio);
+router.get('/assessment-studio/:assignmentId', getAssignmentDetail);
+router.put('/assessment-studio/:assignmentId', updateAssignment);
+router.delete('/assessment-studio/:assignmentId', deleteAssignment);
+router.post('/assessment-studio/:assignmentId/publish', publishAssignment);
+router.post('/assessment-studio/:assignmentId/questions', addQuestion);
+router.post('/assessment-studio/quiz/ai-generate', generateAIQuizFromChapter);
+router.post('/upload-file', uploadMiddleware.single('file'), uploadAssignmentFile);
 
 // AI Quiz
 router.post('/quiz/generate', generateQuiz);

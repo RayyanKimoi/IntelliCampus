@@ -17,7 +17,7 @@ export async function GET(
     const { assignmentId } = await params;
 
     // Verify the assignment belongs to this teacher
-    const assignment = await prisma.assignment.findUnique({
+    const assignment: any = await (prisma.assignment.findUnique as any)({
       where: { id: assignmentId },
       select: { teacherId: true },
     });
@@ -37,7 +37,7 @@ export async function GET(
     }
 
     // Fetch all submission attempts for this assignment
-    const attempts = await prisma.studentAttempt.findMany({
+    const attempts: any = await (prisma.studentAttempt.findMany as any)({
       where: {
         assignmentId,
       },
@@ -54,6 +54,7 @@ export async function GET(
             },
           },
         },
+        answers: true,
       },
       orderBy: {
         submittedAt: 'desc',

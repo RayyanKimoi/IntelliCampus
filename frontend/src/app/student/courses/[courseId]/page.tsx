@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { curriculumService, Course, Subject, Topic } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
 import { aiService } from '@/services/aiService';
+import { assessmentService, Assignment } from '@/services/assessmentService';
 import { useCourseStore } from '@/store/courseStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
-  FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2
+  FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2,
+  ClipboardList, Calendar, Clock,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
 
@@ -28,7 +30,109 @@ interface SubjectWithTopics extends Subject {
   topics: Topic[];
 }
 
-type CourseTab = 'teacher' | 'adaptive';
+type CourseTab = 'teacher' | 'adaptive' | 'assignments';
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Sub-components: Assignments
+// ────────────────────────────────────────────────────────────────────────────────
+
+function AssignmentsTab({ courseId }: { courseId: string }) {
+  const router = useRouter();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    assessmentService.getAssignmentsByCourse(courseId)
+      .then((data) => { if (!cancelled) setAssignments(data); })
+      .catch(() => { if (!cancelled) setAssignments([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [courseId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse">
+            <div className="h-5 w-1/2 rounded bg-muted mb-2" />
+            <div className="h-3 w-1/3 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (assignments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
+        <ClipboardList className="h-10 w-10 text-muted-foreground/40 mb-3" />
+        <h3 className="font-semibold">No assignments yet</h3>
+        <p className="text-sm text-muted-foreground mt-1">Check back once your teacher publishes assignments.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {assignments.map((a) => {
+        const attempt = (a as any).studentAttempts?.[0];
+        const submitted = !!attempt?.submittedAt;
+        const due = new Date(a.dueDate);
+        const overdue = !submitted && due < new Date();
+
+        return (
+          <div
+            key={a.id}
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow cursor-pointer"
+            onClick={() => router.push(`/student/courses/${courseId}/assignments/${a.id}`)}
+          >
+            <div className="flex items-start gap-4">
+              <div className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                submitted ? 'bg-green-100 dark:bg-green-900/30' : overdue ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30',
+              )}>
+                <ClipboardList className={cn(
+                  'h-5 w-5',
+                  submitted ? 'text-green-600' : overdue ? 'text-red-600' : 'text-blue-600',
+                )} />
+              </div>
+              <div>
+                <p className="font-semibold text-card-foreground">{a.title}</p>
+                {a.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{a.description}</p>
+                )}
+                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  <span>Due {due.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  {overdue && <span className="text-red-500 ml-1">• Overdue</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-xs',
+                  submitted
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : overdue
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : 'bg-blue-50 border-blue-200 text-blue-700',
+                )}
+              >
+                {submitted ? 'Submitted' : overdue ? 'Overdue' : 'Pending'}
+              </Badge>
+              <Button size="sm" variant="outline">
+                {submitted ? 'View' : 'Submit'}
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Sub-components: Teacher Resources
@@ -478,6 +582,7 @@ export default function CourseDetailPage() {
           {([ 
             { id: 'teacher', label: 'Teacher Resources', icon: FaBook },
             { id: 'adaptive', label: 'Adaptive Resources', icon: Lightbulb },
+            { id: 'assignments', label: 'Assignments', icon: ClipboardList },
           ] as { id: CourseTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -496,7 +601,9 @@ export default function CourseDetailPage() {
         </div>
 
         {/* Content */}
-        {subjects.length === 0 ? (
+        {tab === 'assignments' ? (
+          <AssignmentsTab courseId={courseId} />
+        ) : subjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
             <AlertTriangle className="h-10 w-10 text-muted-foreground/40 mb-3" />
             <h3 className="font-semibold">No curriculum content available yet.</h3>

@@ -18,45 +18,35 @@ export function useAuth() {
     }
     
     const initAuth = async () => {
-      // In development mode with mock auth, skip verification if already authenticated
-      const isDevelopment = true; // Match authStore.ts setting
-      if (isDevelopment && token && user) {
-        console.log('[useAuth] Dev mode: Already have mock user, skipping verification');
-        setLoading(false);
-        hasInitializedRef.current = true;
-        return;
-      }
-
-      // Only attempt to fetch user data if we have a token but no user
-      if (token && !user) {
-        try {
-          const response = await authService.getMe();
-          if (response.data) {
-            setAuth(response.data, token);
-          } else {
-            // In dev mode, don't logout on verification failure
-            if (!isDevelopment) {
-              logout();
+      try {
+        // Only attempt to fetch user data if we have a token but no user
+        if (token && !user) {
+          console.log('[useAuth] Verifying token and fetching user data...');
+          try {
+            const response = await authService.getMe();
+            if (response.data) {
+              setAuth(response.data, token);
+              console.log('[useAuth] Token verified, user data loaded');
             } else {
-              console.log('[useAuth] Dev mode: Verification failed but keeping mock auth');
+              console.log('[useAuth] Token verification returned no data');
               setLoading(false);
             }
-          }
-        } catch (error) {
-          console.log('[useAuth] Auth verification error:', error);
-          // In dev mode, don't logout on verification failure
-          if (!isDevelopment) {
+          } catch (error) {
+            console.log('[useAuth] Token verification failed:', error);
             logout();
-          } else {
-            console.log('[useAuth] Dev mode: Keeping mock auth despite error');
-            setLoading(false);
           }
+        } else if (!token) {
+          // No token means definitely not authenticated
+          setLoading(false);
+        } else {
+          // Both token and user exist - already authenticated
+          setLoading(false);
         }
-      } else if (!token) {
-        // No token means definitely not authenticated
+      } catch (error) {
+        console.error('[useAuth] Init error:', error);
         setLoading(false);
       }
-      // If both token and user exist, do nothing - already authenticated
+      
       hasInitializedRef.current = true;
     };
 
