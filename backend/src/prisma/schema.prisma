@@ -107,6 +107,7 @@ model User {
   passwordHash  String    @map("password_hash")
   role          UserRole
   institutionId String    @map("institution_id")
+  isActive      Boolean   @default(true) @map("is_active")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

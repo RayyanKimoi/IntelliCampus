@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { loginSchema } from '@/utils/validators';
 import { signToken } from '@/lib/jwt';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { email, password } = parsed.data;
 
-    // ── 1. Demo credentials — always checked first, always work ───────────────
+    // ── 1. Demo credentials — check first, but resolve real institutionId from DB ──
     const demo = DEMO_USERS[email.toLowerCase()];
     if (demo) {
       if (demo.password !== password) {
@@ -35,15 +36,33 @@ export async function POST(req: NextRequest) {
           { status: 401 }
         );
       }
+
+      // Resolve the real institutionId: prefer existing DB user, then first institution
+      let resolvedId = demo.id;
+      let resolvedInstitutionId = demo.institutionId;
+      try {
+        const dbUser = await prisma.user.findUnique({ where: { email: demo.email } });
+        if (dbUser) {
+          resolvedId = dbUser.id;
+          resolvedInstitutionId = dbUser.institutionId;
+        } else {
+          const firstInstitution = await prisma.institution.findFirst();
+          if (firstInstitution) resolvedInstitutionId = firstInstitution.id;
+        }
+      } catch {
+        // DB unavailable — fall back to hardcoded values
+      }
+
       const token = signToken({ 
-        userId: demo.id, 
+        userId: resolvedId, 
         email: demo.email, 
         role: demo.role as any, 
-        institutionId: demo.institutionId 
+        institutionId: resolvedInstitutionId 
       });
-      const { password: _pw, ...user } = demo;
+      const { password: _pw, ...demoUser } = demo;
+      const user = { ...demoUser, id: resolvedId, institutionId: resolvedInstitutionId };
       
-      console.log('[Auth API] Demo login successful:', { email: demo.email, role: demo.role });
+      console.log('[Auth API] Demo login successful:', { email: demo.email, role: demo.role, institutionId: resolvedInstitutionId });
       
       return NextResponse.json(
         { success: true, data: { user, token }, message: 'Login successful' },

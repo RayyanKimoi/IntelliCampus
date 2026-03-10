@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans, Lexend_Peta, Instrument_Serif } from 'next/font/google';
 import '@/styles/globals.css';
 import '@/lib/clearAuthState'; // Import debug utilities
+import { Toaster } from '@/components/ui/toaster';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -36,6 +37,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${lexendPeta.variable} ${instrumentSerif.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
+        <Toaster />
       </body>
     </html>
   );

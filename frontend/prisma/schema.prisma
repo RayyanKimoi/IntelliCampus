@@ -98,6 +98,7 @@ model Institution {
   users          User[]
   courses        Course[]
   aiPolicySettings AIPolicySettings?
+  integrityPolicy  IntegrityPolicy?
 
   @@map("institutions")
 }
@@ -109,6 +110,7 @@ model User {
   passwordHash  String    @map("password_hash")
   role          UserRole
   institutionId String    @map("institution_id")
+  isActive      Boolean   @default(true) @map("is_active")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -228,9 +230,9 @@ model Chapter {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  course       Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  content      ChapterContent[]
-  assignments  Assignment[]
+  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  content     ChapterContent[]
+  assignments Assignment[]
 
   @@index([courseId])
   @@map("chapters")
@@ -405,32 +407,32 @@ model MasteryGraph {
 // ========================
 
 model Assignment {
-  id                    String    @id @default(cuid())
-  courseId              String    @map("course_id")
-  chapterId             String?   @map("chapter_id")
-  teacherId             String    @map("teacher_id")
-  title                 String
-  description           String    @default("")
-  type                  String    @default("assignment") // assignment | quiz
-  dueDate               DateTime  @map("due_date")
-  strictMode            Boolean   @default(false) @map("strict_mode")
-  isPublished           Boolean   @default(false) @map("is_published")
-  submissionTypes       Json?     @map("submission_types") // ["code","file","text"]
-  rubric                Json?     // [{name, maxScore}]
-  assignmentDocumentUrl String?   @map("assignment_document_url")
-  evaluationPoints      Int?      @map("evaluation_points")
-  createdAt             DateTime  @default(now()) @map("created_at")
+  id                     String   @id @default(cuid())
+  courseId               String   @map("course_id")
+  chapterId              String?  @map("chapter_id")
+  teacherId              String   @map("teacher_id")
+  title                  String
+  description            String   @default("")
+  type                   String   @default("assignment") // "assignment" | "quiz"
+  dueDate                DateTime @map("due_date")
+  strictMode             Boolean  @default(false) @map("strict_mode")
+  isPublished            Boolean  @default(false) @map("is_published")
+  submissionTypes        String[] @map("submission_types")
+  rubric                 Json?
+  assignmentDocumentUrl  String?  @map("assignment_document_url")
+  evaluationPoints       String?  @default("") @map("evaluation_points") @db.Text
+  createdAt              DateTime @default(now()) @map("created_at")
 
-  course   Course   @relation(fields: [courseId], references: [id])
+  course   Course  @relation(fields: [courseId], references: [id])
   chapter  Chapter? @relation(fields: [chapterId], references: [id])
-  teacher  User     @relation("AssignmentCreator", fields: [teacherId], references: [id])
+  teacher  User    @relation("AssignmentCreator", fields: [teacherId], references: [id])
 
   questions       Question[]
   studentAttempts StudentAttempt[]
 
   @@index([courseId])
-  @@index([teacherId])
   @@index([chapterId])
+  @@index([teacherId])
   @@map("assignments")
 }
 
@@ -447,8 +449,8 @@ model Question {
   explanation     String? @db.Text
   difficultyLevel String  @default("beginner") @map("difficulty_level")
 
-  assignment     Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  topic          Topic?         @relation(fields: [topicId], references: [id])
+  assignment    Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  topic         Topic?         @relation(fields: [topicId], references: [id])
   studentAnswers StudentAnswer[]
 
   @@index([assignmentId])
@@ -461,7 +463,7 @@ model StudentAttempt {
   assignmentId      String    @map("assignment_id")
   studentId         String    @map("student_id")
   score             Float     @default(0)
-  answers           Json?     // {questionId: selectedOption}
+  answers           Json?     // for text/code/file answers on assignments
   submissionFileUrl String?   @map("submission_file_url")
   startedAt         DateTime  @default(now()) @map("started_at")
   submittedAt       DateTime? @map("submitted_at")
@@ -642,6 +644,36 @@ model AIPolicySettings {
   institution Institution @relation(fields: [institutionId], references: [id])
 
   @@map("ai_policy_settings")
+}
+
+model IntegrityPolicy {
+  id            String   @id @default(cuid())
+  institutionId String   @unique @map("institution_id")
+
+  rapidGuessingEnabled   Boolean @default(true) @map("rapid_guessing_enabled")
+  rapidGuessingThreshold Int     @default(10)   @map("rapid_guessing_threshold")
+
+  tabSwitchingEnabled   Boolean @default(true) @map("tab_switching_enabled")
+  tabSwitchingThreshold Int     @default(5)    @map("tab_switching_threshold")
+
+  copyPasteEnabled Boolean @default(true) @map("copy_paste_enabled")
+  highAnomalyEnabled Boolean @default(true) @map("high_anomaly_enabled")
+  unusualPatternEnabled Boolean @default(true) @map("unusual_pattern_enabled")
+
+  fastCompletionEnabled   Boolean @default(true) @map("fast_completion_enabled")
+  fastCompletionThreshold Int     @default(40)   @map("fast_completion_threshold")
+
+  multipleReattemptEnabled Boolean @default(true) @map("multiple_reattempt_enabled")
+
+  similarityDetectedEnabled Boolean @default(true) @map("similarity_detected_enabled")
+  similarityThreshold       Int     @default(80)   @map("similarity_threshold")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+
+  @@map("integrity_policies")
 }
 
 model SystemUsageLog {

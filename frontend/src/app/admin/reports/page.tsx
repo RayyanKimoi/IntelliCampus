@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,10 @@ import { Separator } from '@/components/ui/separator';
 import {
   FileCheck, Download, BarChart3, Users,
   CheckCircle2, Clock, FileText, GraduationCap, Loader2,
-  Shield, Calendar, TrendingUp, AlertTriangle,
+  Shield, Calendar, TrendingUp, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
+import { api } from '@/services/apiClient';
 
 type ReportStatus = 'ready' | 'generating' | 'scheduled';
 
@@ -23,30 +24,26 @@ interface Report {
   category: string;
   lastGenerated: string;
   status: ReportStatus;
-  format: 'PDF' | 'CSV' | 'XLSX';
+  format: 'PDF' | 'CSV' | 'XLSX' | 'ZIP';
   sizeKb?: number;
 }
 
-const REPORTS: Report[] = [
-  { id: '1', title: 'Institutional Performance Summary', description: 'Overall pass rates, engagement and AI usage across all courses.', category: 'Performance',    lastGenerated: '2026-02-18', status: 'ready',      format: 'PDF',  sizeKb: 412 },
-  { id: '2', title: 'Student Progress Export',           description: 'Individual student mastery, scores, and activity timeline.',   category: 'Student Data',  lastGenerated: '2026-02-15', status: 'ready',      format: 'XLSX', sizeKb: 850 },
-  { id: '3', title: 'Assessment Results Audit',          description: 'All assessment submissions, scores and integrity flags.',       category: 'Governance',    lastGenerated: '2026-02-10', status: 'ready',      format: 'CSV',  sizeKb: 230 },
-  { id: '4', title: 'AI Usage & Token Report',           description: 'AI session logs, token consumption and mode distribution.',     category: 'AI Analytics',  lastGenerated: '2026-02-20', status: 'ready',      format: 'PDF',  sizeKb: 190 },
-  { id: '5', title: 'Completion & Dropout Analysis',     description: 'Course completion rates and at-risk student identification.',   category: 'Retention',     lastGenerated: '2026-02-01', status: 'scheduled',  format: 'PDF'  },
-  { id: '6', title: 'Accessibility Compliance Report',   description: 'Accessibility feature usage and WCAG compliance summary.',      category: 'Inclusion',     lastGenerated: '2026-01-28', status: 'ready',      format: 'PDF',  sizeKb: 155 },
-  { id: '7', title: 'Accreditation Evidence Pack',       description: 'Full evidence bundle for accreditation body submission.',       category: 'Accreditation', lastGenerated: '2026-01-15', status: 'ready',      format: 'PDF',  sizeKb: 2340 },
-];
+interface AccreditationCriterion {
+  label: string;
+  complete: boolean;
+  value: number;
+  details?: string;
+}
 
-const ACCREDITATION_CRITERIA = [
-  { label: 'Learning Outcomes Documented',      complete: true,  value: 100 },
-  { label: 'Assessment Governance Policy',      complete: true,  value: 100 },
-  { label: 'Student Performance Data (90d)',    complete: true,  value: 100 },
-  { label: 'AI Transparency Statement',         complete: true,  value: 100 },
-  { label: 'Accessibility Compliance Report',   complete: true,  value: 100 },
-  { label: 'Integrity & Security Audit',        complete: false, value: 72  },
-  { label: 'Staff Qualification Records',       complete: false, value: 55  },
-  { label: 'External Examiner Sign-off',        complete: false, value: 0   },
-];
+interface InstitutionStats {
+  totalCourses: number;
+  totalStudents: number;
+  totalTeachers: number;
+  totalAssignments: number;
+  totalSubmissions: number;
+  averageScore: string;
+  aiSessions: number;
+}
 
 const STATUS_META: Record<ReportStatus, { label: string; color: string }> = {
   ready:      { label: 'Ready',      color: 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' },
@@ -65,21 +62,129 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function AdminReportsPage() {
+  const [reports, setReports] = useState<Report[]>([]);
+  const [stats, setStats] = useState<InstitutionStats | null>(null);
+  const [accreditation, setAccreditation] = useState<AccreditationCriterion[]>([]);
+  const [accreditationProgress, setAccreditationProgress] = useState(0);
+  
+  const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState('');
   const [generating, setGenerating] = useState('');
+  const [error, setError] = useState('');
 
-  const handleDownload = (id: string) => {
-    setDownloading(id);
-    setTimeout(() => setDownloading(''), 1500);
+  // Helper to get auth token
+  const getAuthToken = () => {
+    try {
+      const stored = localStorage.getItem('intellicampus-auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.state?.token || 'dev-token-mock-authentication';
+      }
+    } catch {}
+    return 'dev-token-mock-authentication';
   };
 
-  const handleGenerate = (id: string) => {
-    setGenerating(id);
-    setTimeout(() => setGenerating(''), 2000);
+  // Load reports and stats
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [reportsData, accreditationData] = await Promise.all([
+        api.get('/admin/reports/list'),
+        api.get('/admin/reports/accreditation')
+      ]);
+
+      setReports(reportsData.reports || []);
+      setStats(reportsData.stats || null);
+      setAccreditation(accreditationData.criteria || []);
+      setAccreditationProgress(accreditationData.summary?.progress || 0);
+    } catch (err) {
+      console.error('Error loading reports:', err);
+      setError('Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleDownload = async (report: Report) => {
+    setDownloading(report.id);
+    setError('');
+    
+    try {
+      // First generate the report data
+      const generatedData = await api.post('/admin/reports/generate', {
+        reportId: report.id
+      });
+
+      // Then download in requested format
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/reports/download', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reportId: report.id,
+          format: report.format,
+          data: generatedData.data
+        })
+      });
+
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const ext = report.format.toLowerCase();
+      link.download = `${report.id}_${new Date().toISOString().split('T')[0]}.${ext}`;
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download error:', err);
+      setError('Failed to download report');
+    } finally {
+      setDownloading('');
+    }
   };
 
-  const readyCount = REPORTS.filter(r => r.status === 'ready').length;
-  const accreditationPct = Math.round(ACCREDITATION_CRITERIA.filter(c => c.complete).length / ACCREDITATION_CRITERIA.length * 100);
+  const handleGenerate = async (reportId: string) => {
+    setGenerating(reportId);
+    setError('');
+    
+    try {
+      await api.post('/admin/reports/generate', { reportId });
+      
+      // Reload reports to update last generated date
+      await loadData();
+    } catch (err) {
+      console.error('Generate error:', err);
+      setError('Failed to generate report');
+    } finally {
+      setGenerating('');
+    }
+  };
+
+  const readyCount = reports.filter(r => r.status === 'ready').length;
+
+  if (loading) {
+    return (
+      <DashboardLayout requiredRole="admin">
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout requiredRole="admin">
@@ -91,31 +196,66 @@ export default function AdminReportsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Reports & Accreditation</h1>
             <p className="text-muted-foreground">Generate, download and manage institutional reports for audits and accreditation bodies.</p>
           </div>
-          <Button className="w-fit">
-            <FileText className="h-4 w-4 mr-2" />
-            Custom Report
+          <Button onClick={loadData} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
         </div>
 
+        {error && (
+          <div className="p-3 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 rounded-lg text-sm flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { icon: <FileCheck className="h-4 w-4 text-primary" />,       label: 'Total Reports',         value: REPORTS.length,   sub: 'available templates'      },
-            { icon: <CheckCircle2 className="h-4 w-4 text-green-500" />,  label: 'Ready to Download',     value: readyCount,       sub: 'generated and available'  },
-            { icon: <GraduationCap className="h-4 w-4 text-violet-500" />,label: 'Accreditation Ready',   value: `${accreditationPct}%`, sub: `${ACCREDITATION_CRITERIA.filter(c=>c.complete).length}/${ACCREDITATION_CRITERIA.length} criteria met` },
-            { icon: <Calendar className="h-4 w-4 text-amber-500" />,      label: 'Next Scheduled',        value: 'Feb 28',         sub: 'Completion & Dropout'     },
-          ].map(({ icon, label, value, sub }) => (
-            <Card key={label}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{label}</CardTitle>
-                {icon}
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{String(value)}</div>
-                <p className="text-xs text-muted-foreground mt-1">{sub}</p>
-              </CardContent>
-            </Card>
-          ))}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
+              <FileCheck className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reports.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">available templates</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ready to Download</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{readyCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">generated and available</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Accreditation Ready</CardTitle>
+              <GraduationCap className="h-4 w-4 text-violet-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{accreditationProgress}%</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {accreditation.filter(c => c.complete).length}/{accreditation.length} criteria met
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+              <Users className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalStudents || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">across {stats?.totalCourses || 0} courses</p>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -126,11 +266,18 @@ export default function AdminReportsPage() {
                 <FileCheck className="h-5 w-5 text-primary" />
                 Accreditation Readiness
               </CardTitle>
-              <CardDescription>{accreditationPct}% of criteria met</CardDescription>
+              <CardDescription>{accreditationProgress}% of criteria met</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Progress value={accreditationPct} className={`h-2.5 mb-4 ${accreditationPct >= 80 ? '[&>*]:bg-green-500' : accreditationPct >= 60 ? '[&>*]:bg-amber-500' : '[&>*]:bg-red-400'}`} />
-              {ACCREDITATION_CRITERIA.map(({ label, complete, value }) => (
+              <Progress 
+                value={accreditationProgress} 
+                className={`h-2.5 mb-4 ${
+                  accreditationProgress >= 80 ? '[&>*]:bg-green-500' : 
+                  accreditationProgress >= 60 ? '[&>*]:bg-amber-500' : 
+                  '[&>*]:bg-red-400'
+                }`} 
+              />
+              {accreditation.map(({ label, complete, value }) => (
                 <div key={label} className="flex items-start gap-2">
                   {complete
                     ? <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
@@ -161,7 +308,7 @@ export default function AdminReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {REPORTS.map(report => {
+                {reports.map(report => {
                   const s = STATUS_META[report.status];
                   const icon = CATEGORY_ICONS[report.category];
                   const isDownloading = downloading === report.id;
@@ -187,12 +334,37 @@ export default function AdminReportsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <Button size="sm" variant="outline" className="text-xs" onClick={() => handleGenerate(report.id)} disabled={isGenerating}>
-                          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><FaBook className="h-3.5 w-3.5 mr-1" />Regenerate</>}
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-xs" 
+                          onClick={() => handleGenerate(report.id)} 
+                          disabled={isGenerating}
+                        >
+                          {isGenerating ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <FaBook className="h-3.5 w-3.5 mr-1" />
+                              Regenerate
+                            </>
+                          )}
                         </Button>
                         {report.status === 'ready' && (
-                          <Button size="sm" className="text-xs" onClick={() => handleDownload(report.id)} disabled={isDownloading}>
-                            {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Download className="h-3.5 w-3.5 mr-1" />Download</>}
+                          <Button 
+                            size="sm" 
+                            className="text-xs" 
+                            onClick={() => handleDownload(report)} 
+                            disabled={isDownloading}
+                          >
+                            {isDownloading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <Download className="h-3.5 w-3.5 mr-1" />
+                                Download
+                              </>
+                            )}
                           </Button>
                         )}
                       </div>
@@ -205,6 +377,59 @@ export default function AdminReportsPage() {
         </div>
 
         <Separator />
+
+        {/* Institutional Stats */}
+        {stats && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Institutional Overview
+              </CardTitle>
+              <CardDescription>Real-time statistics from the database</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Courses</p>
+                  <p className="text-2xl font-bold">{stats.totalCourses}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Students</p>
+                  <p className="text-2xl font-bold">{stats.totalStudents}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Assignments</p>
+                  <p className="text-2xl font-bold">{stats.totalAssignments}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Average Score</p>
+                  <p className="text-2xl font-bold">{stats.averageScore}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Total Submissions</p>
+                  <p className="text-2xl font-bold">{stats.totalSubmissions}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Teachers</p>
+                  <p className="text-2xl font-bold">{stats.totalTeachers}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">AI Sessions</p>
+                  <p className="text-2xl font-bold">{stats.aiSessions}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Engagement</p>
+                  <p className="text-2xl font-bold">
+                    {stats.totalAssignments > 0 
+                      ? Math.round((stats.totalSubmissions / stats.totalAssignments) * 100)
+                      : 0}%
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Schedule */}
         <Card>
