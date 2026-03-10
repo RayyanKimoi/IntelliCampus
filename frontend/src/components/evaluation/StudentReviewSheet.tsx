@@ -27,6 +27,7 @@ interface StudentReviewSheetProps {
   submission: any | null;
   onClose: () => void;
   onSaved: (payload: GradeSavePayload) => void;
+  isQuiz?: boolean; // If true, show read-only view without grade editing
 }
 
 // ─── Rubric data ────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ const RUBRIC_CRITERIA = [
 ];
 
 // ─── Rubric Progress Bar ────────────────────────────────────────────
-function RubricBar({ label, score, max = 10, onChange }: { label: string; score: number; max?: number; onChange: (v: number) => void }) {
+function RubricBar({ label, score, max = 10, onChange, disabled = false }: { label: string; score: number; max?: number; onChange: (v: number) => void; disabled?: boolean }) {
   const pct = (score / max) * 100;
   const color =
     pct >= 80 ? 'bg-emerald-500 dark:bg-emerald-400' :
@@ -57,7 +58,8 @@ function RubricBar({ label, score, max = 10, onChange }: { label: string; score:
             max={max}
             value={score}
             onChange={e => onChange(Math.min(max, Math.max(0, Number(e.target.value))))}
-            className="w-10 text-center text-xs font-bold bg-muted/50 dark:bg-muted/20 border border-border/50 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
+            disabled={disabled}
+            className="w-10 text-center text-xs font-bold bg-muted/50 dark:bg-muted/20 border border-border/50 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-100 disabled:cursor-not-allowed"
           />
           <span className="text-[11px] text-muted-foreground font-medium">/{max}</span>
         </div>
@@ -72,7 +74,7 @@ function RubricBar({ label, score, max = 10, onChange }: { label: string; score:
   );
 }
 
-export function StudentReviewSheet({ submission, onClose, onSaved }: StudentReviewSheetProps) {
+export function StudentReviewSheet({ submission, onClose, onSaved, isQuiz = false }: StudentReviewSheetProps) {
   const [score, setScore] = useState<string>('');
   const [comments, setComments] = useState<string>('');
   const [rubricScores, setRubricScores] = useState<Record<string, number>>(() =>
@@ -202,21 +204,24 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
               <div className="space-y-4">
                 <div className="inline-flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold text-[11px] tracking-widest uppercase bg-violet-50 dark:bg-violet-500/10 px-3 py-1.5 rounded-full border border-violet-200/50 dark:border-violet-500/20">
                   <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  AI Grading Insights
+                  {isQuiz ? 'Auto-Graded Quiz' : 'AI Grading Insights'}
                 </div>
 
                 <div className="bg-card/60 dark:bg-muted/10 rounded-2xl border border-border/50 p-5 space-y-5">
 
                   {/* AI Score */}
                   <div>
-                    <Label htmlFor="ai-score" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Grading Score</Label>
+                    <Label htmlFor="ai-score" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">
+                      {isQuiz ? 'Quiz Score' : 'AI Grading Score'}
+                    </Label>
                     <div className="relative mt-2">
                       <Input
                         id="ai-score"
                         type="number"
                         value={score}
                         onChange={e => setScore(e.target.value)}
-                        className="pl-4 text-2xl font-bold h-14 bg-muted/40 dark:bg-muted/20 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/30 rounded-xl"
+                        disabled={isQuiz}
+                        className="pl-4 text-2xl font-bold h-14 bg-muted/40 dark:bg-muted/20 border-border/60 focus-visible:ring-1 focus-visible:ring-primary/50 focus-visible:border-primary/30 rounded-xl disabled:opacity-100 disabled:cursor-not-allowed"
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-muted-foreground font-bold opacity-40">/ 100</div>
                     </div>
@@ -234,6 +239,7 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
                           label={crit.label}
                           score={rubricScores[crit.key] ?? crit.defaultScore}
                           onChange={val => setRubricScores(prev => ({ ...prev, [crit.key]: val }))}
+                          disabled={isQuiz}
                         />
                       ))}
                     </div>
@@ -243,14 +249,17 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
 
                   {/* AI Comment */}
                   <div>
-                    <Label htmlFor="ai-comments" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Generated Comment</Label>
+                    <Label htmlFor="ai-comments" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">
+                      {isQuiz ? 'Performance Summary' : 'AI Generated Comment'}
+                    </Label>
                     <Textarea
                       id="ai-comments"
                       value={comments || 'The student demonstrated a solid understanding of the core concepts. The solution was mostly correct with minor inefficiencies in edge case handling.'}
                       onChange={e => setComments(e.target.value)}
-                      placeholder="Add your final personalized feedback here..."
+                      placeholder={isQuiz ? 'Quiz scores are automatically calculated based on correct answers.' : 'Add your final personalized feedback here...'}
                       rows={4}
-                      className="mt-2 resize-none text-[13px] leading-relaxed bg-muted/30 dark:bg-muted/15 border-border/40 focus-visible:border-primary/40 focus-visible:ring-0 rounded-xl px-4 py-3"
+                      disabled={isQuiz}
+                      className="mt-2 resize-none text-[13px] leading-relaxed bg-muted/30 dark:bg-muted/15 border-border/40 focus-visible:border-primary/40 focus-visible:ring-0 rounded-xl px-4 py-3 disabled:opacity-100 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -285,21 +294,24 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
         {/* Sticky Footer */}
         <div className="sticky bottom-0 z-20 bg-background/90 dark:bg-card/90 backdrop-blur-xl border-t border-border/50 px-6 py-4 flex gap-3 mt-auto">
           <Button variant="outline" className="flex-1 font-semibold h-11 rounded-xl transition-all" onClick={onClose} disabled={saving}>
-            <X className="w-4 h-4 mr-2" /> Cancel
+            <X className="w-4 h-4 mr-2" /> {isQuiz ? 'Close' : 'Cancel'}
           </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || saveSuccess} 
-            className={`flex-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-500' : 'bg-primary hover:bg-primary/90'} text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all`}
-          >
-            {saving ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
-            ) : saveSuccess ? (
-              <><CheckCircle2 className="w-4 h-4 mr-2" /> Saved!</>
-            ) : (
-              <><Save className="w-4 h-4 mr-2" /> Confirm Grade</>
-            )}
-          </Button>
+          {!isQuiz && (
+            <Button 
+              onClick={handleSave} 
+              disabled={saving || saveSuccess} 
+              className={`flex-1 ${saveSuccess ? 'bg-emerald-500 hover:bg-emerald-500' : 'bg-primary hover:bg-primary/90'} text-primary-foreground shadow-md h-11 font-semibold rounded-xl transition-all`}
+            >
+              {saving ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+              ) : saveSuccess ? (
+                <><CheckCircle2 className="w-4 h-4 mr-2" /> Saved!</>
+              ) : (
+                <><Save className="w-4 h-4 mr-2" /> Confirm Grade</>
+              )}
+            </Button>
+          )}
+        </div>
         </div>
 
       </SheetContent>
