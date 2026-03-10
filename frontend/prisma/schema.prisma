@@ -1,5 +1,5 @@
 // ========================
-// IntelliCampus — Prisma Schema
+// IntelliCampus ??? Prisma Schema
 // PostgreSQL + Prisma ORM
 // ========================
 
@@ -417,10 +417,10 @@ model Assignment {
   dueDate                DateTime @map("due_date")
   strictMode             Boolean  @default(false) @map("strict_mode")
   isPublished            Boolean  @default(false) @map("is_published")
-  submissionTypes        String[] @map("submission_types")
+  submissionTypes        Json?    @map("submission_types")
   rubric                 Json?
   assignmentDocumentUrl  String?  @map("assignment_document_url")
-  evaluationPoints       String?  @default("") @map("evaluation_points") @db.Text
+  evaluationPoints       Int?     @map("evaluation_points")
   createdAt              DateTime @default(now()) @map("created_at")
 
   course   Course  @relation(fields: [courseId], references: [id])
