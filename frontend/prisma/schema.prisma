@@ -1,5 +1,5 @@
 // ========================
-// IntelliCampus ??? Prisma Schema
+// IntelliCampus — Prisma Schema
 // PostgreSQL + Prisma ORM
 // ========================
 
@@ -98,7 +98,6 @@ model Institution {
   users          User[]
   courses        Course[]
   aiPolicySettings AIPolicySettings?
-  integrityPolicy  IntegrityPolicy?
 
   @@map("institutions")
 }
@@ -232,6 +231,7 @@ model Chapter {
 
   course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
   content     ChapterContent[]
+  curriculumContent CurriculumContent[]
   assignments Assignment[]
 
   @@index([courseId])
@@ -301,7 +301,8 @@ model Topic {
 
 model CurriculumContent {
   id          String   @id @default(cuid())
-  topicId     String   @map("topic_id")
+  topicId     String?  @map("topic_id")
+  chapterId   String?  @map("chapter_id")
   uploadedBy  String   @map("uploaded_by")
   title       String
   contentText String   @map("content_text") @db.Text
@@ -309,10 +310,12 @@ model CurriculumContent {
   embeddingId String?  @map("embedding_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  topic    Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  uploader User  @relation("ContentUploader", fields: [uploadedBy], references: [id])
+  topic    Topic?   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  chapter  Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  uploader User     @relation("ContentUploader", fields: [uploadedBy], references: [id])
 
   @@index([topicId])
+  @@index([chapterId])
   @@map("curriculum_content")
 }
 
@@ -417,10 +420,10 @@ model Assignment {
   dueDate                DateTime @map("due_date")
   strictMode             Boolean  @default(false) @map("strict_mode")
   isPublished            Boolean  @default(false) @map("is_published")
-  submissionTypes        Json?    @map("submission_types")
+  submissionTypes        String[] @map("submission_types")
   rubric                 Json?
   assignmentDocumentUrl  String?  @map("assignment_document_url")
-  evaluationPoints       Int?     @map("evaluation_points")
+  evaluationPoints       String?  @default("") @map("evaluation_points") @db.Text
   createdAt              DateTime @default(now()) @map("created_at")
 
   course   Course  @relation(fields: [courseId], references: [id])
@@ -644,36 +647,6 @@ model AIPolicySettings {
   institution Institution @relation(fields: [institutionId], references: [id])
 
   @@map("ai_policy_settings")
-}
-
-model IntegrityPolicy {
-  id            String   @id @default(cuid())
-  institutionId String   @unique @map("institution_id")
-
-  rapidGuessingEnabled   Boolean @default(true) @map("rapid_guessing_enabled")
-  rapidGuessingThreshold Int     @default(10)   @map("rapid_guessing_threshold")
-
-  tabSwitchingEnabled   Boolean @default(true) @map("tab_switching_enabled")
-  tabSwitchingThreshold Int     @default(5)    @map("tab_switching_threshold")
-
-  copyPasteEnabled Boolean @default(true) @map("copy_paste_enabled")
-  highAnomalyEnabled Boolean @default(true) @map("high_anomaly_enabled")
-  unusualPatternEnabled Boolean @default(true) @map("unusual_pattern_enabled")
-
-  fastCompletionEnabled   Boolean @default(true) @map("fast_completion_enabled")
-  fastCompletionThreshold Int     @default(40)   @map("fast_completion_threshold")
-
-  multipleReattemptEnabled Boolean @default(true) @map("multiple_reattempt_enabled")
-
-  similarityDetectedEnabled Boolean @default(true) @map("similarity_detected_enabled")
-  similarityThreshold       Int     @default(80)   @map("similarity_threshold")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
-
-  institution Institution @relation(fields: [institutionId], references: [id])
-
-  @@map("integrity_policies")
 }
 
 model SystemUsageLog {

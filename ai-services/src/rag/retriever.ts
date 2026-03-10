@@ -1,12 +1,12 @@
-import { embedder } from './embedder';
-import { getIndex, pineconeConfig } from '../config/pinecone';
+import { generateEmbedding } from './embeddings';
+import { getPineconeIndex, pineconeConfig } from '../config/pinecone';
 import { RAG } from '@intellicampus/shared';
 
 export interface RetrievedChunk {
   id: string;
   text: string;
   score: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 class Retriever {
@@ -22,15 +22,15 @@ class Retriever {
     topK: number = RAG.TOP_K_RESULTS
   ): Promise<RetrievedChunk[]> {
     // Generate query embedding
-    const queryEmbedding = await embedder.embed(query);
+    const queryEmbedding = await generateEmbedding(query);
 
     // Build filter
-    const filter: Record<string, any> = {};
+    const filter: Record<string, unknown> = {};
     if (filters?.topicId) filter.topicId = { $eq: filters.topicId };
     if (filters?.courseId) filter.courseId = { $eq: filters.courseId };
 
     // Query Pinecone
-    const index = getIndex();
+    const index = getPineconeIndex();
     const results = await index.namespace(pineconeConfig.namespace).query({
       vector: queryEmbedding,
       topK,
@@ -84,3 +84,14 @@ class Retriever {
 }
 
 export const retriever = new Retriever();
+
+/**
+ * Retrieve the top 5 most relevant text chunks for a user query.
+ *
+ * Core RAG entry point used by AI Tutor, quiz generation, and other pipelines.
+ */
+export async function retrieveRelevantChunks(
+  query: string
+): Promise<Array<{ text: string; score: number; metadata: Record<string, unknown> }>> {
+  return retriever.retrieve(query, undefined, 5);
+}

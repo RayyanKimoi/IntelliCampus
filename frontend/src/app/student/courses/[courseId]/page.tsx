@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { curriculumService, Course, Subject, Topic } from '@/services/curriculumService';
+import { curriculumService, Course, Subject, Topic, Chapter, ChapterContentItem } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
 import { aiService } from '@/services/aiService';
 import { assessmentService, Assignment } from '@/services/assessmentService';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
   FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2,
-  ClipboardList, Calendar, Clock,
+  ClipboardList, Calendar, Clock, PlayCircle, ExternalLink,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
 
@@ -29,6 +29,8 @@ import { FaBook } from 'react-icons/fa';
 interface SubjectWithTopics extends Subject {
   topics: Topic[];
 }
+
+type ChapterWithContent = Chapter;
 
 type CourseTab = 'teacher' | 'adaptive' | 'assignments';
 
@@ -459,6 +461,107 @@ function AdaptiveResources({
 // Page
 // ────────────────────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Sub-component: Chapters view (teacher-uploaded PDFs / videos)
+// ────────────────────────────────────────────────────────────────────────────────
+
+function ChaptersView({ chapters, courseId }: { chapters: ChapterWithContent[]; courseId: string }) {
+  const router = useRouter();
+  const [expandedChapter, setExpandedChapter] = useState<string | null>(
+    chapters[0]?.id ?? null
+  );
+
+  if (chapters.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
+        <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
+        <h3 className="font-semibold">No content uploaded yet</h3>
+        <p className="text-sm text-muted-foreground mt-1">Your teacher will upload PDFs and videos here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {chapters.map((chapter) => (
+        <div key={chapter.id} className="rounded-xl border border-border bg-card overflow-hidden">
+          <button
+            onClick={() => setExpandedChapter(expandedChapter === chapter.id ? null : chapter.id)}
+            className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold shrink-0">
+                {chapter.orderIndex + 1}
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-sm">{chapter.name}</p>
+                {chapter.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{chapter.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Badge variant="outline" className="text-xs">
+                {chapter.content.length} {chapter.content.length === 1 ? 'item' : 'items'}
+              </Badge>
+              <ChevronRight
+                className={cn('h-4 w-4 text-muted-foreground transition-transform', {
+                  'rotate-90': expandedChapter === chapter.id,
+                })}
+              />
+            </div>
+          </button>
+
+          {expandedChapter === chapter.id && (
+            <div className="border-t border-border px-5 py-3 space-y-2">
+              {chapter.content.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-3 text-center">No materials uploaded for this chapter yet.</p>
+              ) : (
+                chapter.content.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors group cursor-pointer"
+                  >
+                    <div className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
+                      item.type === 'youtube' ? 'bg-red-50 dark:bg-red-950' : 'bg-blue-50 dark:bg-blue-950'
+                    )}>
+                      {item.type === 'youtube'
+                        ? <PlayCircle className="h-5 w-5 text-red-500" />
+                        : <FileText className="h-5 w-5 text-blue-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.title}</p>
+                      {item.description && (
+                        <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                      )}
+                    </div>
+                    <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                ))
+              )}
+              <div className="pt-1 pb-0.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs"
+                  onClick={() => router.push(`/student/ai-tutor?chapterId=${chapter.id}&courseId=${courseId}`)}
+                >
+                  <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                  Ask AI Tutor about this chapter
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CourseDetailPage() {
   const params = useParams();
   const courseId = params.courseId as string;
@@ -466,6 +569,7 @@ export default function CourseDetailPage() {
   const store = useCourseStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [subjects, setSubjects] = useState<SubjectWithTopics[]>([]);
+  const [chapters, setChapters] = useState<ChapterWithContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<CourseTab>('teacher');
 
@@ -476,9 +580,10 @@ export default function CourseDetailPage() {
     async function load() {
       setLoading(true);
       try {
-        const [courseRes, subjectsRes] = await Promise.all([
+        const [courseRes, subjectsRes, chaptersRes] = await Promise.all([
           curriculumService.getCourse(courseId) as Promise<any>,
           curriculumService.getSubjects(courseId) as Promise<any>,
+          curriculumService.getChapters(courseId) as Promise<any>,
         ]);
 
         const courseData: Course = courseRes?.data ?? courseRes;
@@ -490,6 +595,12 @@ export default function CourseDetailPage() {
 
         if (cancelled) return;
         if (courseData) setCourse(courseData);
+
+        // Load chapters (teacher-uploaded content)
+        const chaptersData: ChapterWithContent[] = Array.isArray(chaptersRes?.chapters)
+          ? chaptersRes.chapters
+          : [];
+        if (!cancelled) setChapters(chaptersData);
 
         if (subjectsData.length > 0) {
           store.setSubjects(courseId, subjectsData);
@@ -569,11 +680,13 @@ export default function CourseDetailPage() {
             <p className="mt-1 text-muted-foreground max-w-3xl">{course.description}</p>
           )}
           <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-            <span><Layers className="inline h-3.5 w-3.5 mr-1" />{subjects.length} chapters</span>
-            <span>
-              <FaBook className="inline h-3.5 w-3.5 mr-1" />
-              {subjects.reduce((acc, s) => acc + s.topics.length, 0)} topics
-            </span>
+            <span><Layers className="inline h-3.5 w-3.5 mr-1" />{chapters.length > 0 ? chapters.length : subjects.length} chapters</span>
+            {subjects.length > 0 && (
+              <span>
+                <FaBook className="inline h-3.5 w-3.5 mr-1" />
+                {subjects.reduce((acc, s) => acc + s.topics.length, 0)} topics
+              </span>
+            )}
           </div>
         </div>
 
@@ -603,14 +716,26 @@ export default function CourseDetailPage() {
         {/* Content */}
         {tab === 'assignments' ? (
           <AssignmentsTab courseId={courseId} />
+        ) : tab === 'teacher' ? (
+          // Show chapters view when chapters exist (course uses Chapter model),
+          // fall back to legacy Subject→Topic view if only subjects are present
+          chapters.length > 0 ? (
+            <ChaptersView chapters={chapters} courseId={courseId} />
+          ) : subjects.length > 0 ? (
+            <TeacherResources subjects={subjects} courseId={courseId} />
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
+              <AlertTriangle className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <h3 className="font-semibold">No curriculum content available yet.</h3>
+              <p className="text-sm text-muted-foreground mt-1">Check back later or contact your instructor.</p>
+            </div>
+          )
         ) : subjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
             <AlertTriangle className="h-10 w-10 text-muted-foreground/40 mb-3" />
             <h3 className="font-semibold">No curriculum content available yet.</h3>
             <p className="text-sm text-muted-foreground mt-1">Check back later or contact your instructor.</p>
           </div>
-        ) : tab === 'teacher' ? (
-          <TeacherResources subjects={subjects} courseId={courseId} />
         ) : (
           <AdaptiveResources subjects={subjects} courseId={courseId} />
         )}

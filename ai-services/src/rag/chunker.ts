@@ -9,7 +9,7 @@ export interface TextChunk {
   };
 }
 
-class Chunker {
+export class Chunker {
   private chunkSize: number;
   private chunkOverlap: number;
 

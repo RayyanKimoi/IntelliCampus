@@ -15,13 +15,14 @@ export async function GET(
     requireRole(user, [UserRole.STUDENT]);
     const { courseId } = await params;
 
-    // Verify the student is enrolled in this course
-    const enrollment = await prisma.courseEnrollment.findFirst({
-      where: { studentId: user.userId, courseId },
+    // Verify the course exists and belongs to the student's institution
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, institutionId: user.institutionId },
+      select: { id: true },
     });
 
-    if (!enrollment) {
-      return NextResponse.json({ success: false, error: 'You are not enrolled in this course' }, { status: 403 });
+    if (!course) {
+      return NextResponse.json({ success: false, error: 'Course not found' }, { status: 404 });
     }
 
     const assignments: any = await (prisma.assignment.findMany as any)({

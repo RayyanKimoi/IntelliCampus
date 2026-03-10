@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { join } from 'path';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
 import { prisma } from '@/lib/prisma';
@@ -110,6 +111,7 @@ export async function POST(
     // Verify chapter exists
     const chapter = await prisma.chapter.findUnique({
       where: { id: chapterId },
+      select: { id: true, courseId: true, name: true },
     });
 
     if (!chapter) {
@@ -193,6 +195,48 @@ export async function POST(
       createdAt: content.createdAt.toISOString(),
       uploader: content.uploader,
     };
+
+    // Fire-and-forget RAG ingestion — ai-services handles pdf-parse to avoid Next.js webpack issues
+    if (content.fileType === 'application/pdf' && content.fileUrl) {
+      (async () => {
+        try {
+          const absoluteFilePath = join(process.cwd(), 'public', content.fileUrl!);
+          const aiServiceUrl = process.env.AI_SERVICE_URL ?? 'http://localhost:5000';
+
+          const ingestRes = await fetch(`${aiServiceUrl}/ingest-file`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filePath: absoluteFilePath,
+              courseId: chapter.courseId,
+              chapterId,
+              chapterTitle: chapter.name,
+            }),
+          });
+
+          const ingestData = await ingestRes.json();
+
+          if (ingestRes.ok && ingestData?.data?.chunkCount) {
+            // Track ingestion in CurriculumContent
+            const curriculumEntry = await prisma.curriculumContent.create({
+              data: {
+                chapterId,
+                uploadedBy: user.userId,
+                title: body.title,
+                contentText: '',
+                fileUrl: content.fileUrl,
+                embeddingId: `${chapterId}_${content.id}`,
+              },
+            });
+            console.log(`[RAG Ingestion] Ingested ${ingestData.data.chunkCount} chunks for content ${curriculumEntry.id}`);
+          } else {
+            console.error('[RAG Ingestion] ingest-file failed:', ingestData?.error);
+          }
+        } catch (err) {
+          console.error('[RAG Ingestion] Failed for chapter content:', err);
+        }
+      })();
+    }
 
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
