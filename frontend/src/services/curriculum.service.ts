@@ -27,7 +27,7 @@ export class CurriculumService {
    * Get courses for institution
    */
   async getCourses(institutionId: string) {
-    return prisma.course.findMany({
+    const courses = await prisma.course.findMany({
       where: { institutionId },
       include: {
         subjects: {
@@ -38,11 +38,17 @@ export class CurriculumService {
           },
         },
         _count: {
-          select: { assignments: true },
+          select: { assignments: true, chapters: true },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Expose chapter count as subjectCount so student UI displays it correctly
+    return courses.map((c) => ({
+      ...c,
+      subjectCount: c._count.chapters,
+    }));
   }
 
   /**

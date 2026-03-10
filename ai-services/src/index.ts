@@ -3,7 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Resolve to frontend/.env (contains all shared credentials)
+dotenv.config({ path: path.resolve(__dirname, '../../frontend/.env') });
 
 const app = express();
 const PORT = process.env.AI_SERVICE_PORT || 5000;
@@ -110,6 +111,96 @@ app.post('/voice/tts', async (req, res) => {
     const { text } = req.body;
     const audioUrl = await textToSpeechService.synthesize(text);
     res.json({ success: true, data: { audioUrl } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Curriculum ingestion from a file path — avoids PDF parsing issues in Next.js webpack
+app.post('/ingest-file', async (req, res) => {
+  try {
+    const { ingestCurriculum } = await import('./pipelines/ingestCurriculum');
+    const { PDFParse } = require('pdf-parse');
+    const fs = require('fs');
+
+    const { filePath, courseId, chapterId, chapterTitle } = req.body;
+
+    if (!filePath || !courseId) {
+      res.status(400).json({ success: false, error: 'filePath and courseId are required' });
+      return;
+    }
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, error: `File not found: ${filePath}` });
+      return;
+    }
+
+    const buffer = fs.readFileSync(filePath);
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    const pdfResult = await parser.getText();
+    const rawText: string = pdfResult.text?.trim() ?? '';
+
+    if (!rawText) {
+      res.status(422).json({ success: false, error: 'Could not extract text from PDF' });
+      return;
+    }
+
+    const chunkCount = await ingestCurriculum({
+      courseId,
+      topicId: chapterId ?? 'unknown',
+      chapterTitle: chapterTitle ?? 'Untitled Chapter',
+      rawText,
+    });
+
+    res.json({ success: true, data: { chunkCount, textLength: rawText.length } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Curriculum ingestion — called after a teacher uploads a PDF
+app.post('/ingest', async (req, res) => {
+  try {
+    const { ingestCurriculum } = await import('./pipelines/ingestCurriculum');
+
+    const { courseId, topicId, chapterId, chapterTitle, rawText } = req.body;
+
+    if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
+      res.status(400).json({ success: false, error: 'rawText is required' });
+      return;
+    }
+    if (!courseId) {
+      res.status(400).json({ success: false, error: 'courseId is required' });
+      return;
+    }
+
+    const chunkCount = await ingestCurriculum({
+      courseId,
+      topicId: topicId ?? chapterId ?? 'unknown',
+      chapterTitle: chapterTitle ?? 'Untitled Chapter',
+      rawText: rawText.trim(),
+    });
+
+    res.json({ success: true, data: { chunkCount } });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI Tutor (RAG + Groq + semantic cache)
+app.post('/tutor', async (req, res) => {
+  try {
+    const { askTutor } = await import('./pipelines/aiTutor');
+
+    const { question, courseId } = req.body;
+
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      res.status(400).json({ success: false, error: 'question is required' });
+      return;
+    }
+
+    const result = await askTutor({ question: question.trim(), courseId });
+    res.json({ success: true, data: result });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

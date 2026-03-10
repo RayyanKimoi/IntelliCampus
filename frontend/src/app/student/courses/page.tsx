@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { curriculumService, Course, Subject } from '@/services/curriculumService';
+import { curriculumService, Course } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
 import { useCourseStore } from '@/store/courseStore';
 import { Progress } from '@/components/ui/progress';
@@ -122,7 +122,7 @@ function CourseSkeleton() {
 }
 
 export default function StudentCoursesPage() {
-  const { courses, subjectsByCourse, masteryByCourse, setCourses, setSubjects, setCourseMastery, coursesLoaded } =
+  const { courses, masteryByCourse, setCourses, setCourseMastery, coursesLoaded } =
     useCourseStore();
   const [loading, setLoading] = useState(!coursesLoaded);
 
@@ -141,26 +141,17 @@ export default function StudentCoursesPage() {
         const coursesToUse: Course[] = rawCourses.length > 0 ? rawCourses : (MOCK_COURSES as unknown as Course[]);
         setCourses(coursesToUse);
         if (rawCourses.length === 0) {
-          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
           if (!cancelled) setLoading(false);
           return;
         }
 
+        // Fetch mastery for each course in parallel (skip subjects — subjectCount comes from the API)
         await Promise.allSettled(
           coursesToUse.map(async (course) => {
             try {
-              const [subjectsRes, masteryRes] = await Promise.allSettled([
-                curriculumService.getSubjects(course.id) as Promise<any>,
-                masteryService.getCourseMastery(course.id) as Promise<any>,
-              ]);
-              if (subjectsRes.status === 'fulfilled') {
-                const subs: Subject[] = subjectsRes.value?.data ?? subjectsRes.value ?? [];
-                if (Array.isArray(subs) && !cancelled) setSubjects(course.id, subs);
-              }
-              if (masteryRes.status === 'fulfilled') {
-                const m = masteryRes.value?.data ?? masteryRes.value;
-                if (m && !cancelled) setCourseMastery(course.id, m);
-              }
+              const masteryRes = await masteryService.getCourseMastery(course.id) as any;
+              const m = masteryRes?.data ?? masteryRes;
+              if (m && !cancelled) setCourseMastery(course.id, m);
             } catch {}
           })
         );
@@ -168,7 +159,6 @@ export default function StudentCoursesPage() {
         console.error('[CoursesPage] failed to load courses', e);
         if (!cancelled) {
           setCourses(MOCK_COURSES as any);
-          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -177,11 +167,11 @@ export default function StudentCoursesPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [coursesLoaded, setCourses, setSubjects, setCourseMastery]);
+  }, [coursesLoaded, setCourses, setCourseMastery]);
 
   const coursesWithMeta: CourseWithMeta[] = courses.map((c) => ({
     ...c,
-    subjectCount: (c as any).subjectCount ?? (subjectsByCourse[c.id] ?? []).length,
+    subjectCount: (c as any).subjectCount ?? 0,
     mastery: Math.round((c as any).mastery ?? masteryByCourse[c.id]?.overallMastery ?? 0),
   }));
 

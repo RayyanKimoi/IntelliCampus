@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ChatWindow } from '@/components/ai/ChatWindow';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 import { useCourseStore } from '@/store/courseStore';
-import { curriculumService, Course, Subject } from '@/services/curriculumService';
-import { masteryService } from '@/services/masteryService';
+import { curriculumService, Course } from '@/services/curriculumService';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -184,17 +183,17 @@ interface ChatState {
 
 function AiTutorContent() {
   const searchParams = useSearchParams();
+  const paramChapterId = searchParams.get('chapterId');
   const paramTopicId = searchParams.get('topicId');
   const paramCourseId = searchParams.get('courseId');
 
-  const { courses, subjectsByCourse, topicsBySubject, masteryByCourse, setCourses, setSubjects, setTopics, coursesLoaded } =
-    useCourseStore();
+  const { courses, masteryByCourse, setCourses, coursesLoaded } = useCourseStore();
 
   const [topicOptions, setTopicOptions] = useState<TopicOption[]>([]);
   const [chatState, setChatState] = useState<ChatState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ── Load courses + topics if not cached ──
+  // ── Load courses + chapters from DB ──
   useEffect(() => {
     let cancelled = false;
 
@@ -213,57 +212,46 @@ function AiTutorContent() {
 
         await Promise.allSettled(
           courseList.map(async (course: Course) => {
-            let subjectList = subjectsByCourse[course.id];
-            if (!subjectList) {
-              const sRes = await curriculumService.getSubjects(course.id) as any;
-              subjectList = sRes?.data ?? sRes ?? [];
-              if (!cancelled && Array.isArray(subjectList)) setSubjects(course.id, subjectList);
-            }
-
-            for (const subject of (subjectList || [])) {
-              let topicList = topicsBySubject[subject.id];
-              if (!topicList) {
-                const tRes = await curriculumService.getTopics(subject.id) as any;
-                topicList = tRes?.data ?? tRes ?? [];
-                if (!cancelled && Array.isArray(topicList)) setTopics(subject.id, topicList);
-              }
-
-              for (const topic of (topicList || [])) {
+            try {
+              const chRes = await curriculumService.getChapters(course.id) as any;
+              const chapters = Array.isArray(chRes?.chapters) ? chRes.chapters : [];
+              for (const ch of chapters) {
                 options.push({
-                  topicId: topic.id,
-                  topicName: topic.name,
+                  topicId: ch.id,
+                  topicName: ch.name,
                   courseId: course.id,
                   courseName: course.name,
-                  subjectName: subject.name,
+                  subjectName: course.name,
                 });
               }
+            } catch {
+              // skip courses that fail to load chapters
             }
           })
         );
 
         if (!cancelled) {
+          // Only fall back to mocks if there are truly no real chapters
           const finalOptions = options.length > 0 ? options : MOCK_TOPICS;
           setTopicOptions(finalOptions);
 
-          // Auto-select from URL params or first topic
-          if (paramTopicId && paramCourseId) {
-            const match = finalOptions.find((o) => o.topicId === paramTopicId);
+          // Auto-select: prefer chapterId param, then topicId param, then courseId, then first
+          const effectiveId = paramChapterId ?? paramTopicId;
+          if (effectiveId) {
+            const match = finalOptions.find((o) => o.topicId === effectiveId);
             if (match) {
-              setChatState({
-                topicId: match.topicId,
-                courseId: match.courseId,
-                topicName: match.topicName,
-                selectedKey: match.topicId,
-              });
+              setChatState({ topicId: match.topicId, courseId: match.courseId, topicName: match.topicName, selectedKey: match.topicId });
+            } else if (finalOptions.length > 0) {
+              const first = finalOptions[0];
+              setChatState({ topicId: first.topicId, courseId: first.courseId, topicName: first.topicName, selectedKey: first.topicId });
             }
+          } else if (paramCourseId) {
+            const match = finalOptions.find((o) => o.courseId === paramCourseId);
+            const sel = match ?? finalOptions[0];
+            if (sel) setChatState({ topicId: sel.topicId, courseId: sel.courseId, topicName: sel.topicName, selectedKey: sel.topicId });
           } else if (finalOptions.length > 0) {
             const first = finalOptions[0];
-            setChatState({
-              topicId: first.topicId,
-              courseId: first.courseId,
-              topicName: first.topicName,
-              selectedKey: first.topicId,
-            });
+            setChatState({ topicId: first.topicId, courseId: first.courseId, topicName: first.topicName, selectedKey: first.topicId });
           }
         }
       } catch (e) {

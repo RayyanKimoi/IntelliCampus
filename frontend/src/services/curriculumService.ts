@@ -28,6 +28,27 @@ export interface Topic {
   orderIndex: number;
 }
 
+export interface ChapterContentItem {
+  id: string;
+  title: string;
+  description: string;
+  type: 'pdf' | 'youtube';
+  fileUrl: string;
+  youtubeId?: string;
+  thumbnailUrl?: string;
+  fileSize?: number | null;
+  orderIndex: number;
+  createdAt: string;
+}
+
+export interface Chapter {
+  id: string;
+  name: string;
+  description: string;
+  orderIndex: number;
+  content: ChapterContentItem[];
+}
+
 export const curriculumService = {
   getCourses: () => api.get<Course[]>('/student/courses'),
 
@@ -36,4 +57,7 @@ export const curriculumService = {
   getSubjects: (courseId: string) => api.get<Subject[]>(`/student/courses/${courseId}/subjects`),
 
   getTopics: (subjectId: string) => api.get<Topic[]>(`/student/subjects/${subjectId}/topics`),
+
+  getChapters: (courseId: string) =>
+    api.get<{ courseName: string; chapters: Chapter[] }>(`/student/courses/${courseId}/chapters`),
 };
