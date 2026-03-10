@@ -54,11 +54,7 @@ export async function GET(
             },
           },
         },
-        studentAnswers: {
-          include: {
-            question: true,
-          },
-        },
+        answers: true,
       },
       orderBy: {
         submittedAt: 'desc',

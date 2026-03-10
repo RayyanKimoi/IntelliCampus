@@ -257,6 +257,80 @@ export class CurriculumService {
       orderBy: { orderIndex: 'asc' },
     });
   }
+
+  /**
+   * Get enrolled courses with mastery for a student (OPTIMIZED)
+   * Returns all data in a single query to avoid N+1 problem
+   */
+  async getStudentCoursesWithMastery(studentId: string, institutionId: string) {
+    // Get all courses the student is enrolled in
+    const enrollments = await prisma.courseEnrollment.findMany({
+      where: { studentId },
+      include: {
+        course: {
+          where: { institutionId },
+          include: {
+            _count: {
+              select: { chapters: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Get all mastery records for this student in one query
+    const masteryRecords = await prisma.masteryGraph.findMany({
+      where: {
+        userId: studentId,
+        topic: {
+          subject: {
+            courseId: {
+              in: enrollments.map(e => e.course.id),
+            },
+          },
+        },
+      },
+      include: {
+        topic: {
+          select: {
+            subject: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Group mastery by course
+    const masteryByCourse = masteryRecords.reduce((acc, record) => {
+      const courseId = record.topic.subject.courseId;
+      if (!acc[courseId]) {
+        acc[courseId] = [];
+      }
+      acc[courseId].push(record.masteryScore);
+      return acc;
+    }, {} as Record<string, number[]>);
+
+    // Build response with all data
+    return enrollments.map(enrollment => {
+      const course = enrollment.course;
+      const masteryScores = masteryByCourse[course.id] || [];
+      const overallMastery = masteryScores.length > 0
+        ? Math.round(masteryScores.reduce((sum, score) => sum + score, 0) / masteryScores.length)
+        : 0;
+
+      return {
+        id: course.id,
+        name: course.name,
+        description: course.description,
+        subjectCount: course._count.chapters,
+        mastery: overallMastery,
+        enrolledAt: enrollment.enrolledAt,
+      };
+    });
+  }
 }
 
 export const curriculumService = new CurriculumService();

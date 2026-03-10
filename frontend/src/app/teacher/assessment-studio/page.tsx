@@ -172,99 +172,99 @@ export default function AssessmentStudioPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Title</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Course</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Chapter</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Due Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Questions</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-card">
-                {filtered.map(assessment => {
-                  const isQuiz = assessment.type === 'quiz';
-                  return (
-                    <tr key={assessment.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-1.5 rounded-lg ${isQuiz ? 'bg-primary/10 text-primary' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400'}`}>
-                            {isQuiz ? <ClipboardList className="h-4 w-4" /> : <FaBook className="h-4 w-4" />}
-                          </div>
-                          <span className={`text-xs font-medium ${isQuiz ? 'text-primary' : 'text-violet-600 dark:text-violet-400'}`}>
-                            {isQuiz ? 'Quiz' : 'Assignment'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-sm text-foreground">{assessment.title}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                          {assessment.course?.name || '—'}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map(assessment => {
+              const isQuiz = assessment.type === 'quiz';
+              return (
+                <div
+                  key={assessment.id}
+                  className="group relative flex flex-col rounded-2xl border border-border/60 bg-card shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Top accent bar */}
+                  <div className={`h-1 w-full ${isQuiz ? 'bg-gradient-to-r from-primary to-sky-400' : 'bg-gradient-to-r from-violet-500 to-purple-400'}`} />
+
+                  <div className="flex flex-col flex-1 p-5 gap-4">
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Icon */}
+                      <div className={`p-2.5 rounded-xl ring-1 shrink-0 ${isQuiz ? 'bg-primary/10 text-primary ring-primary/20' : 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20'}`}>
+                        {isQuiz ? <ClipboardList className="h-5 w-5" /> : <FaBook className="h-5 w-5" />}
+                      </div>
+                      {/* Status badge */}
+                      {assessment.isPublished ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border border-green-200 dark:border-green-800">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                          Published
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                          {assessment.chapter?.name || '—'}
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
+                          Draft
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(assessment.dueDate).toLocaleDateString()}
+                      )}
+                    </div>
+
+                    {/* Title + Type */}
+                    <div>
+                      <div className={`text-[11px] font-bold uppercase tracking-widest mb-1 ${isQuiz ? 'text-primary' : 'text-violet-600 dark:text-violet-400'}`}>
+                        {isQuiz ? 'Quiz' : 'Assignment'}
+                      </div>
+                      <h3 className="font-semibold text-[15px] leading-snug text-foreground group-hover:text-primary transition-colors duration-200 line-clamp-2">
+                        {assessment.title}
+                      </h3>
+                    </div>
+
+                    {/* Meta info */}
+                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                      {assessment.course && (
+                        <span className="flex items-center gap-1.5">
+                          <FaBook className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{assessment.course.name}</span>
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-muted-foreground">
-                          {assessment._count ? assessment._count.questions : '—'}
+                      )}
+                      {assessment.chapter && (
+                        <span className="flex items-center gap-1.5">
+                          <ClipboardList className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{assessment.chapter.name}</span>
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {assessment.isPublished ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                            Published
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                            Draft
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {!assessment.isPublished && (
-                            <Button size="sm" variant="outline"
-                              className="h-7 text-xs px-2.5"
-                              onClick={() => handlePublish(assessment.id)}
-                              disabled={publishing === assessment.id}>
-                              <Globe className="h-3 w-3 mr-1" />
-                              {publishing === assessment.id ? 'Publishing…' : 'Publish'}
-                            </Button>
-                          )}
+                      )}
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        Due {new Date(assessment.dueDate).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {/* Footer: questions count + actions */}
+                    <div className="mt-auto pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {assessment._count ? `${assessment._count.questions} question${assessment._count.questions !== 1 ? 's' : ''}` : '—'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {!assessment.isPublished && (
                           <Button size="sm" variant="outline"
                             className="h-7 text-xs px-2.5"
-                            onClick={() => router.push(`/teacher/assessment-studio/${assessment.id}`)}>
-                            Edit
+                            onClick={() => handlePublish(assessment.id)}
+                            disabled={publishing === assessment.id}>
+                            <Globe className="h-3 w-3 mr-1" />
+                            {publishing === assessment.id ? 'Publishing…' : 'Publish'}
                           </Button>
-                          <Button size="sm" variant="ghost"
-                            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDelete(assessment.id)}
-                            disabled={deleting === assessment.id}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        )}
+                        <Button size="sm" variant="outline"
+                          className="h-7 text-xs px-2.5"
+                          onClick={() => router.push(`/teacher/assessment-studio/${assessment.id}`)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(assessment.id)}
+                          disabled={deleting === assessment.id}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
