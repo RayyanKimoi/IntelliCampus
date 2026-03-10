@@ -17,13 +17,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { teacherService } from '@/services/teacherService';
 import { chapterCurriculumService } from '@/services/chapterCurriculumService';
 
-// ─── Mock quiz data ────────────────────────────────────────────────────────
-const MOCK_QUIZZES = [
-  { id: 'q1', title: 'Quiz 1 — Fundamentals',           questions: 20, avgScore: 78 },
-  { id: 'q2', title: 'Quiz 2 — Data Structures',        questions: 15, avgScore: 65 },
-  { id: 'q3', title: 'Quiz 3 — Algorithms & Complexity', questions: 25, avgScore: 82 },
-];
-
 // ─── Skeleton Components ─────────────────────────────────────────────
 function PageHeaderSkeleton() {
   return (
@@ -97,12 +90,17 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
         })
       );
       
-      setAssignments(assignmentsWithStats);
-      setQuizzes(MOCK_QUIZZES); // TODO: Replace with real quizzes when backend supports them
+      // Separate assignments and quizzes based on type field
+      const actualAssignments = assignmentsWithStats.filter((a: any) => a.type === 'assignment');
+      const actualQuizzes = assignmentsWithStats.filter((a: any) => a.type === 'quiz');
+      
+      setAssignments(actualAssignments);
+      setQuizzes(actualQuizzes);
     } catch (err) {
       console.error('Error loading subject evaluation data', err);
       setCourseName('Unknown Subject');
       setAssignments([]);
+      setQuizzes([]);
     } finally {
       setLoading(false);
     }
@@ -308,7 +306,7 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
                     >
                       <Card
                         className="group relative overflow-hidden cursor-pointer border border-border/60 dark:border-white/[0.06] bg-card shadow-sm hover:shadow-md hover:border-primary/30 dark:hover:border-primary/20 transition-all duration-250 rounded-2xl"
-                        onClick={() => router.push(`/teacher/results/${subjectId}/quiz/${quiz.id}`)}
+                        onClick={() => router.push(`/teacher/results/${subjectId}/assignment/${quiz.id}`)}
                       >
                         {/* Left accent bar */}
                         <div className="absolute inset-y-0 left-0 w-[3px] bg-primary/0 group-hover:bg-primary transition-colors duration-300 rounded-l-2xl" />
@@ -317,16 +315,42 @@ export default function SubjectEvaluationPage({ params }: { params: Promise<{ su
                             <div className="p-2.5 bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-lg group-hover:scale-105 transition-transform duration-200">
                               <PlayCircle className="w-[18px] h-[18px]" />
                             </div>
-                            <div>
-                              <p className="font-semibold text-[15px] text-foreground group-hover:text-primary dark:group-hover:text-blue-400 transition-colors leading-tight">{quiz.title}</p>
-                              <p className="text-[12px] text-muted-foreground mt-0.5">{quiz.questions} questions · Avg {quiz.avgScore}%</p>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-[15px] text-foreground group-hover:text-primary dark:group-hover:text-blue-400 transition-colors duration-200 leading-tight">
+                                {quiz.title}
+                              </span>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-xs text-muted-foreground">
+                                  {quiz._count?.questions || 0} question{(quiz._count?.questions || 0) !== 1 ? 's' : ''}
+                                </span>
+                                {quiz.totalSubmissions > 0 && (
+                                  <>
+                                    <span className="text-xs text-muted-foreground">•</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {quiz.totalSubmissions} submission{quiz.totalSubmissions !== 1 ? 's' : ''}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="px-2.5 py-1 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 text-[11px] font-bold tracking-wide uppercase rounded-full border border-violet-200/70 dark:border-violet-500/20">
-                              Auto-graded
-                            </span>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            {quiz.pendingCount === 0 && quiz.totalSubmissions > 0 ? (
+                              <span className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold tracking-wide uppercase rounded-full border border-emerald-200/70 dark:border-emerald-500/20">
+                                Graded
+                              </span>
+                            ) : quiz.pendingCount > 0 ? (
+                              <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-bold tracking-wide uppercase rounded-full border border-amber-200/70 dark:border-amber-500/20">
+                                {quiz.pendingCount} Ungraded
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 text-[11px] font-bold tracking-wide uppercase rounded-full border border-violet-200/70 dark:border-violet-500/20">
+                                No Submissions
+                              </span>
+                            )}
+                            <div className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden sm:block">
+                              <ChevronRight className="w-4 h-4" />
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
