@@ -312,7 +312,6 @@ export function StudentReviewSheet({ submission, onClose, onSaved, isQuiz = fals
             </Button>
           )}
         </div>
-        </div>
 
       </SheetContent>
     </Sheet>
