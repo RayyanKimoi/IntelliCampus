@@ -41,9 +41,11 @@ export async function POST(
 
     // Calculate score for MCQ attempts
     let score = attempt.score;
+    let isAutoGraded = false;
     if (attempt.studentAnswers.length > 0) {
       const correct = attempt.studentAnswers.filter((a: any) => a.isCorrect).length;
       score = (correct / attempt.studentAnswers.length) * 100;
+      isAutoGraded = true; // Quiz with MCQ answers is auto-graded
     }
 
     // Build answers payload for open-ended submissions
@@ -58,13 +60,16 @@ export async function POST(
       };
     }
 
+    const submissionTime = new Date();
     const updated: any = await (prisma.studentAttempt.update as any)({
       where: { id: attemptId },
       data: {
-        submittedAt: new Date(),
+        submittedAt: submissionTime,
         score,
         ...(answersJson !== undefined && { answers: answersJson }),
         ...(submissionFileUrl && { submissionFileUrl }),
+        // Auto-grade quizzes/MCQ attempts immediately upon submission
+        ...(isAutoGraded && { gradedAt: submissionTime }),
       },
     });
 
