@@ -14,7 +14,7 @@ Before starting tests, ensure:
   - `RAPIDAPI_KEY`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - ✅ Frontend dev server running: `cd frontend && pnpm dev`
-- ✅ Browser console open for debugging
+- ✅ Browser console open for debuggin
 
 ---
 
