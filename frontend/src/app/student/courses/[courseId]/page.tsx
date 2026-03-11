@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -19,6 +19,7 @@ import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
   FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2,
   ClipboardList, Calendar, Clock, PlayCircle, ExternalLink, Download,
+  Sparkles, BookOpen, Brain, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
 
@@ -33,6 +34,146 @@ interface SubjectWithTopics extends Subject {
 type ChapterWithContent = Chapter;
 
 type CourseTab = 'teacher' | 'adaptive' | 'assignments';
+
+interface ConceptSummary {
+  concept: string;
+  summary: string;
+  keyPoints: string[];
+  example: string;
+  mindmap: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// MindmapDiagram — client-side Mermaid renderer
+// ────────────────────────────────────────────────────────────────────────────────
+
+function MindmapDiagram({ chart, id }: { chart: string; id: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!containerRef.current || !chart) return;
+    let cancelled = false;
+
+    import('mermaid').then((mod) => {
+      if (cancelled) return;
+      const mermaid = mod.default;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'neutral',
+        flowchart: { curve: 'basis', useMaxWidth: true },
+        securityLevel: 'loose',
+      });
+      const safeId = `mermaid-${id.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      mermaid
+        .render(safeId, chart)
+        .then(({ svg }) => {
+          if (!cancelled && containerRef.current) {
+            containerRef.current.innerHTML = svg;
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        });
+    });
+
+    return () => { cancelled = true; };
+  }, [chart, id]);
+
+  if (error) {
+    return (
+      <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted/40 rounded-lg p-3 overflow-auto">
+        {chart}
+      </pre>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full overflow-auto rounded-lg bg-white dark:bg-slate-900 p-3 min-h-[80px] flex items-center justify-center"
+    />
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// ConceptSummaryCard — rich adaptive concept card
+// ────────────────────────────────────────────────────────────────────────────────
+
+function ConceptSummaryCard({ item, index }: { item: ConceptSummary; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/40 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 text-sm font-bold">
+            {index + 1}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-card-foreground truncate">{item.concept}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.summary}</p>
+          </div>
+        </div>
+        <div className="shrink-0 ml-3">
+          {expanded
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div className="border-t border-border px-5 py-5 space-y-5">
+          {/* Summary */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Summary</p>
+            <p className="text-sm text-card-foreground leading-relaxed">{item.summary}</p>
+          </div>
+
+          {/* Key Points */}
+          {item.keyPoints.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Key Points</p>
+              <ul className="space-y-1.5">
+                {item.keyPoints.map((point, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-card-foreground">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-green-500" />
+                    <span className="leading-relaxed">{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Example */}
+          {item.example && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Example</p>
+              <div className="rounded-lg bg-muted/50 border border-border px-4 py-3 text-sm text-card-foreground leading-relaxed font-mono whitespace-pre-wrap">
+                {item.example}
+              </div>
+            </div>
+          )}
+
+          {/* Mindmap */}
+          {item.mindmap && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Mind Map</p>
+              <div className="rounded-lg border border-border overflow-hidden bg-white dark:bg-slate-900">
+                <MindmapDiagram chart={item.mindmap} id={`${item.concept}-${index}`} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Sub-components: Assignments
@@ -391,6 +532,14 @@ function AdaptiveResources({
   const [weakTopics, setWeakTopics] = useState<(Topic & { subjectName?: string; masteryScore: number })[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // AI Adaptive Summaries state
+  const [weakConcepts, setWeakConcepts] = useState<{ name: string; masteryScore: number }[]>([]);
+  const [summaries, setSummaries] = useState<ConceptSummary[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+
+  // ── Fetch mastery-based weak topics ──────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -399,7 +548,6 @@ function AdaptiveResources({
         const res = await masteryService.getWeakTopics() as any;
         const raw: any[] = res?.data ?? res ?? [];
         if (!cancelled && Array.isArray(raw)) {
-          // enrich with subjectName
           const subjectMap = new Map(subjects.flatMap((s) => s.topics.map((t) => [t.id, s.name])));
           const enriched = raw
             .map((t) => ({ ...t, subjectName: subjectMap.get(t.id) ?? '', masteryScore: t.masteryScore ?? t.mastery ?? 0 }))
@@ -416,6 +564,78 @@ function AdaptiveResources({
     return () => { cancelled = true; };
   }, [subjects]);
 
+  // ── Fetch concept-level weak data from quiz attempts ─────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function loadConcepts() {
+      try {
+        const token = (() => {
+          try {
+            const s = localStorage.getItem('intellicampus-auth');
+            if (s) { const p = JSON.parse(s); if (p.state?.token) return p.state.token as string; }
+          } catch {}
+          return 'dev-token-mock-authentication';
+        })();
+        const res = await fetch('/api/student/practice/weak-concepts', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await res.json();
+        if (!cancelled && payload.success && Array.isArray(payload.data)) {
+          setWeakConcepts(
+            payload.data.map((c: any) => ({
+              name: c.name ?? c.concept ?? c.id,
+              masteryScore: c.masteryScore ?? 0,
+            }))
+          );
+        }
+      } catch {
+        if (!cancelled) setWeakConcepts([]);
+      }
+    }
+    loadConcepts();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Generate AI adaptive summaries ───────────────────────────────────────
+  async function handleGenerate() {
+    const concepts = weakConcepts.length > 0
+      ? weakConcepts.map((c) => c.name)
+      : weakTopics.slice(0, 6).map((t) => t.name);
+
+    if (concepts.length === 0) return;
+
+    setGenerating(true);
+    setGenerateError('');
+
+    try {
+      const token = (() => {
+        try {
+          const s = localStorage.getItem('intellicampus-auth');
+          if (s) { const p = JSON.parse(s); if (p.state?.token) return p.state.token as string; }
+        } catch {}
+        return 'dev-token-mock-authentication';
+      })();
+
+      const res = await fetch('/api/student/adaptive-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ courseId, weakConcepts: concepts }),
+        signal: AbortSignal.timeout(120_000),
+      });
+
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to generate summaries');
+
+      const data: ConceptSummary[] = Array.isArray(payload.data) ? payload.data : [];
+      setSummaries(data);
+      setGenerated(true);
+    } catch (err: any) {
+      setGenerateError(err.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
@@ -431,28 +651,106 @@ function AdaptiveResources({
     );
   }
 
-  if (weakTopics.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-24 text-center">
-        <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-        <h3 className="text-lg font-semibold">All topics strong!</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          You have no weak topics for this course. Keep practising to maintain mastery.
-        </p>
-      </div>
-    );
-  }
+  const hasConcepts = weakConcepts.length > 0 || weakTopics.length > 0;
+  const conceptCount = weakConcepts.length > 0 ? weakConcepts.length : weakTopics.slice(0, 6).length;
 
   return (
-    <div>
-      <p className="text-sm text-muted-foreground mb-5">
-        Showing <strong className="text-foreground">{weakTopics.length}</strong> topics that need attention, ordered by lowest mastery first.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {weakTopics.map((t) => (
-          <WeakTopicCard key={t.id} topic={t} courseId={courseId} />
-        ))}
+    <div className="space-y-8">
+      {/* ── AI Adaptive Summaries Section ─────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+          <div>
+            <h3 className="font-semibold text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 text-violet-500" />
+              AI Concept Summaries &amp; Mind Maps
+            </h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {generated
+                ? `Generated summaries for ${summaries.length} weak concept${summaries.length !== 1 ? 's' : ''}.`
+                : hasConcepts
+                ? `Ready to generate summaries for ${conceptCount} weak concept${conceptCount !== 1 ? 's' : ''} using the RAG pipeline.`
+                : 'No weak concepts detected yet. Complete some quizzes to get personalised summaries.'}
+            </p>
+          </div>
+          {hasConcepts && (
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none shrink-0"
+              style={{
+                background: generating
+                  ? 'hsl(270, 60%, 35%)'
+                  : 'linear-gradient(135deg, hsl(270, 80%, 35%), hsl(270, 70%, 50%))',
+                boxShadow: generating ? 'none' : '0 4px 18px hsl(270 70% 40% / 0.35)',
+              }}
+            >
+              {generating
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Sparkles className="h-4 w-4" />}
+              {generating ? 'Generating…' : generated ? 'Regenerate' : 'Generate AI Summaries'}
+            </button>
+          )}
+        </div>
+
+        {generating && (
+          <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 px-5 py-4 flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-violet-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-violet-700 dark:text-violet-300">Generating adaptive summaries…</p>
+              <p className="text-xs text-violet-600/80 dark:text-violet-400/80 mt-0.5">
+                Retrieving curriculum content from the knowledge base and generating explanations with Groq.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {generateError && !generating && (
+          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">Generation failed</p>
+              <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">{generateError}</p>
+            </div>
+          </div>
+        )}
+
+        {generated && summaries.length > 0 && !generating && (
+          <div className="space-y-3">
+            {summaries.map((item, i) => (
+              <ConceptSummaryCard key={item.concept} item={item} index={i} />
+            ))}
+          </div>
+        )}
+
+        {!hasConcepts && !generating && !generated && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-14 text-center">
+            <CheckCircle2 className="h-10 w-10 text-green-500 mb-3" />
+            <h3 className="font-semibold">No weak concepts detected</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+              Complete quizzes in this course and your personalised summaries will appear here.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* ── Mastery-based weak topic cards ───────────────────────────────────── */}
+      {weakTopics.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-base flex items-center gap-2 mb-4">
+            <BookOpen className="h-4 w-4 text-amber-500" />
+            Topics Needing Attention
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Showing <strong className="text-foreground">{weakTopics.length}</strong> topics ordered by lowest mastery first.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {weakTopics.map((t) => (
+              <WeakTopicCard key={t.id} topic={t} courseId={courseId} />
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -760,7 +1058,6 @@ export default function CourseDetailPage() {
           {([ 
             { id: 'teacher', label: 'Teacher Resources', icon: FaBook },
             { id: 'adaptive', label: 'Adaptive Resources', icon: Lightbulb },
-            { id: 'assignments', label: 'Assignments', icon: ClipboardList },
           ] as { id: CourseTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -779,9 +1076,7 @@ export default function CourseDetailPage() {
         </div>
 
         {/* Content */}
-        {tab === 'assignments' ? (
-          <AssignmentsTab courseId={courseId} />
-        ) : tab === 'teacher' ? (
+        {tab === 'teacher' ? (
           // Show chapters view when chapters exist (course uses Chapter model),
           // fall back to legacy Subject→Topic view if only subjects are present
           chapters.length > 0 ? (
@@ -795,12 +1090,6 @@ export default function CourseDetailPage() {
               <p className="text-sm text-muted-foreground mt-1">Check back later or contact your instructor.</p>
             </div>
           )
-        ) : subjects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
-            <AlertTriangle className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <h3 className="font-semibold">No curriculum content available yet.</h3>
-            <p className="text-sm text-muted-foreground mt-1">Check back later or contact your instructor.</p>
-          </div>
         ) : (
           <AdaptiveResources subjects={subjects} courseId={courseId} />
         )}

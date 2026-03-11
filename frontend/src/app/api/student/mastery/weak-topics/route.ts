@@ -1,29 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
-import { masteryService } from '@/services/mastery.service';
-import { MASTERY } from '@intellicampus/shared';
+import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const WEAK_THRESHOLD = 70;
 
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
     requireRole(user, [UserRole.STUDENT]);
 
-    const records = await masteryService.getStudentMastery(user.userId);
+    const records = await (prisma as any).conceptMastery.findMany({
+      where: {
+        studentId: user.userId,
+        masteryScore: { lt: WEAK_THRESHOLD },
+      },
+      orderBy: { masteryScore: 'asc' },
+    });
 
-    const weakTopics = records
-      .filter((r) => r.masteryScore < MASTERY.WEAK_THRESHOLD)
-      .map((r) => ({
-        topicId: r.topicId,
-        topicName: r.topic.name,
-        subjectName: r.topic.subject.name,
-        courseName: (r.topic.subject as any).course?.name ?? '',
-        masteryLevel: Math.round(r.masteryScore),
-        lastAssessed: (r as any).updatedAt?.toISOString(),
-      }));
+    const weakTopics = records.map((r: any) => ({
+      topicId: r.id,
+      topicName: r.concept,
+      courseName: '',
+      masteryLevel: Math.round(r.masteryScore),
+      attempts: r.totalCount,
+      correct: r.correctCount,
+      lastAssessed: r.updatedAt?.toISOString(),
+    }));
 
     return NextResponse.json({ success: true, data: weakTopics }, { status: 200 });
   } catch (error: any) {

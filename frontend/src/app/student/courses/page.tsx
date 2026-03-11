@@ -67,9 +67,6 @@ function SubjectCard({ course }: { course: CourseWithMeta }) {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <FaBook className="h-5 w-5 text-primary" />
             </div>
-            <Badge variant="outline" className={cn('text-xs font-medium border', label.bg, label.color)}>
-              {label.text}
-            </Badge>
           </div>
           <h3 className="text-base font-semibold text-card-foreground leading-tight mb-1 group-hover:text-primary transition-colors">
             {course.name}
@@ -91,11 +88,7 @@ function SubjectCard({ course }: { course: CourseWithMeta }) {
               </div>
             )}
           </div>
-          <Progress value={course.mastery} className={cn('h-1.5', masteryBarColor(course.mastery))} />
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {course.mastery === 0 ? 'Not started' : `${Math.round(course.mastery)}% complete`}
-            </span>
+          <div className="mt-4 flex items-center justify-end">
             <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
               Open <ChevronRight className="h-3.5 w-3.5" />
             </span>
@@ -216,13 +209,7 @@ export default function StudentCoursesPage() {
           </div>
         )}
 
-        {!loading && coursesWithMeta.length > 0 && (
-          <div className="flex items-center gap-6 rounded-lg border border-border bg-muted/30 px-5 py-3 text-sm text-muted-foreground">
-            <span><strong className="text-foreground">{coursesWithMeta.length}</strong> enrolled</span>
-            <span><strong className="text-green-600">{coursesWithMeta.filter((c) => c.mastery >= 80).length}</strong> mastered</span>
-            <span><strong className="text-amber-600">{coursesWithMeta.filter((c) => c.mastery < 50 && c.mastery > 0).length}</strong> need attention</span>
-          </div>
-        )}
+
       </div>
     </DashboardLayout>
   );

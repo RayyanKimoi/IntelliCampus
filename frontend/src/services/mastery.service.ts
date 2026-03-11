@@ -191,6 +191,137 @@ export class MasteryService {
       };
     });
   }
+  /**
+   * Get all TopicMastery records for a student (powers Mastery dashboard).
+   * score = (correct / attempts) * 100
+   * Weak: score < 70  |  Mastered: score >= 80
+   */
+  async getStudentTopicMastery(userId: string) {
+    return (prisma as any).topicMastery.findMany({
+      where: { studentId: userId },
+      include: { course: true },
+      orderBy: { score: 'asc' },
+    });
+  }
+
+  /**
+   * Upsert TopicMastery records from a quiz result.
+   * Aggregates answers by topic then accumulates attempts + correct counts.
+   */
+  async updateTopicMasteryFromQuiz(
+    studentId: string,
+    courseId: string,
+    answers: Array<{ topic: string; isCorrect: boolean }>
+  ) {
+    if (!courseId) return [];
+
+    const topicMap = new Map<string, { correct: number; total: number }>();
+    for (const ans of answers) {
+      const topic = String(ans.topic ?? '').trim();
+      if (!topic) continue;
+      const entry = topicMap.get(topic) ?? { correct: 0, total: 0 };
+      entry.total++;
+      if (ans.isCorrect) entry.correct++;
+      topicMap.set(topic, entry);
+    }
+
+    return Promise.all(
+      Array.from(topicMap.entries()).map(async ([topic, { correct, total }]) => {
+        const existing = await (prisma as any).topicMastery.findUnique({
+          where: { studentId_courseId_topic: { studentId, courseId, topic } },
+        });
+        const newAttempts = (existing?.attempts ?? 0) + total;
+        const newCorrect = (existing?.correct ?? 0) + correct;
+        const score = newAttempts > 0 ? (newCorrect / newAttempts) * 100 : 0;
+
+        return (prisma as any).topicMastery.upsert({
+          where: { studentId_courseId_topic: { studentId, courseId, topic } },
+          create: { studentId, courseId, topic, attempts: newAttempts, correct: newCorrect, score },
+          update: { attempts: newAttempts, correct: newCorrect, score },
+        });
+      })
+    );
+  }
+
+  /**
+   * Update mastery for a concept after a quiz attempt.
+   * masteryScore = correct / total (0–1 range).
+   * Concepts with masteryScore < 0.5 are flagged as weak.
+   */
+  async updateMasteryAfterQuiz({
+    studentId,
+    concept,
+    correct,
+    total,
+  }: {
+    studentId: string;
+    concept: string;
+    correct: number;
+    total: number;
+  }) {
+    if (total === 0) return null;
+
+    const masteryScore = correct / total;
+    const isWeak = masteryScore < 0.5;
+
+    // Upsert the ConceptMastery record (one row per student+concept)
+    const record = await (prisma as any).conceptMastery.upsert({
+      where: {
+        studentId_concept: { studentId, concept },
+      },
+      create: {
+        studentId,
+        concept,
+        masteryScore,
+        isWeak,
+        correctCount: correct,
+        totalCount: total,
+      },
+      update: {
+        // Blend new score with existing: 70% new, 30% history
+        masteryScore: {
+          set: masteryScore,
+        },
+        isWeak,
+        correctCount: { increment: correct },
+        totalCount: { increment: total },
+      },
+    });
+
+    logger.debug(
+      'MasteryService',
+      `Concept mastery updated — student: ${studentId}, concept: "${concept}", score: ${(masteryScore * 100).toFixed(1)}%, weak: ${isWeak}`
+    );
+
+    return { ...record, masteryScore, isWeak };
+  }
+
+  /**
+   * Update mastery for all concepts from a quiz attempt in one call.
+   * Aggregates answers by concept then calls updateMasteryAfterQuiz per concept.
+   */
+  async updateMasteryFromQuizResult(
+    studentId: string,
+    answers: Array<{ concept: string; isCorrect: boolean }>
+  ) {
+    // Group answers by concept
+    const conceptMap = new Map<string, { correct: number; total: number }>();
+    for (const ans of answers) {
+      const entry = conceptMap.get(ans.concept) ?? { correct: 0, total: 0 };
+      entry.total++;
+      if (ans.isCorrect) entry.correct++;
+      conceptMap.set(ans.concept, entry);
+    }
+
+    const results = await Promise.all(
+      Array.from(conceptMap.entries()).map(([concept, { correct, total }]) =>
+        this.updateMasteryAfterQuiz({ studentId, concept, correct, total })
+      )
+    );
+
+    return results.filter(Boolean);
+  }
+
 }
 
 export const masteryService = new MasteryService();

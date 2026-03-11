@@ -207,6 +207,130 @@ app.post('/tutor', async (req, res) => {
 });
 
 // ========================
+// Quiz Generation (RAG-based)
+// ========================
+
+// Generate quiz questions from chapter curriculum content
+app.post('/generate-quiz', async (req, res) => {
+  try {
+    const { generateQuiz } = await import('./pipelines/quizGenerationPipeline');
+
+    const { courseId, chapterId, numberOfQuestions = 5, difficulty = 'medium' } = req.body;
+
+    if (!courseId || !chapterId) {
+      res.status(400).json({ success: false, error: 'courseId and chapterId are required' });
+      return;
+    }
+
+    const validDifficulties = ['easy', 'medium', 'hard'];
+    const safeDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium';
+
+    const result = await generateQuiz({
+      courseId,
+      chapterId,
+      numberOfQuestions: Math.min(Math.max(1, Number(numberOfQuestions)), 20),
+      difficulty: safeDifficulty as 'easy' | 'medium' | 'hard',
+    });
+
+    res.json({ success: true, questions: result.questions });
+  } catch (error: any) {
+    console.error('[/generate-quiz]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
+// POST /adaptive-resources
+// ========================
+app.post('/adaptive-resources', async (req, res) => {
+  try {
+    const { generateAdaptiveResources } = await import('./pipelines/adaptiveResourcePipeline');
+    const { concept, courseId, chapterId } = req.body;
+
+    if (!concept || !courseId || !chapterId) {
+      return res.status(400).json({
+        success: false,
+        error: 'concept, courseId, and chapterId are required',
+      });
+    }
+
+    const result = await generateAdaptiveResources({
+      concept: String(concept).trim(),
+      courseId: String(courseId),
+      chapterId: String(chapterId),
+    });
+
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[/adaptive-resources]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
+// POST /generate-adaptive-quiz
+// ========================
+app.post('/generate-adaptive-quiz', async (req, res) => {
+  try {
+    const { generateAdaptiveQuiz } = await import('./pipelines/adaptiveQuizPipeline');
+    const { courseId = '', chapterId = '', weakConcepts, numberOfQuestions } = req.body;
+
+    if (!Array.isArray(weakConcepts) || weakConcepts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'A non-empty weakConcepts array is required',
+      });
+    }
+
+    const clampedCount = Math.min(Math.max(1, Number(numberOfQuestions) || 5), 20);
+
+    const result = await generateAdaptiveQuiz({
+      courseId: String(courseId),
+      chapterId: String(chapterId),
+      weakConcepts: weakConcepts.map((c: any) =>
+        typeof c === 'string' ? c.trim() : String(c.concept ?? c).trim()
+      ).filter(Boolean),
+      numberOfQuestions: clampedCount,
+    });
+
+    res.json({ success: true, questions: result.questions });
+  } catch (error: any) {
+    console.error('[/generate-adaptive-quiz]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
+// POST /adaptive-summary
+// ========================
+app.post('/adaptive-summary', async (req, res) => {
+  try {
+    const { generateAdaptiveSummary } = await import('./pipelines/adaptiveSummaryPipeline');
+    const { courseId = '', weakConcepts } = req.body;
+
+    if (!Array.isArray(weakConcepts) || weakConcepts.length === 0) {
+      return res.status(400).json({ success: false, error: 'A non-empty weakConcepts array is required' });
+    }
+
+    const conceptList: string[] = weakConcepts
+      .map((c: any) => (typeof c === 'string' ? c.trim() : String(c.concept ?? c).trim()))
+      .filter(Boolean)
+      .slice(0, 10); // cap at 10 concepts per request
+
+    if (conceptList.length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid concept names found in weakConcepts' });
+    }
+
+    const data = await generateAdaptiveSummary({ courseId: String(courseId), weakConcepts: conceptList });
+
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('[/adaptive-summary]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========================
 // Start Server
 // ========================
 app.listen(PORT, () => {

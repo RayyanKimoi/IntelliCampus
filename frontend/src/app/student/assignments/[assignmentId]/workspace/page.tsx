@@ -595,6 +595,8 @@ export default function AssignmentWorkspacePage({
         codeContent: code,
         submissionFileUrl: uploadedFiles[0]?.url,
       });
+      // Mark attempt as submitted locally so auto-save stops firing during navigation
+      setAttempt(prev => prev ? { ...prev, submittedAt: new Date().toISOString() } : prev);
       router.push('/student/assignments?submitted=true');
     } catch (err: any) {
       alert(`Submission failed: ${err.message ?? 'Unknown error'}`);

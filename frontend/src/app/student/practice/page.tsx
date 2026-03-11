@@ -9,9 +9,8 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { gamificationService } from '@/services/gamificationService';
 import { curriculumService } from '@/services/curriculumService';
-import { masteryService } from '@/services/masteryService';
 import { aiService } from '@/services/aiService';
-import { MOCK_PRACTICE_TOPICS, MOCK_ADAPTIVE_TOPICS, MOCK_QUIZ_QUESTIONS } from '@/lib/mockData';
+import { MOCK_QUIZ_QUESTIONS } from '@/lib/mockData';
 import {
   Brain,
   Lightbulb,
@@ -267,65 +266,271 @@ export default function PracticePage() {
   // Completed topics (per session)
   const [completedTopics, setCompletedTopics] = useState<Set<string>>(new Set());
 
+  // ── Curriculum Quiz Config ───────────────────────────────────────────────
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [selectedChapterId, setSelectedChapterId] = useState('');
+  const [numQuestions, setNumQuestions] = useState(5);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
+  const [chapters, setChapters] = useState<{ id: string; title: string }[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [loadingChapters, setLoadingChapters] = useState(false);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [quizConfigError, setQuizConfigError] = useState('');
+
+  // ── AI Quiz tracking ─────────────────────────────────────────────────────
+  const [isCurriculumAIQuiz, setIsCurriculumAIQuiz] = useState(false);
+  const [aiQuizId, setAiQuizId] = useState<string | null>(null);
+  const [aiQuizAnswers, setAiQuizAnswers] = useState<{ questionId: string; selectedAnswer: string }[]>([]);
+  const [generatingAdaptiveQuiz, setGeneratingAdaptiveQuiz] = useState(false);
+  const [adaptiveQuizError, setAdaptiveQuizError] = useState('');
+  const [generatingForConcept, setGeneratingForConcept] = useState<string | null>(null);
+
   // Load topics on mount
   useEffect(() => {
     loadTopics();
   }, []);
 
-  // Load weak topics when adaptive mode selected
+  // Load weak concepts when adaptive mode selected
   useEffect(() => {
-    if (practiceMode !== 'adaptive' || weakTopicsAdaptive.length > 0) return;
+    if (practiceMode !== 'adaptive') return;
     let cancelled = false;
     async function load() {
       setLoadingAdaptive(true);
       try {
-        const res = await masteryService.getWeakTopics() as any;
-        const raw: any[] = res?.data ?? res ?? [];
-        if (!cancelled && Array.isArray(raw)) {
+        const token = (() => {
+          try {
+            const s = localStorage.getItem('intellicampus-auth');
+            if (s) { const p = JSON.parse(s); if (p.state?.token) return p.state.token as string; }
+          } catch {}
+          return 'dev-token-mock-authentication';
+        })();
+        const res = await fetch('/api/student/practice/weak-concepts', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await res.json();
+        if (!cancelled && payload.success && Array.isArray(payload.data)) {
           setWeakTopicsAdaptive(
-            raw.map((t) => ({
-              id: t.topicId ?? t.id,
-              name: t.topicName ?? t.name,
-              subjectName: t.subjectName,
-              courseName: t.courseName,
+            payload.data.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              masteryScore: c.masteryScore,
+              attempts: c.attempts,
             }))
           );
         }
       } catch {
         if (!cancelled) setWeakTopicsAdaptive([]);
       } finally {
-        if (!cancelled) {
-          setWeakTopicsAdaptive(prev => prev.length === 0 ? MOCK_ADAPTIVE_TOPICS : prev);
-          setLoadingAdaptive(false);
-        }
+        if (!cancelled) setLoadingAdaptive(false);
       }
     }
     load();
     return () => { cancelled = true; };
   }, [practiceMode]);
 
-  const loadTopics = async () => {
-    setLoadingTopics(true);
-    try {
-      // First try masteryService weak topics as seed
-      const weakRes = await masteryService.getMyMastery();
-      const masteryData = (weakRes as any)?.data || weakRes;
-      const byTopic: any[] = masteryData?.byTopic || [];
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-      if (byTopic.length > 0) {
-        setTopics(
-          byTopic.map((t: any) => ({
-            id: t.topicId,
-            name: t.topicName,
-            subjectName: t.subjectName,
-            courseName: t.courseName,
+  const getAuthToken = (): string => {
+    try {
+      const stored = localStorage.getItem('intellicampus-auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const token = parsed.state?.token;
+        if (token) return token as string;
+      }
+    } catch {}
+    return 'dev-token-mock-authentication';
+  };
+
+  // Load enrolled courses when curriculum mode is active
+  useEffect(() => {
+    if (practiceMode !== 'curriculum') return;
+    let cancelled = false;
+    setLoadingCourses(true);
+    curriculumService.getCourses()
+      .then((res: any) => {
+        if (cancelled) return;
+        const list: any[] = res?.data ?? res ?? [];
+        setCourses(
+          (Array.isArray(list) ? list : []).map((c: any) => ({
+            id: c.id,
+            title: c.title || c.name || c.id,
           }))
         );
-        setLoadingTopics(false);
-        return;
-      }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingCourses(false); });
+    return () => { cancelled = true; };
+  }, [practiceMode]);
 
-      // Fallback: crawl curriculum
+  // Load chapters when selected course changes
+  useEffect(() => {
+    if (!selectedCourseId) { setChapters([]); setSelectedChapterId(''); return; }
+    let cancelled = false;
+    setLoadingChapters(true);
+    setSelectedChapterId('');
+    curriculumService.getChapters(selectedCourseId)
+      .then((res: any) => {
+        if (cancelled) return;
+        const raw = res?.data ?? res;
+        const list: any[] = (raw as any)?.chapters ?? raw ?? [];
+        setChapters(
+          (Array.isArray(list) ? list : []).map((ch: any) => ({
+            id: ch.id,
+            title: ch.title || ch.name || ch.id,
+          }))
+        );
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingChapters(false); });
+    return () => { cancelled = true; };
+  }, [selectedCourseId]);
+
+  const generateCurriculumQuiz = async () => {
+    if (!selectedCourseId || !selectedChapterId) return;
+    setGeneratingQuiz(true);
+    setQuizConfigError('');
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/student/practice/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          courseId: selectedCourseId,
+          chapterId: selectedChapterId,
+          numberOfQuestions: numQuestions,
+          difficulty: selectedDifficulty,
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to generate quiz');
+
+      const { quizId, questions: aiQs } = payload.data as {
+        quizId: string;
+        questions: Array<{
+          id: string;
+          question: string;
+          options: string[];
+          correctAnswer: string;
+          explanation: string;
+          concept: string;
+        }>;
+      };
+
+      // Map AI question format → existing Question format (optionA/B/C/D)
+      const converted = aiQs.map((q) => ({
+        id: q.id,
+        questionText: q.question,
+        optionA: q.options[0] ?? '',
+        optionB: q.options[1] ?? '',
+        optionC: q.options[2] ?? '',
+        optionD: q.options[3] ?? '',
+        // Internal grading fields
+        _aiQuestionId: q.id,
+        _correctAnswer: q.correctAnswer,
+        _concept: q.concept,
+      }));
+
+      const chapterName = chapters.find((c) => c.id === selectedChapterId)?.title ?? 'Chapter';
+      const courseName = courses.find((c) => c.id === selectedCourseId)?.title;
+
+      setAiQuizId(quizId);
+      setAiQuizAnswers([]);
+      setIsCurriculumAIQuiz(true);
+      setSelectedTopic({ id: selectedChapterId, name: chapterName, courseName });
+      setQuestions(converted as any);
+      setCurrentIdx(0);
+      setAnswers([]);
+      setChosen(null);
+      setRevealed(false);
+      setXpEarned(0);
+      setAnswerAnim(null);
+      setView('quiz');
+    } catch (err: any) {
+      setQuizConfigError(err.message ?? 'Failed to generate quiz. Please try again.');
+    } finally {
+      setGeneratingQuiz(false);
+    }
+  };
+
+  const generateAdaptiveQuiz = async (
+    conceptNames: string[],
+    courseId?: string,
+    chapterId?: string,
+  ) => {
+    if (conceptNames.length === 0) return;
+    setGeneratingAdaptiveQuiz(true);
+    setGeneratingForConcept(conceptNames[0]);
+    setAdaptiveQuizError('');
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/student/practice/adaptive-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          courseId: courseId ?? '',
+          chapterId: chapterId ?? '',
+          weakConcepts: conceptNames,
+          numberOfQuestions: Math.max(5, Math.min(conceptNames.length * 3, 10)),
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to generate adaptive quiz');
+
+      const { quizId, questions: aiQs } = payload.data as {
+        quizId: string;
+        questions: Array<{
+          id: string;
+          question: string;
+          options: string[];
+          correctAnswer: string;
+          explanation: string;
+          concept: string;
+        }>;
+      };
+
+      const converted = aiQs.map((q) => ({
+        id: q.id,
+        questionText: q.question,
+        optionA: q.options[0] ?? '',
+        optionB: q.options[1] ?? '',
+        optionC: q.options[2] ?? '',
+        optionD: q.options[3] ?? '',
+        _aiQuestionId: q.id,
+        _correctAnswer: q.correctAnswer,
+        _concept: q.concept,
+      }));
+
+      setAiQuizId(quizId);
+      setAiQuizAnswers([]);
+      setIsCurriculumAIQuiz(true);
+      setIsAdaptive(true);
+      setSelectedTopic({
+        id: chapterId ?? 'adaptive',
+        name: `Adaptive: ${conceptNames.slice(0, 2).join(', ')}${conceptNames.length > 2 ? '…' : ''}`,
+      });
+      setQuestions(converted as any);
+      setCurrentIdx(0);
+      setAnswers([]);
+      setChosen(null);
+      setRevealed(false);
+      setXpEarned(0);
+      setAnswerAnim(null);
+      setView('quiz');
+    } catch (err: any) {
+      setAdaptiveQuizError(err.message ?? 'Failed to generate adaptive quiz. Please try again.');
+    } finally {
+      setGeneratingAdaptiveQuiz(false);
+      setGeneratingForConcept(null);
+    }
+  };
+
+  const loadTopics = async () => {
+    try {
+      // Crawl curriculum topics for curriculum quiz dropdown usage
       const courses = await curriculumService.getCourses();
       const courseList: any[] = (courses as any)?.data || courses || [];
       const allTopics: Topic[] = [];
@@ -352,8 +557,6 @@ export default function PracticePage() {
       setTopics(allTopics);
     } catch {}
     finally {
-      // Fall back to mock topics if nothing loaded from API
-      setTopics(prev => prev.length === 0 ? MOCK_PRACTICE_TOPICS : prev);
       setLoadingTopics(false);
     }
   };
@@ -401,20 +604,35 @@ export default function PracticePage() {
     setRevealed(true);
 
     let correct = false;
-    try {
-      const res = await gamificationService.submitSprintAnswer({
-        questionId: q.id,
-        selectedOption: chosen,
-        timeTaken: 30,
-      });
-      const d = (res as any)?.data || res;
-      correct = !!d?.correct;
-      if (correct) setXpEarned((x) => x + (d?.xpAwarded || 10));
-    } catch {
-      // Check locally against mock questions
-      const mockQ = MOCK_QUIZ_QUESTIONS.find(mq => mq.id === q.id);
-      correct = mockQ ? (mockQ as any).correctOption === chosen : false;
-      if (correct) setXpEarned(x => x + 15);
+
+    if (isCurriculumAIQuiz) {
+      // Local grading: map chosen key → option text, compare with stored correctAnswer
+      const optKeyMap: Record<string, string> = { A: 'optionA', B: 'optionB', C: 'optionC', D: 'optionD' };
+      const selectedText = String((q as any)[optKeyMap[chosen]] ?? '').trim();
+      const correctAnswer = String((q as any)._correctAnswer ?? '').trim();
+      correct = selectedText !== '' && correctAnswer !== '' && selectedText === correctAnswer;
+      if (correct) setXpEarned((x) => x + 15);
+      // Track answer for submit-quiz call at the end
+      setAiQuizAnswers((prev) => [
+        ...prev,
+        { questionId: String((q as any)._aiQuestionId ?? q.id), selectedAnswer: selectedText },
+      ]);
+    } else {
+      try {
+        const res = await gamificationService.submitSprintAnswer({
+          questionId: q.id,
+          selectedOption: chosen,
+          timeTaken: 30,
+        });
+        const d = (res as any)?.data || res;
+        correct = !!d?.correct;
+        if (correct) setXpEarned((x) => x + (d?.xpAwarded || 10));
+      } catch {
+        // Check locally against mock questions
+        const mockQ = MOCK_QUIZ_QUESTIONS.find(mq => mq.id === q.id);
+        correct = mockQ ? (mockQ as any).correctOption === chosen : false;
+        if (correct) setXpEarned(x => x + 15);
+      }
     }
 
     setAnswerAnim(correct ? 'correct' : 'wrong');
@@ -425,8 +643,9 @@ export default function PracticePage() {
         questionText: q.questionText,
         selected: chosen,
         correct,
-        topicId: selectedTopic.id,
-        topicName: selectedTopic.name,
+        // For AI quizzes, use concept as the "topic" so weak-area detection works per concept
+        topicId: (q as any)._concept ?? selectedTopic.id,
+        topicName: (q as any)._concept ?? selectedTopic.name,
       },
     ]);
   };
@@ -453,11 +672,27 @@ export default function PracticePage() {
     setWeakTopics(Object.values(wrongMap).sort((a, b) => b.wrong - a.wrong));
     if (selectedTopic) setCompletedTopics(prev => new Set([...prev, selectedTopic.id]));
     setView('results');
+
+    // Fire-and-forget: persist AI quiz attempt to DB
+    if (isCurriculumAIQuiz && aiQuizId && aiQuizAnswers.length > 0) {
+      const snapshot = [...aiQuizAnswers];
+      const token = getAuthToken();
+      fetch('/api/student/practice/submit-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quizId: aiQuizId, answers: snapshot }),
+      }).catch(() => {});
+    }
+
+    // Reset AI quiz state for next quiz
+    setIsCurriculumAIQuiz(false);
+    setAiQuizId(null);
+    setAiQuizAnswers([]);
   };
 
   const correctCount = answers.filter((a) => a.correct).length;
   const pct = answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0;
-  const adaptiveTopicList = weakTopicsAdaptive.length > 0 ? weakTopicsAdaptive : topics.slice(0, 6);
+  const adaptiveTopicList = weakTopicsAdaptive;
 
   const globalStyles = (
     <style jsx global>{`
@@ -568,70 +803,128 @@ export default function PracticePage() {
             </div>
           </div>
 
-          {/* Topic Grid */}
+          {/* Quiz Generator / Topic Grid */}
           {practiceMode === 'curriculum' ? (
             <div
               className="practice-slide-up rounded-2xl border overflow-hidden"
               style={{ animationDelay: '180ms', borderColor: 'rgba(0,110,178,0.13)', boxShadow: '0 4px 24px rgba(0,110,178,0.07), 0 1px 3px rgba(0,0,0,0.05)' }}
             >
+              {/* Header */}
               <div
                 className="px-5 py-4 border-b flex items-center gap-2"
                 style={{ borderColor: 'rgba(0,110,178,0.1)', backgroundColor: 'rgba(0,47,76,0.02)' }}
               >
-                <FaBook className="h-4 w-4" style={{ color: '#006EB2' }} />
-                <h2 className="font-bold text-sm tracking-wide text-foreground">Choose a Topic</h2>
+                <Sparkles className="h-4 w-4" style={{ color: '#006EB2' }} />
+                <h2 className="font-bold text-sm tracking-wide text-foreground">Configure Your Quiz</h2>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,110,178,0.1)', color: '#006EB2' }}>
+                  AI Generated
+                </span>
               </div>
-              <div className="p-5">
-                {loadingTopics ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="h-[72px] rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(0,110,178,0.06)' }} />
-                    ))}
+
+              <div className="p-5 space-y-5">
+                {/* Course dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground">Course</label>
+                  {loadingCourses ? (
+                    <div className="h-10 rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(0,110,178,0.06)' }} />
+                  ) : (
+                    <select
+                      value={selectedCourseId}
+                      onChange={e => { setSelectedCourseId(e.target.value); setSelectedChapterId(''); setQuizConfigError(''); }}
+                      className="w-full rounded-xl border px-4 py-2.5 text-sm bg-background text-foreground outline-none transition-colors"
+                      style={{ borderColor: 'rgba(0,110,178,0.2)' }}
+                      onFocus={e => (e.target.style.borderColor = '#006EB2')}
+                      onBlur={e => (e.target.style.borderColor = 'rgba(0,110,178,0.2)')}
+                    >
+                      <option value="">Select a course…</option>
+                      {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                {/* Chapter dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground">Chapter</label>
+                  {loadingChapters ? (
+                    <div className="h-10 rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(0,110,178,0.06)' }} />
+                  ) : (
+                    <select
+                      value={selectedChapterId}
+                      onChange={e => { setSelectedChapterId(e.target.value); setQuizConfigError(''); }}
+                      disabled={!selectedCourseId}
+                      className="w-full rounded-xl border px-4 py-2.5 text-sm bg-background text-foreground outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ borderColor: 'rgba(0,110,178,0.2)' }}
+                      onFocus={e => (e.target.style.borderColor = '#006EB2')}
+                      onBlur={e => (e.target.style.borderColor = 'rgba(0,110,178,0.2)')}
+                    >
+                      <option value="">{!selectedCourseId ? 'Select a course first' : chapters.length === 0 ? 'No chapters available' : 'Select a chapter…'}</option>
+                      {chapters.map(ch => <option key={ch.id} value={ch.id}>{ch.title}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                {/* Questions + Difficulty side by side */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground">Questions</label>
+                    <input
+                      type="number"
+                      min={3}
+                      max={20}
+                      value={numQuestions}
+                      onChange={e => setNumQuestions(Math.min(20, Math.max(3, Number(e.target.value) || 3)))}
+                      className="w-full rounded-xl border px-4 py-2.5 text-sm bg-background text-foreground outline-none transition-colors"
+                      style={{ borderColor: 'rgba(0,110,178,0.2)' }}
+                      onFocus={e => (e.target.style.borderColor = '#006EB2')}
+                      onBlur={e => (e.target.style.borderColor = 'rgba(0,110,178,0.2)')}
+                    />
                   </div>
-                ) : topics.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm font-medium">No topics yet. Enroll in a course first.</p>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-widest text-muted-foreground">Difficulty</label>
+                    <div className="flex gap-1.5">
+                      {(['easy', 'medium', 'hard'] as const).map(d => {
+                        const active = selectedDifficulty === d;
+                        const color = d === 'easy' ? '#10b981' : d === 'medium' ? '#f59e0b' : '#ef4444';
+                        return (
+                          <button
+                            key={d}
+                            onClick={() => setSelectedDifficulty(d)}
+                            className="flex-1 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wide border transition-all duration-150"
+                            style={active
+                              ? { background: color, borderColor: color, color: '#fff' }
+                              : { borderColor: 'rgba(0,110,178,0.15)', color: 'hsl(var(--muted-foreground))', backgroundColor: 'transparent' }}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {topics.map((topic, i) => {
-                      const done = completedTopics.has(topic.id);
-                      return (
-                        <button
-                          key={topic.id}
-                          onClick={() => startQuiz(topic)}
-                          disabled={loadingQuiz}
-                          className={`group relative flex flex-col gap-1 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 practice-card${done ? ' practice-card-hi' : ''}`}
-                          style={{ borderColor: done ? 'rgba(16,185,129,0.35)' : 'rgba(0,110,178,0.15)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.6)' : 'rgba(0,110,178,0.5)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 16px rgba(0,110,178,0.12)'; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = done ? 'rgba(16,185,129,0.35)' : 'rgba(0,110,178,0.15)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: done ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, rgba(0,47,76,0.08), rgba(0,110,178,0.12))' }}>
-                              {done
-                                ? <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#10b981' }} />
-                                : <FaBook className="h-3.5 w-3.5" style={{ color: '#006EB2' }} />}
-                            </div>
-                            {done
-                              ? <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} />
-                              : <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: '#006EB2' }} />}
-                          </div>
-                          <p className="text-sm font-semibold mt-1.5 text-foreground">{topic.name}</p>
-                          {(topic.subjectName || topic.courseName) && (
-                            <p className="text-xs text-muted-foreground">{topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}</p>
-                          )}
-                          {done && <p className="text-[10px] font-bold mt-0.5" style={{ color: '#10b981' }}>Completed ✓</p>}
-                          {loadingQuiz && selectedTopic?.id === topic.id && (
-                            <div className="absolute inset-0 flex items-center justify-center rounded-xl" style={{ backgroundColor: 'hsl(var(--card) / 0.85)' }}>
-                              <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#006EB2' }} />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+                </div>
+
+                {/* Error */}
+                {quizConfigError && (
+                  <div
+                    className="rounded-xl border px-4 py-3 flex items-center gap-2.5"
+                    style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.25)' }}
+                  >
+                    <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: '#ef4444' }} />
+                    <p className="text-sm" style={{ color: '#dc2626' }}>{quizConfigError}</p>
                   </div>
                 )}
+
+                {/* Generate button */}
+                <div className="pt-1 flex justify-center">
+                  <AnimatedGenerateButton
+                    labelIdle="Generate Quiz with AI"
+                    labelActive="Generating…"
+                    generating={generatingQuiz}
+                    highlightHueDeg={210}
+                    disabled={!selectedCourseId || !selectedChapterId || generatingQuiz}
+                    onClick={generateCurriculumQuiz}
+                    className="w-full [&>button]:w-full [&>button]:justify-center"
+                  />
+                </div>
               </div>
             </div>
           ) : (
@@ -659,14 +952,17 @@ export default function PracticePage() {
                   </div>
                 ) : adaptiveTopicList.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle2 className="h-10 w-10 mx-auto mb-3" style={{ color: '#10b981' }} />
-                    <p className="text-sm font-semibold">No weak topics detected — great work!</p>
-                    <p className="text-xs mt-1">Switch to Curriculum Quiz to keep practicing.</p>
+                    <Brain className="h-10 w-10 mx-auto mb-3" style={{ color: '#006EB2', opacity: 0.4 }} />
+                    <p className="text-sm font-semibold">No weak concepts yet</p>
+                    <p className="text-xs mt-1 leading-relaxed max-w-xs mx-auto">Complete a Curriculum Quiz first. After you finish, your weak topics will appear here automatically.</p>
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    {weakTopicsAdaptive.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic px-1">No mastery data yet — showing curriculum topics. Practice more to unlock adaptive recommendations.</p>
+                    {adaptiveQuizError && (
+                      <div className="rounded-xl border px-4 py-3 flex items-center gap-2.5" style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.25)' }}>
+                        <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: '#ef4444' }} />
+                        <p className="text-sm" style={{ color: '#dc2626' }}>{adaptiveQuizError}</p>
+                      </div>
                     )}
                     <div className="grid gap-3 sm:grid-cols-2">
                       {adaptiveTopicList.map((topic, idx) => {
@@ -674,8 +970,8 @@ export default function PracticePage() {
                         return (
                           <button
                             key={topic.id}
-                            onClick={() => startQuiz(topic, true)}
-                            disabled={loadingQuiz}
+                            onClick={() => generateAdaptiveQuiz([topic.name])}
+                            disabled={generatingAdaptiveQuiz}
                             className={`group relative flex items-start gap-3 rounded-xl border p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60 practice-card${idx === 0 || done ? ' practice-card-hi' : ''}`}
                             style={{
                               borderColor: done ? 'rgba(16,185,129,0.4)' : idx === 0 ? 'rgba(0,110,178,0.3)' : 'rgba(0,110,178,0.12)',
@@ -694,6 +990,18 @@ export default function PracticePage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-foreground">{topic.name}</p>
+                              {(topic as any).masteryScore !== undefined && !done && (
+                                <div className="flex items-center gap-2.5 mt-1">
+                                  <span className="text-xs font-semibold" style={{ color: '#ef4444' }}>
+                                    {(topic as any).masteryScore}% mastery
+                                  </span>
+                                  {(topic as any).attempts !== undefined && (topic as any).attempts > 0 && (
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,110,178,0.08)', color: '#006EB2' }}>
+                                      {(topic as any).attempts} quiz{(topic as any).attempts !== 1 ? 'zes' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               {(topic.subjectName || topic.courseName) && (
                                 <p className="text-xs text-muted-foreground mt-0.5">{topic.subjectName}{topic.courseName ? ` · ${topic.courseName}` : ''}</p>
                               )}
@@ -702,7 +1010,7 @@ export default function PracticePage() {
                             {done
                               ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" style={{ color: '#10b981' }} />
                               : <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" style={{ color: '#006EB2' }} />}
-                            {loadingQuiz && selectedTopic?.id === topic.id && (
+                            {generatingAdaptiveQuiz && generatingForConcept === topic.name && (
                               <div className="absolute inset-0 flex items-center justify-center rounded-xl" style={{ backgroundColor: 'hsl(var(--card) / 0.85)' }}>
                                 <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#006EB2' }} />
                               </div>
@@ -713,22 +1021,16 @@ export default function PracticePage() {
                     </div>
 
                     {/* â”€â”€ Animated Generate Button CTA â”€â”€ */}
-                    <div className="pt-1">
-                      <p className="text-xs text-muted-foreground mb-3 text-center">
-                        Start a focused adaptive session on your top weak area:
-                        <strong className="ml-1 text-foreground">{adaptiveTopicList[0]?.name}</strong>
+                    {/* Note about adaptive resources */}
+                    <div
+                      className="rounded-xl border px-4 py-3 flex items-center gap-2.5"
+                      style={{ backgroundColor: 'rgba(0,110,178,0.05)', borderColor: 'rgba(0,110,178,0.18)' }}
+                    >
+                      <Lightbulb className="h-4 w-4 shrink-0" style={{ color: '#006EB2' }} />
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        <span className="font-semibold" style={{ color: '#006EB2' }}>Note:</span> Adaptive learning resources for each topic are also available in the{' '}
+                        <strong className="text-foreground">My Courses</strong> tab.
                       </p>
-                      <div className="flex justify-center">
-                        <AnimatedGenerateButton
-                          labelIdle="Start Adaptive Quiz"
-                          labelActive="Loading Quiz…"
-                          generating={loadingQuiz}
-                          highlightHueDeg={210}
-                          disabled={loadingQuiz}
-                          onClick={() => startQuiz(adaptiveTopicList[0], true)}
-                          className="w-full max-w-sm [&>button]:w-full [&>button]:justify-center"
-                        />
-                      </div>
                     </div>
                   </div>
                 )}
@@ -992,18 +1294,26 @@ export default function PracticePage() {
                 <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   Weakest topic: <strong className="text-foreground">{weakTopics[0].topicName}</strong>. Take a focused adaptive session to reinforce these concepts.
                 </p>
+                {adaptiveQuizError && (
+                  <div className="mb-3 rounded-xl border px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.25)' }}>
+                    <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: '#ef4444' }} />
+                    <p className="text-xs" style={{ color: '#dc2626' }}>{adaptiveQuizError}</p>
+                  </div>
+                )}
                 <div className="flex justify-center">
                   <AnimatedGenerateButton
                     labelIdle="Start Adaptive Quiz"
-                    labelActive="Loading Quiz…"
-                    generating={loadingQuiz}
+                    labelActive="Generating…"
+                    generating={generatingAdaptiveQuiz}
                     highlightHueDeg={210}
-                    disabled={loadingQuiz}
-                    onClick={() => {
-                      const wt = weakTopics[0];
-                      const t = topics.find((t) => t.id === wt.topicId) || { id: wt.topicId, name: wt.topicName };
-                      startQuiz(t, true);
-                    }}
+                    disabled={generatingAdaptiveQuiz}
+                    onClick={() =>
+                      generateAdaptiveQuiz(
+                        weakTopics.map((w) => w.topicName),
+                        selectedCourseId || undefined,
+                        selectedChapterId || undefined,
+                      )
+                    }
                     className="w-full max-w-sm [&>button]:w-full [&>button]:justify-center"
                   />
                 </div>
