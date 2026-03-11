@@ -107,22 +107,28 @@ export class MasteryService {
    * Get mastery for specific course topics
    */
   async getCourseMastery(userId: string, courseId: string) {
-    return prisma.masteryGraph.findMany({
-      where: {
-        userId,
-        topic: {
-          subject: {
-            courseId,
+    try {
+      return await prisma.masteryGraph.findMany({
+        where: {
+          userId,
+          topic: {
+            subject: {
+              courseId,
+            },
           },
         },
-      },
-      include: {
-        topic: {
-          include: { subject: true },
+        include: {
+          topic: {
+            include: { subject: true },
+          },
         },
-      },
-      orderBy: { masteryScore: 'asc' },
-    });
+        orderBy: { masteryScore: 'asc' },
+      });
+    } catch (error) {
+      // Return empty array if database fails - don't block the UI
+      logger.error('MasteryService', `Failed to get course mastery: ${error}`);
+      return [];
+    }
   }
 
   /**

@@ -14,8 +14,6 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  // Prevent webpack from bundling pdf-parse — let Node.js require() handle it directly
-  serverExternalPackages: ['pdf-parse'],
   // Proxy any /api/* call to the Express backend.
   // Set BACKEND_URL on Vercel (or any host) to point at your deployed backend.
   // Falls back to localhost:4000 for local development.

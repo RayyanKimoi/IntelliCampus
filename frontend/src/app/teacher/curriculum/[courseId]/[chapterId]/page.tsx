@@ -50,10 +50,6 @@ export default function ChapterContentPage() {
   const [editTitle, setEditTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Re-ingest state
-  const [reingesting, setReingesting] = useState(false);
-  const [reingestResult, setReingestResult] = useState<string | null>(null);
-
   // ── Data loading ────────────────────────────────────────────────
   const loadContent = useCallback(async () => {
     setLoading(true);
@@ -77,18 +73,22 @@ export default function ChapterContentPage() {
   // ── Upload handler (file) ────────────────────────────────────────
   const handleUploadFile = async (file: File, title: string) => {
     try {
-      // Resolve auth token from localStorage (same logic as apiClient)
-      let token = 'dev-token-mock-authentication';
-      try {
-        const stored = localStorage.getItem('intellicampus-auth');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const t = parsed.state?.token;
-          if (t) token = t;
+      // Get auth token
+      const getAuthToken = () => {
+        if (typeof window === 'undefined') return null;
+        try {
+          const stored = localStorage.getItem('intellicampus-auth');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            return parsed.state?.token || 'dev-token-mock-authentication';
+          }
+        } catch {
+          return 'dev-token-mock-authentication';
         }
-      } catch {
-        // fall through to dev token
-      }
+        return 'dev-token-mock-authentication';
+      };
+
+      const token = getAuthToken();
 
       // Step 1: Upload the actual file
       const formData = new FormData();
@@ -96,7 +96,9 @@ export default function ChapterContentPage() {
 
       const uploadResponse = await fetch('/api/upload/file', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 
@@ -148,38 +150,6 @@ export default function ChapterContentPage() {
   const handleSaveNotes = async (notes: string) => {
     const result = await chapterCurriculumService.saveTeacherNotes(chapterId, notes);
     setTeacherNotes(result.teacherNotes);
-  };
-
-  // ── Re-ingest all PDFs for this chapter into Pinecone ──────────
-  const handleReingest = async () => {
-    setReingesting(true);
-    setReingestResult(null);
-    try {
-      let token = 'dev-token-mock-authentication';
-      try {
-        const stored = localStorage.getItem('intellicampus-auth');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const t = parsed.state?.token;
-          if (t) token = t;
-        }
-      } catch {}
-
-      const res = await fetch(`/api/teacher/curriculum/chapters/${chapterId}/reingest`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setReingestResult(`✓ Synced ${data.totalChunks} chunks to AI from ${data.results.length} file(s).`);
-      } else {
-        setReingestResult(`Error: ${data.error}`);
-      }
-    } catch (err: any) {
-      setReingestResult(`Error: ${err.message}`);
-    } finally {
-      setReingesting(false);
-    }
   };
 
   // ── Edit content ─────────────────────────────────────────────────
@@ -256,15 +226,6 @@ export default function ChapterContentPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
-              onClick={handleReingest}
-              disabled={reingesting}
-            >
-              <Sparkles className="h-4 w-4" />
-              {reingesting ? 'Syncing...' : 'Sync to AI'}
-            </Button>
-            <Button
-              variant="outline"
               className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-900/20"
               onClick={() => setShowGuidanceModal(true)}
             >
@@ -276,17 +237,6 @@ export default function ChapterContentPage() {
             </Button>
           </div>
         </div>
-
-        {/* ── Re-ingest status ──────────────────────────────────── */}
-        {reingestResult && (
-          <div className={`rounded-lg border px-4 py-3 text-sm ${
-            reingestResult.startsWith('✓')
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-              : 'border-destructive/30 bg-destructive/5 text-destructive'
-          }`}>
-            {reingestResult}
-          </div>
-        )}
 
         {/* ── Error ─────────────────────────────────────────────── */}
         {error && (

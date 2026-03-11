@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
   FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2,
-  ClipboardList, Calendar, Clock, PlayCircle, ExternalLink,
+  ClipboardList, Calendar, Clock, PlayCircle, ExternalLink, Download,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
 
@@ -517,31 +517,96 @@ function ChaptersView({ chapters, courseId }: { chapters: ChapterWithContent[]; 
               {chapter.content.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-3 text-center">No materials uploaded for this chapter yet.</p>
               ) : (
-                chapter.content.map((item) => (
-                  <a
-                    key={item.id}
-                    href={item.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors group cursor-pointer"
-                  >
-                    <div className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
-                      item.type === 'youtube' ? 'bg-red-50 dark:bg-red-950' : 'bg-blue-50 dark:bg-blue-950'
-                    )}>
-                      {item.type === 'youtube'
-                        ? <PlayCircle className="h-5 w-5 text-red-500" />
-                        : <FileText className="h-5 w-5 text-blue-500" />}
+                chapter.content.map((item) => {
+                  const isYouTube = item.type === 'youtube';
+                  const isSupabaseUrl = item.fileUrl?.includes('supabase.co');
+                  const fileName = item.title;
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className={cn(
+                        'flex h-9 w-9 items-center justify-center rounded-lg shrink-0',
+                        isYouTube ? 'bg-red-50 dark:bg-red-950' : 'bg-blue-50 dark:bg-blue-950'
+                      )}>
+                        {isYouTube
+                          ? <PlayCircle className="h-5 w-5 text-red-500" />
+                          : <FileText className="h-5 w-5 text-blue-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.title}</p>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isYouTube ? (
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 hover:bg-muted rounded-md transition-colors"
+                            title="Watch on YouTube"
+                          >
+                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          </a>
+                        ) : (
+                          <>
+                            <a
+                              href={item.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 hover:bg-muted rounded-md transition-colors"
+                              title="View file"                              onClick={(e) => {
+                                // For local URLs, show error message
+                                if (item.fileUrl?.startsWith('/uploads/')) {
+                                  e.preventDefault();
+                                  alert('This file is using old storage and is no longer available. Please ask your teacher to re-upload it.');
+                                }
+                              }}                            >
+                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                            </a>
+                            <a
+                              href={item.fileUrl}
+                              download={fileName}
+                              className="p-2 hover:bg-muted rounded-md transition-colors"
+                              title="Download file"
+                              onClick={async (e) => {
+                                // For Supabase URLs, download directly via fetch to handle CORS
+                                if (isSupabaseUrl) {
+                                  e.preventDefault();
+                                  try {
+                                    const response = await fetch(item.fileUrl);
+                                    const blob = await response.blob();
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = fileName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (err) {
+                                    console.error('Download failed:', err);
+                                    alert('Download failed. Please try again.');
+                                  }
+                                } else if (item.fileUrl?.startsWith('/uploads/')) {
+                                  // For local URLs, show error message
+                                  e.preventDefault();
+                                  alert('This file is using old storage and is no longer available. Please ask your teacher to re-upload it.');
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 text-muted-foreground" />
+                            </a>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{item.title}</p>
-                      {item.description && (
-                        <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                      )}
-                    </div>
-                    <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                ))
+                  );
+                })
               )}
               <div className="pt-1 pb-0.5">
                 <Button

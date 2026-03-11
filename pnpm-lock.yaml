@@ -204,9 +204,6 @@ importers:
       next:
         specifier: ^15.1.0
         version: 15.5.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      pdf-parse:
-        specifier: ^2.4.5
-        version: 2.4.5
       react:
         specifier: ^19.0.0
         version: 19.2.4
@@ -244,9 +241,6 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.11
-      '@types/pdf-parse':
-        specifier: ^1.1.5
-        version: 1.1.5
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14

@@ -500,7 +500,6 @@ export default function AssignmentGradingPage({
         submission={reviewSubmission}
         onClose={() => setReviewSubmission(null)}
         onSaved={handleGradeSaved}
-        isQuiz={assignment?.type === 'quiz'}
       />
     </DashboardLayout>
   );

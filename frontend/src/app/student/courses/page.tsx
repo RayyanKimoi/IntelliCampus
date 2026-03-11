@@ -140,28 +140,37 @@ export default function StudentCoursesPage() {
         // Fall back to mock data when API returns empty array
         const coursesToUse: Course[] = rawCourses.length > 0 ? rawCourses : (MOCK_COURSES as unknown as Course[]);
         setCourses(coursesToUse);
+        
+        // Show courses immediately without waiting for mastery
+        if (!cancelled) setLoading(false);
+        
         if (rawCourses.length === 0) {
-          if (!cancelled) setLoading(false);
           return;
         }
 
-        // Fetch mastery for each course in parallel (skip subjects — subjectCount comes from the API)
-        await Promise.allSettled(
+        // Fetch mastery for each course in parallel with timeout (non-blocking)
+        Promise.allSettled(
           coursesToUse.map(async (course) => {
             try {
-              const masteryRes = await masteryService.getCourseMastery(course.id) as any;
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Mastery fetch timeout')), 3000)
+              );
+              const masteryPromise = masteryService.getCourseMastery(course.id);
+              const masteryRes = await Promise.race([masteryPromise, timeoutPromise]) as any;
               const m = masteryRes?.data ?? masteryRes;
               if (m && !cancelled) setCourseMastery(course.id, m);
-            } catch {}
+            } catch (err) {
+              // Silently fail - show course with 0% mastery
+              console.debug(`[CoursesPage] Mastery fetch failed for course ${course.id}:`, err);
+            }
           })
-        );
+        ).catch(() => {});
       } catch (e) {
         console.error('[CoursesPage] failed to load courses', e);
         if (!cancelled) {
           setCourses(MOCK_COURSES as any);
+          setLoading(false);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
