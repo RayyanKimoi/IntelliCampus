@@ -1,599 +1,476 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { gamificationService } from '@/services/gamificationService';
+import {
+  ArrowRight,
+  Award,
+  Crown,
+  Flame,
+  Shield,
+  Swords,
+  Star,
+  Target,
+  Trophy,
+  Zap,
+} from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Panel } from '@/components/panels/Panel';
+import { Progress } from '@/components/ui/progress';
+import { useAuthStore } from '@/store/authStore';
+import { gamificationService } from '@/services/gamificationService';
+import { cn } from '@/lib/utils';
+import { GlowCard } from '@/components/ui/spotlight-card';
+import { ArenaPortalTrigger } from '@/components/ui/arena-portal-trigger';
 
-// ── Types ────────────────────────────────────────────────────────
-interface WeekProgress {
-  week: string;       // ISO week key e.g. "2026-W08"
-  completed: string[]; // mini-game keys completed this week
+interface XPProfile {
+  totalXp: number;
+  level: number;
+  streakDays: number;
+  xpForNextLevel: number;
+  xpProgress: number;
+  progressPercent: number;
 }
 
-const MINI_GAMES = [
-  {
-    key: 'sprint',
-    label: 'Sprint Quiz',
-    href: '/student/gamification/sprint',
-    emoji: '🏆',
-    color: '#e67e22',
-    bgColor: '#fdebd0',
-    borderColor: '#e67e22',
-    xp: 100,
-    timer: '2 min',
-    desc: 'Race the clock. Answer as many as you can!',
-  },
-  {
-    key: 'flashcards',
-    label: 'Flashcards',
-    href: '/student/gamification/flashcards',
-    emoji: '🃏',
-    color: '#2980b9',
-    bgColor: '#d6eaf8',
-    borderColor: '#2980b9',
-    xp: 80,
-    timer: '3 min',
-    desc: 'Flip & match pairs to master terms.',
-  },
-  {
-    key: 'spin',
-    label: 'Spin the Wheel',
-    href: '/student/gamification/spin',
-    emoji: '🎯',
-    color: '#27ae60',
-    bgColor: '#d5f5e3',
-    borderColor: '#27ae60',
-    xp: 120,
-    timer: '5 min',
-    desc: 'Spin & answer on the random topic!',
-  },
-  {
-    key: 'boss-battle',
-    label: 'Boss Battle',
-    href: '/student/gamification/boss-battle',
-    emoji: '⚔️',
-    color: '#8e44ad',
-    bgColor: '#e8daef',
-    borderColor: '#8e44ad',
-    xp: 200,
-    timer: 'Unlimited',
-    desc: 'Defeat the boss with correct answers.',
-  },
-];
-
-function getISOWeek(): string {
-  const d = new Date();
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
-
-// ── Plant Stage Visual ───────────────────────────────────────────
-function PlantStage({ completed }: { completed: number }) {
-  const stages = [
-    // 0 – seed / bare ground
-    <div key={0} className="plant-stage plant-0">
-      <div className="soil" />
-      <div className="stem" style={{ height: 8 }} />
-    </div>,
-    // 1 – tiny sprout
-    <div key={1} className="plant-stage plant-1">
-      <div className="soil" />
-      <div className="stem" style={{ height: 20 }}>
-        <div className="leaf leaf-left" style={{ top: 4 }} />
-      </div>
-    </div>,
-    // 2 – small plant
-    <div key={2} className="plant-stage plant-2">
-      <div className="soil" />
-      <div className="stem" style={{ height: 36 }}>
-        <div className="leaf leaf-left" style={{ top: 8 }} />
-        <div className="leaf leaf-right" style={{ top: 18 }} />
-      </div>
-    </div>,
-    // 3 – budding
-    <div key={3} className="plant-stage plant-3">
-      <div className="soil" />
-      <div className="stem" style={{ height: 52 }}>
-        <div className="leaf leaf-left" style={{ top: 12 }} />
-        <div className="leaf leaf-right" style={{ top: 26 }} />
-        <div className="bud" />
-      </div>
-    </div>,
-    // 4 – full bloom 🌸
-    <div key={4} className="plant-stage plant-4">
-      <div className="soil" />
-      <div className="stem" style={{ height: 64 }}>
-        <div className="leaf leaf-left" style={{ top: 16 }} />
-        <div className="leaf leaf-right" style={{ top: 32 }} />
-        <div className="flower">
-          <div className="petal p0" /><div className="petal p1" /><div className="petal p2" />
-          <div className="petal p3" /><div className="petal p4" /><div className="petal p5" />
-          <div className="center" />
-        </div>
-      </div>
-    </div>,
-  ];
-  return stages[Math.min(completed, 4)];
-}
-
-// ── Node Component ───────────────────────────────────────────────
-function PathNode({
-  number,
-  game,
-  completed,
-  isNext,
-}: {
-  number: number;
-  game: typeof MINI_GAMES[0];
+interface WeeklyDay {
+  day: string;
   completed: boolean;
-  isNext: boolean;
+}
+
+interface StreakResponse {
+  currentStreak: number;
+  weeklyCompletion: WeeklyDay[];
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  level: number;
+  weeklyXp: number;
+  isCurrentUser: boolean;
+}
+
+interface LeaderboardResponse {
+  leaders: LeaderboardEntry[];
+  podium: LeaderboardEntry[];
+  currentUser: LeaderboardEntry | null;
+}
+
+interface BadgeItem {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+}
+
+const badgeIconMap = {
+  Star,
+  Flame,
+  Target,
+  Swords,
+  Zap,
+  Award,
+  Shield,
+  Crown,
+} as const;
+
+function getInitials(name: string | undefined) {
+  if (!name) return 'IC';
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function formatXp(value: number) {
+  return value.toLocaleString();
+}
+
+function LoadingBlock({ className }: { className?: string }) {
+  return <div className={cn('animate-pulse rounded-xl bg-white/50 backdrop-blur-sm dark:bg-slate-800/60', className)} />;
+}
+
+function PodiumCard({
+  entry,
+  place,
+}: {
+  entry: LeaderboardEntry | undefined;
+  place: 1 | 2 | 3;
 }) {
-  const router = useRouter();
+  const themes = {
+    1: {
+      ring: 'ring-2 ring-amber-400/80 shadow-lg',
+      badge: 'bg-gradient-to-r from-amber-200 to-yellow-200 text-amber-800 shadow-md dark:from-amber-500/20 dark:to-yellow-500/20 dark:text-amber-300',
+      pedestal: 'h-28 bg-gradient-to-br from-amber-200 to-yellow-200 border-amber-400/70 shadow-md dark:from-amber-500/20 dark:to-yellow-500/20 dark:border-amber-500/30',
+      label: '1st Place',
+    },
+    2: {
+      ring: 'ring-2 ring-slate-400/70 shadow-lg',
+      badge: 'bg-gradient-to-r from-slate-200 to-gray-200 text-slate-800 shadow-md dark:from-slate-700/50 dark:to-gray-700/50 dark:text-slate-200',
+      pedestal: 'h-24 bg-gradient-to-br from-slate-200 to-gray-200 border-slate-400/70 shadow-md dark:from-slate-700/40 dark:to-gray-700/40 dark:border-slate-600/50',
+      label: '2nd Place',
+    },
+    3: {
+      ring: 'ring-2 ring-orange-400/70 shadow-lg',
+      badge: 'bg-gradient-to-r from-orange-200 to-amber-200 text-orange-800 shadow-md dark:from-orange-500/20 dark:to-amber-500/20 dark:text-orange-300',
+      pedestal: 'h-20 bg-gradient-to-br from-orange-200 to-amber-200 border-orange-400/70 shadow-md dark:from-orange-500/20 dark:to-amber-500/20 dark:border-orange-500/30',
+      label: '3rd Place',
+    },
+  }[place];
+
+  if (!entry) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-end gap-3">
+        <LoadingBlock className="h-16 w-16 rounded-full" />
+        <LoadingBlock className="h-4 w-20" />
+        <LoadingBlock className={cn('w-full rounded-2xl border', themes.pedestal)} />
+      </div>
+    );
+  }
+
   return (
-    <div className="path-node-wrapper">
-      {/* Water droplets earned */}
-      <div className="droplets">
-        {completed
-          ? [0, 1, 2].map(i => <span key={i} className="drop drop-filled">💧</span>)
-          : [0, 1, 2].map(i => <span key={i} className="drop drop-empty">🩵</span>)}
+    <div className="flex flex-1 flex-col items-center justify-end gap-3 transition-all duration-300 ease-out hover:scale-105">
+      <span className={cn('rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]', themes.badge)}>
+        {themes.label}
+      </span>
+      <Avatar className={cn('h-16 w-16 shadow-sm', themes.ring)}>
+        {entry.avatarUrl ? <AvatarImage src={entry.avatarUrl} alt={entry.name} /> : null}
+        <AvatarFallback className="bg-gradient-to-br from-emerald-200 to-teal-200 text-emerald-800 dark:from-emerald-600/30 dark:to-teal-600/30 dark:text-emerald-200">
+          {getInitials(entry.name)}
+        </AvatarFallback>
+      </Avatar>
+      <div className="text-center">
+        <p className="text-sm font-semibold text-slate-900 dark:text-gray-100">{entry.name}</p>
+        <p className="text-xs text-slate-700 dark:text-slate-300">Level {entry.level}</p>
+        <p className="mt-1 text-sm font-bold text-emerald-800 dark:text-emerald-300">{formatXp(entry.weeklyXp)} XP</p>
       </div>
-
-      {/* Node circle */}
-      <div
-        className={`path-node ${completed ? 'node-done' : isNext ? 'node-next' : 'node-locked'}`}
-        onClick={() => router.push(game.href)}
-        style={completed ? { background: '#27ae60', borderColor: '#1e8449' } : isNext ? { background: game.color, borderColor: game.borderColor } : undefined}
-      >
-        <span className="node-number">{number}</span>
-        {completed && <span className="node-check">✓</span>}
+      <div className={cn('flex w-full items-end justify-center rounded-2xl border px-4 pb-4 pt-3 transition-all duration-300 group-hover:scale-105', themes.pedestal)}>
+        <span className="text-2xl font-black text-slate-900 dark:text-gray-100">#{place}</span>
       </div>
-
-      {/* Label */}
-      <div className="node-label">{game.label}</div>
     </div>
   );
 }
 
-// ── Main Page ───────────────────────────────────────────────────
 export default function GamificationPage() {
-  const [xpProfile, setXpProfile] = useState<any>(null);
-  const [weekProgress, setWeekProgress] = useState<string[]>([]);
-  const currentWeek = getISOWeek();
+  const router = useRouter();
+  const { user } = useAuthStore();
+
+  const [xpProfile, setXpProfile] = useState<XPProfile | null>(null);
+  const [streak, setStreak] = useState<StreakResponse | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardResponse | null>(null);
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load XP profile
-    gamificationService.getXPProfile().then((res: any) => {
-      setXpProfile(res?.data || res);
-    }).catch(() => {});
+    let cancelled = false;
 
-    // Load weekly progress from localStorage
-    const raw = localStorage.getItem('ic-week-progress');
-    if (raw) {
-      try {
-        const parsed: WeekProgress = JSON.parse(raw);
-        if (parsed.week === currentWeek) {
-          setWeekProgress(parsed.completed || []);
-        }
-      } catch {}
+    async function loadGamificationDashboard() {
+      setLoading(true);
+      const [xpRes, streakRes, leaderboardRes, badgesRes] = await Promise.allSettled([
+        gamificationService.getXPProfile(),
+        gamificationService.getStreak(),
+        gamificationService.getLeaderboard(8),
+        gamificationService.getBadges(),
+      ]);
+
+      if (cancelled) return;
+
+      if (xpRes.status === 'fulfilled') {
+        setXpProfile(xpRes.value?.data ?? xpRes.value);
+      }
+
+      if (streakRes.status === 'fulfilled') {
+        setStreak(streakRes.value?.data ?? streakRes.value);
+      }
+
+      if (leaderboardRes.status === 'fulfilled') {
+        setLeaderboard(leaderboardRes.value?.data ?? leaderboardRes.value);
+      }
+
+      if (badgesRes.status === 'fulfilled') {
+        setBadges(badgesRes.value?.data ?? badgesRes.value ?? []);
+      }
+
+      setLoading(false);
     }
+
+    loadGamificationDashboard();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const completedCount = weekProgress.length;
-  const xp = xpProfile?.totalXP ?? xpProfile?.xp ?? 0;
-  const xpToNext = xpProfile?.xpToNextLevel ?? 700;
-  const level = xpProfile?.level ?? 1;
-  const xpPct = Math.min(100, Math.round((xp % xpToNext) / xpToNext * 100));
+  const profile = useMemo(() => {
+    const totalXp = xpProfile?.totalXp ?? 0;
+    const level = xpProfile?.level ?? 1;
+    const xpForNextLevel = xpProfile?.xpForNextLevel ?? 100;
+    const xpProgress = xpProfile?.xpProgress ?? 0;
+    const progressPercent = xpProfile?.progressPercent ?? 0;
+
+    return {
+      totalXp,
+      level,
+      xpForNextLevel,
+      xpProgress,
+      progressPercent,
+      streakDays: streak?.currentStreak ?? xpProfile?.streakDays ?? 0,
+    };
+  }, [streak, xpProfile]);
+
+  const podiumOrder = [2, 1, 3] as const;
 
   return (
     <DashboardLayout requiredRole="student">
-      <style>{`
-        /* ── Background ── */
-        .gami-bg {
-          min-height: calc(100vh - 64px);
-          background: #4a7c34;
-          background-image:
-            radial-gradient(circle at 20% 30%, rgba(80,140,50,0.4) 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, rgba(40,100,20,0.4) 0%, transparent 50%);
-          font-family: 'Segoe UI', system-ui, sans-serif;
-        }
+      <div className="min-h-screen space-y-6 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-6 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(280px,0.8fr)]">
+          <GlowCard glowColor="green" customSize={true} className="!aspect-auto group rounded-3xl border border-emerald-300/40 bg-gradient-to-br from-[#A8D5A2] via-emerald-100 to-teal-100 p-6 shadow-lg transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-emerald-500/20 dark:border-emerald-700/30 dark:from-emerald-900/40 dark:via-slate-800 dark:to-teal-900/40">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20 ring-4 ring-white/60 shadow-lg dark:ring-emerald-500/20">
+                  <AvatarFallback className="bg-gradient-to-br from-emerald-200 to-teal-200 text-2xl font-bold text-emerald-800 dark:from-emerald-600/30 dark:to-teal-600/30 dark:text-emerald-200">
+                    {getInitials(user?.name)}
+                  </AvatarFallback>
+                </Avatar>
 
-        /* ── XP Bar ── */
-        .xp-bar-wrap {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(0,0,0,0.35);
-          border-radius: 999px;
-          padding: 8px 20px;
-          color: #fff;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          max-width: 340px;
-          margin: 0 auto;
-        }
-        .xp-bar-track {
-          flex: 1;
-          height: 14px;
-          background: rgba(255,255,255,0.2);
-          border-radius: 999px;
-          overflow: hidden;
-        }
-        .xp-bar-fill {
-          height: 100%;
-          background: linear-gradient(90deg, #f1c40f, #f39c12);
-          border-radius: 999px;
-          transition: width 0.8s ease;
-        }
-        .xp-avatar {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-        }
-
-        /* ── Layout ── */
-        .gami-layout {
-          display: flex;
-          gap: 24px;
-          align-items: flex-start;
-          padding: 0 16px 48px;
-          max-width: 860px;
-          margin: 0 auto;
-        }
-
-        /* ── Path Column ── */
-        .path-col {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0;
-          position: relative;
-        }
-
-        /* ── Week Header ── */
-        .week-header {
-          background: rgba(0,0,0,0.4);
-          color: #f1c40f;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          border-radius: 6px;
-          padding: 4px 14px;
-          margin-bottom: 16px;
-        }
-
-        /* ── Path segments ── */
-        .path-segment {
-          width: 40px;
-          background: linear-gradient(180deg, #6d4c1f 0%, #5d401a 100%);
-          border-left: 3px solid #4a3012;
-          border-right: 3px solid #8b6030;
-          min-height: 54px;
-        }
-        .path-segment.zigzag-left { transform: translateX(-32px); }
-        .path-segment.zigzag-right { transform: translateX(32px); }
-
-        /* ── Path Node ── */
-        .path-node-wrapper {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          position: relative;
-          z-index: 2;
-        }
-        .droplets {
-          display: flex;
-          gap: 4px;
-          margin-bottom: 4px;
-          font-size: 14px;
-        }
-        .drop { font-size: 14px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
-        .drop-filled { opacity: 1; }
-        .drop-empty { opacity: 0.3; filter: grayscale(1); }
-
-        .path-node {
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          border: 4px solid #7f8c8d;
-          background: #95a5a6;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-          position: relative;
-          font-weight: 900;
-          color: #fff;
-        }
-        .path-node:hover { transform: scale(1.12); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-        .path-node.node-next { animation: pulse-node 2s infinite; }
-        .node-number { font-size: 22px; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.4); }
-        .node-check { position: absolute; bottom: -4px; right: -4px; font-size: 16px; background: #fff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: #27ae60; font-size: 12px; font-weight: 900; }
-        .node-label { font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); margin-top: 4px; letter-spacing: 0.3px; text-align: center; max-width: 72px; }
-
-        @keyframes pulse-node {
-          0%, 100% { box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.3); }
-          50% { box-shadow: 0 4px 12px rgba(0,0,0,0.35), 0 0 0 10px rgba(255,255,255,0); }
-        }
-
-        /* ── Plant ── */
-        .plant-col {
-          width: 80px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0;
-          padding-top: 72px;
-        }
-        .plant-stage { display: flex; flex-direction: column; align-items: center; gap: 0; }
-        .soil {
-          width: 56px; height: 14px;
-          background: radial-gradient(ellipse at 50% 0%, #8b5e3c 60%, #6b4423 100%);
-          border-radius: 0 0 30px 30px;
-          margin-top: auto;
-        }
-        .stem {
-          width: 5px;
-          background: linear-gradient(180deg, #2ecc71, #27ae60);
-          border-radius: 3px;
-          position: relative;
-          transition: height 0.6s ease;
-        }
-        .leaf {
-          position: absolute;
-          width: 18px;
-          height: 10px;
-          background: #2ecc71;
-          border-radius: 50%;
-          transition: transform 0.4s ease;
-        }
-        .leaf-left { left: -18px; transform: rotate(-30deg); }
-        .leaf-right { right: -18px; transform: rotate(30deg); }
-        .bud { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 10px; height: 14px; background: #e74c3c; border-radius: 50% 50% 40% 40%; }
-        .flower { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 36px; height: 36px; }
-        .petal {
-          position: absolute; width: 12px; height: 18px;
-          background: radial-gradient(ellipse, #ff69b4, #e74c3c);
-          border-radius: 50%;
-          left: 50%; top: 50%;
-          transform-origin: 0% 50%;
-        }
-        .p0 { transform: rotate(0deg) translateX(8px) translateY(-50%); }
-        .p1 { transform: rotate(60deg) translateX(8px) translateY(-50%); }
-        .p2 { transform: rotate(120deg) translateX(8px) translateY(-50%); }
-        .p3 { transform: rotate(180deg) translateX(8px) translateY(-50%); }
-        .p4 { transform: rotate(240deg) translateX(8px) translateY(-50%); }
-        .p5 { transform: rotate(300deg) translateX(8px) translateY(-50%); }
-        .center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 10px; height: 10px; background: #f1c40f; border-radius: 50%; box-shadow: 0 0 6px rgba(255,200,0,0.8); }
-
-        /* ── Right panel ── */
-        .games-panel {
-          width: 140px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          padding-top: 16px;
-          position: sticky;
-          top: 16px;
-        }
-        .games-panel-title {
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
-          text-transform: uppercase;
-          color: rgba(255,255,255,0.7);
-          text-align: center;
-          margin-bottom: 4px;
-        }
-        .game-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          background: rgba(255,255,255,0.12);
-          border: 2px solid rgba(255,255,255,0.2);
-          border-radius: 12px;
-          padding: 12px 8px;
-          cursor: pointer;
-          transition: transform 0.15s ease, background 0.15s ease;
-          text-decoration: none;
-          color: inherit;
-          position: relative;
-        }
-        .game-card:hover { transform: translateY(-3px) scale(1.04); background: rgba(255,255,255,0.22); }
-        .game-card.done { border-color: #27ae60; background: rgba(39,174,96,0.15); }
-        .game-icon-wrap {
-          width: 52px; height: 52px;
-          border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 26px;
-          box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-        }
-        .game-card-label {
-          font-size: 10px; font-weight: 800; color: #fff;
-          text-align: center; letter-spacing: 0.3px; line-height: 1.2;
-        }
-        .game-xp {
-          font-size: 9px; font-weight: 700;
-          background: rgba(241,196,15,0.9);
-          color: #333;
-          border-radius: 999px;
-          padding: 1px 7px;
-        }
-        .done-badge {
-          position: absolute; top: -6px; right: -6px;
-          background: #27ae60; color: #fff;
-          border-radius: 50%; width: 18px; height: 18px;
-          font-size: 10px; display: flex; align-items: center; justify-content: center;
-          font-weight: 900; border: 2px solid #fff;
-        }
-
-        /* ── Weekly summary ── */
-        .week-summary {
-          background: rgba(0,0,0,0.4);
-          border-radius: 14px;
-          padding: 14px 20px;
-          color: #fff;
-          text-align: center;
-          margin: 0 auto 24px;
-          max-width: 440px;
-          width: 100%;
-        }
-        .progress-dots {
-          display: flex;
-          gap: 10px;
-          justify-content: center;
-          margin-top: 10px;
-        }
-        .dot {
-          width: 14px; height: 14px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.2);
-          transition: background 0.3s ease, transform 0.3s ease;
-        }
-        .dot.dot-filled {
-          background: #f1c40f;
-          box-shadow: 0 0 8px rgba(241,196,15,0.7);
-          transform: scale(1.2);
-        }
-
-        /* ── Bloom banner ── */
-        .bloom-banner {
-          background: linear-gradient(135deg, #f1c40f, #e67e22);
-          border-radius: 12px;
-          padding: 12px 20px;
-          color: #fff;
-          font-weight: 800;
-          font-size: 15px;
-          text-align: center;
-          letter-spacing: 0.5px;
-          box-shadow: 0 4px 16px rgba(230,126,34,0.4);
-          animation: bloom-glow 2s ease infinite alternate;
-          margin: 0 auto 16px;
-          max-width: 440px;
-        }
-        @keyframes bloom-glow {
-          from { box-shadow: 0 4px 16px rgba(230,126,34,0.4); }
-          to   { box-shadow: 0 4px 28px rgba(241,196,15,0.8); }
-        }
-      `}</style>
-
-      <div className="gami-bg">
-        {/* XP Bar header */}
-        <div style={{ padding: '20px 16px 16px' }}>
-          <div className="xp-bar-wrap">
-            <div style={{ fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap' }}>
-              LV {level}
-            </div>
-            <div className="xp-bar-track">
-              <div className="xp-bar-fill" style={{ width: `${xpPct}%` }} />
-            </div>
-            <div style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{xp} XP</div>
-            <div className="xp-avatar">👤</div>
-          </div>
-        </div>
-
-        {/* Week summary */}
-        <div className="week-summary">
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#f1c40f', letterSpacing: 1 }}>
-            THIS WEEK · {currentWeek}
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>
-            {completedCount} / 4 Mini-Games Complete
-          </div>
-          <div className="progress-dots">
-            {MINI_GAMES.map((g, i) => (
-              <div key={g.key} className={`dot ${weekProgress.includes(g.key) ? 'dot-filled' : ''}`} title={g.label} />
-            ))}
-          </div>
-          {completedCount === 4 && (
-            <div className="bloom-banner" style={{ marginTop: 12, marginBottom: 0 }}>
-              🌸 Your plant bloomed! Come back next week for a new challenge!
-            </div>
-          )}
-        </div>
-
-        {/* Main layout */}
-        <div className="gami-layout">
-          {/* Plant column */}
-          <div className="plant-col">
-            <div style={{ marginBottom: 12 }}>
-              <PlantStage completed={completedCount} />
-            </div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textAlign: 'center', letterSpacing: 1 }}>
-              {completedCount < 4 ? `${4 - completedCount} more to bloom` : '🌸 Bloomed!'}
-            </div>
-          </div>
-
-          {/* Path column */}
-          <div className="path-col">
-            <div className="week-header">WEEK CHALLENGE</div>
-
-            {MINI_GAMES.map((game, i) => {
-              const done = weekProgress.includes(game.key);
-              const isNext = !done && weekProgress.length === i;
-              return (
-                <React.Fragment key={game.key}>
-                  <PathNode
-                    number={i + 1}
-                    game={game}
-                    completed={done}
-                    isNext={isNext}
-                  />
-                  {/* Path segment between nodes */}
-                  {i < MINI_GAMES.length - 1 && (
-                    <div
-                      className={`path-segment ${i % 2 === 0 ? 'zigzag-right' : 'zigzag-left'}`}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-
-            {/* End flag */}
-            <div className="path-segment" style={{ minHeight: 32 }} />
-            <div style={{ fontSize: 28, marginTop: 4, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>
-              {completedCount === 4 ? '🌟' : '🚩'}
-            </div>
-          </div>
-
-          {/* Right panel – mini-game cards */}
-          <div className="games-panel">
-            <div className="games-panel-title">Mini Games</div>
-            {MINI_GAMES.map(game => {
-              const done = weekProgress.includes(game.key);
-              return (
-                <Link key={game.key} href={game.href} className={`game-card ${done ? 'done' : ''}`}>
-                  {done && <div className="done-badge">✓</div>}
-                  <div
-                    className="game-icon-wrap"
-                    style={{ background: `linear-gradient(135deg, ${game.color}, ${game.borderColor}dd)` }}
-                  >
-                    <span style={{ fontSize: 26 }}>{game.emoji}</span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800 dark:text-emerald-300">
+                    Player Profile
+                  </p>
+                  <h1 className="mt-1 text-3xl font-bold text-slate-900 dark:text-gray-100">
+                    {user?.name ?? 'Student'}
+                  </h1>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-semibold text-emerald-800 shadow-md transition-all duration-300 hover:scale-105 hover:bg-white hover:shadow-lg dark:bg-emerald-500/20 dark:text-emerald-300">
+                      Level {profile.level}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#F0C4AA] to-orange-200 px-3 py-1 text-sm font-semibold text-orange-900 shadow-md transition-all duration-300 hover:scale-105 hover:from-orange-200 hover:to-amber-200 hover:shadow-lg dark:from-orange-500/20 dark:to-amber-500/20 dark:text-orange-300">
+                      <Flame className="h-4 w-4" />
+                      {profile.streakDays} day streak
+                    </span>
                   </div>
-                  <div className="game-card-label">{game.label}</div>
-                  <div className="game-xp">+{game.xp} XP</div>
-                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{game.timer}</div>
-                </Link>
-              );
-            })}
-          </div>
+                </div>
+              </div>
+
+              <div className="flex w-full max-w-sm flex-col gap-3 lg:items-end">
+                <ArenaPortalTrigger
+                  targetHref="/student/gamification/arena"
+                  label="Enter Game Arena"
+                  className="h-14 w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-base font-semibold text-white shadow-lg transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 hover:from-emerald-700 hover:to-teal-700 hover:shadow-2xl hover:shadow-emerald-500/50 active:scale-95 dark:from-emerald-600 dark:to-teal-600 dark:hover:from-emerald-500 dark:hover:to-teal-500 hover:!bg-gradient-to-r hover:!text-white"
+                />
+                <p className="text-right text-sm text-slate-800 dark:text-slate-300">
+                  Jump into challenges, boss battles, and weekly progression.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-white/40 bg-white/60 p-5 shadow-md backdrop-blur-sm transition-all duration-300 ease-out group-hover:bg-white/70 group-hover:shadow-lg dark:border-emerald-800/30 dark:bg-slate-800/50 dark:group-hover:bg-slate-800/60">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-slate-200">Current XP</p>
+                  <p className="mt-1 text-3xl font-black text-slate-900 transition-all duration-300 group-hover:scale-105 dark:text-gray-100">
+                    {loading && !xpProfile ? '...' : `${formatXp(profile.totalXp)} XP`}
+                  </p>
+                </div>
+                <div className="text-sm text-slate-700 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-slate-200">
+                  {formatXp(profile.xpProgress)} / {formatXp(profile.xpForNextLevel)} toward next level
+                </div>
+              </div>
+              <Progress value={profile.progressPercent} className="mt-4 h-3 transition-all duration-700 ease-out [&>*]:bg-gradient-to-r [&>*]:from-emerald-500 [&>*]:to-teal-500 [&>*]:transition-all [&>*]:duration-700" />
+            </div>
+          </GlowCard>
+
+          <GlowCard glowColor="orange" customSize={true} className="!aspect-auto">
+          <Panel
+            title="Weekly Streak"
+            description="Stay active across the week to keep your streak alive."
+            className="group rounded-3xl border-orange-400/50 bg-gradient-to-br from-orange-200 via-amber-200 to-yellow-200 shadow-xl transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/30 dark:border-orange-600/40 dark:from-orange-800/50 dark:via-amber-800/40 dark:to-yellow-800/50"
+            action={<Flame className={cn("h-5 w-5 text-orange-700 dark:text-orange-400", profile.streakDays > 0 && "animate-pulse")} />}
+          >
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-4xl font-black text-orange-900 transition-all duration-300 group-hover:scale-110 dark:text-orange-100">{profile.streakDays}</p>
+                <p className="text-sm text-orange-700 dark:text-orange-300">current streak days</p>
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-orange-300 to-amber-300 px-4 py-3 text-right shadow-md transition-all duration-300 ease-out group-hover:shadow-lg dark:from-orange-500/30 dark:to-amber-500/25">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-900 dark:text-orange-300">
+                  Momentum
+                </p>
+                <p className="mt-1 text-sm font-medium text-orange-900 dark:text-orange-200">
+                  Keep earning XP daily
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2">
+              {(streak?.weeklyCompletion ?? [
+                { day: 'Mon', completed: false },
+                { day: 'Tue', completed: false },
+                { day: 'Wed', completed: false },
+                { day: 'Thu', completed: false },
+                { day: 'Fri', completed: false },
+                { day: 'Sat', completed: false },
+                { day: 'Sun', completed: false },
+              ]).map((entry) => (
+                <div
+                  key={entry.day}
+                  className={cn(
+                    'rounded-2xl border px-2 py-3 text-center shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-110 hover:shadow-md',
+                    entry.completed
+                      ? 'border-orange-500/60 bg-gradient-to-br from-orange-300 to-amber-300 text-orange-900 dark:border-orange-500/40 dark:from-orange-500/30 dark:to-amber-500/30 dark:text-orange-200'
+                      : 'border-slate-400/60 bg-white/80 text-slate-700 hover:bg-white dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400'
+                  )}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em]">{entry.day}</p>
+                </div>
+              ))}
+            </div>
+          </Panel>
+          </GlowCard>
         </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
+          <GlowCard glowColor="blue" customSize={true} className="!aspect-auto">
+          <Panel
+            title="Weekly Leaderboard"
+            description="Ranked by XP earned this week."
+            className="group rounded-3xl border-cyan-400/50 bg-gradient-to-br from-cyan-200 via-sky-200 to-blue-200 shadow-xl transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-cyan-500/30 dark:border-cyan-600/40 dark:from-cyan-800/50 dark:via-sky-800/40 dark:to-blue-800/50"
+            action={<Crown className="h-5 w-5 text-cyan-700 dark:text-cyan-400" />}
+          >
+            <div className="space-y-3">
+              {(leaderboard?.leaders ?? []).length === 0 && loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <LoadingBlock key={index} className="h-16 w-full rounded-2xl" />
+                ))
+              ) : (
+                (leaderboard?.leaders ?? []).map((entry, index) => {
+                  const medalStyle =
+                    index === 0
+                      ? 'bg-gradient-to-br from-amber-100 to-yellow-100 text-amber-700 dark:from-amber-500/15 dark:to-yellow-500/15 dark:text-amber-300'
+                      : index === 1
+                      ? 'bg-gradient-to-br from-slate-100 to-gray-100 text-slate-700 dark:from-slate-700/40 dark:to-gray-700/40 dark:text-slate-200'
+                      : index === 2
+                      ? 'bg-gradient-to-br from-orange-100 to-amber-100 text-orange-700 dark:from-orange-500/15 dark:to-amber-500/15 dark:text-orange-300'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+
+                  return (
+                    <div
+                      key={`${entry.userId}-${entry.rank}`}
+                      className={cn(
+                        'flex items-center gap-4 rounded-2xl border px-4 py-3 shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.02] hover:shadow-md',
+                        entry.isCurrentUser
+                          ? 'border-emerald-400/60 bg-gradient-to-r from-emerald-100 to-teal-100 dark:border-emerald-500/40 dark:from-emerald-500/15 dark:to-teal-500/15'
+                          : 'border-slate-300/60 bg-white/60 backdrop-blur-sm dark:border-slate-700 dark:bg-slate-800/50'
+                      )}
+                    >
+                      <div className={cn('flex h-10 w-10 items-center justify-center rounded-full text-sm font-black', medalStyle)}>
+                        {entry.rank}
+                      </div>
+
+                      <Avatar className="h-11 w-11">
+                        {entry.avatarUrl ? <AvatarImage src={entry.avatarUrl} alt={entry.name} /> : null}
+                        <AvatarFallback className="bg-gradient-to-br from-emerald-100 to-teal-100 font-semibold text-emerald-700 dark:from-emerald-500/20 dark:to-teal-500/20 dark:text-emerald-200">
+                          {getInitials(entry.name)}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="min-w-0 flex-1">
+                        <p className={cn('truncate font-semibold', entry.isCurrentUser ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-900 dark:text-gray-100')}>
+                          {entry.name}
+                        </p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">Level {entry.level}</p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="font-bold text-slate-900 dark:text-gray-100">{formatXp(entry.weeklyXp)} XP</p>
+                        <p className="text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">weekly</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Panel>
+          </GlowCard>
+
+          <GlowCard glowColor="red" customSize={true} className="!aspect-auto">
+          <Panel
+            title="Top 3 Podium"
+            description="This week’s front-runners."
+            className="group rounded-3xl border-pink-400/50 bg-gradient-to-br from-pink-200 via-rose-200 to-fuchsia-200 shadow-xl transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.02] hover:shadow-2xl hover:shadow-pink-500/30 dark:border-pink-600/40 dark:from-pink-800/50 dark:via-rose-800/40 dark:to-fuchsia-800/50"
+            action={<Trophy className="h-5 w-5 text-pink-700 dark:text-pink-400" />}
+          >
+            <div className="flex min-h-[320px] items-end gap-4 transition-all duration-300">
+              {podiumOrder.map((place) => (
+                <PodiumCard
+                  key={place}
+                  place={place}
+                  entry={leaderboard?.podium.find((item) => item.rank === place)}
+                />
+              ))}
+            </div>
+          </Panel>
+          </GlowCard>
+        </div>
+
+        <GlowCard glowColor="purple" customSize={true} className="!aspect-auto">
+        <Panel
+          title="Badge Gallery"
+          description="Unlock achievements through streaks, quizzes, boss wins, and XP milestones."
+          className="group rounded-3xl border-purple-400/50 bg-gradient-to-br from-purple-200 via-violet-200 to-indigo-200 shadow-xl transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-[1.01] hover:shadow-2xl hover:shadow-purple-500/30 dark:border-purple-600/40 dark:from-purple-800/50 dark:via-violet-800/40 dark:to-indigo-800/50"
+          action={<Award className="h-5 w-5 text-purple-700 dark:text-purple-400" />}
+        >
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {loading && badges.length === 0
+              ? Array.from({ length: 5 }).map((_, index) => <LoadingBlock key={index} className="h-40 rounded-3xl" />)
+              : badges.map((badge) => {
+                  const Icon = badgeIconMap[badge.icon as keyof typeof badgeIconMap] ?? Award;
+                  return (
+                    <div
+                      key={badge.id}
+                      className={cn(
+                        'rounded-3xl border p-5 shadow-md transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 hover:shadow-xl',
+                        badge.unlocked
+                          ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-100 to-teal-100 hover:shadow-emerald-500/30 dark:border-emerald-500/30 dark:from-emerald-500/15 dark:to-teal-500/15'
+                          : 'border-slate-300/60 bg-white/60 opacity-70 backdrop-blur-sm hover:opacity-85 dark:border-slate-700 dark:bg-slate-800/40'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className={cn(
+                          'rounded-2xl p-3 shadow-sm',
+                          badge.unlocked
+                            ? 'bg-white/80 text-emerald-700 backdrop-blur-sm dark:bg-slate-900/80 dark:text-emerald-300'
+                            : 'bg-slate-200/60 text-slate-400 dark:bg-slate-900/60 dark:text-slate-500'
+                        )}>
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <span className={cn(
+                          'rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] shadow-sm',
+                          badge.unlocked
+                            ? 'bg-gradient-to-r from-emerald-200 to-teal-200 text-emerald-800 dark:from-emerald-500/20 dark:to-teal-500/20 dark:text-emerald-300'
+                            : 'bg-slate-300/80 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        )}>
+                          {badge.unlocked ? 'Unlocked' : 'Locked'}
+                        </span>
+                      </div>
+
+                      <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-gray-100">{badge.name}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{badge.description}</p>
+                    </div>
+                  );
+                })}
+          </div>
+        </Panel>
+        </GlowCard>
       </div>
     </DashboardLayout>
   );

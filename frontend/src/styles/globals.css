@@ -248,6 +248,19 @@ html.dyslexia-mode [data-icon] {
   animation: lp-pulse-glow 4s ease-in-out infinite;
 }
 
+/* View Transition API - Arena Portal Effect */
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  filter: brightness(0); /* This makes the current screen go black */
+  transition: filter 0.3s ease;
+}
+
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

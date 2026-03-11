@@ -3,7 +3,9 @@ import { api } from './apiClient';
 export const gamificationService = {
   // XP
   getXPProfile: () => api.get('/gamification/xp'),
+  getStreak: () => api.get('/gamification/streak'),
   getLeaderboard: (limit = 10) => api.get(`/gamification/leaderboard?limit=${limit}`),
+  getBadges: () => api.get('/gamification/badges'),
 
   // Boss Battle
   startBossBattle: (topicId: string) =>

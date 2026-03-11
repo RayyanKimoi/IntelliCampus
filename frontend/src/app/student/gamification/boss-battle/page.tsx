@@ -1,124 +1,215 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { gamificationService } from '@/services/gamificationService';
-import { curriculumService } from '@/services/curriculumService';
+import React, { useState, useRef, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useAuthStore } from '@/store/authStore';
 
-// ── Types ────────────────────────────────────────────────────────
-interface Battle {
-  id: string; bossHP: number; currentHP: number; playerHP?: number;
-  maxPlayerHP?: number; status: string; score: number; xpEarned?: number;
+// ── Types & Data ─────────────────────────────────────────────────
+interface BBQuestion {
+  text: string;
+  options: string[];
+  correct: number; // 0-3
 }
-interface Question {
-  id: string; questionText: string;
-  optionA: string; optionB: string; optionC: string; optionD: string;
-}
-type View = 'select' | 'battle' | 'result';
 
-const BOSS_ICONS = ['🛡️','⚔️','💀','🧙','🐉','👾','🤖','🔥'];
-const BOSS_COLORS = ['#8e44ad','#c0392b','#2c3e50','#1a6b3c','#d35400','#2980b9','#6d4c41','#7f8c00'];
-
-function getISOWeekBB(): string {
-  const d = new Date(); const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return `${d.getUTCFullYear()}-W${String(Math.ceil((((d.getTime()-yearStart.getTime())/86400000)+1)/7)).padStart(2,'0')}`;
+interface Phase {
+  name: string;
+  bossHP: number;
+  icon: string;
+  color: string;
+  questions: BBQuestion[];
 }
-function markWeekBB(key: string) {
-  try {
-    const wk = getISOWeekBB();
-    const raw = localStorage.getItem('ic-week-progress');
-    const p = raw ? JSON.parse(raw) : { week: wk, completed: [] };
-    if (p.week !== wk) p.completed = []; p.week = wk;
-    if (!p.completed.includes(key)) p.completed.push(key);
-    localStorage.setItem('ic-week-progress', JSON.stringify(p));
-  } catch {}
+
+const PHASES: Phase[] = [
+  {
+    name: 'Easy', bossHP: 100, icon: '👾', color: '#8e44ad',
+    questions: [
+      { text: 'What data structure uses LIFO ordering?', options: ['Stack', 'Queue', 'Array', 'Graph'], correct: 0 },
+      { text: 'Which structure uses FIFO ordering?', options: ['Stack', 'Queue', 'Tree', 'Map'], correct: 1 },
+      { text: 'What is the time complexity of accessing an array element by index?', options: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'], correct: 2 },
+      { text: 'A linked list node contains data and a ___?', options: ['Key', 'Index', 'Pointer', 'Hash'], correct: 2 },
+      { text: 'Which traversal visits root, left, then right?', options: ['Inorder', 'Preorder', 'Postorder', 'Level-order'], correct: 1 },
+      { text: 'What does a hash function do?', options: ['Sorts data', 'Maps keys to indices', 'Compresses files', 'Encrypts data'], correct: 1 },
+      { text: 'A binary tree has at most ___ children per node.', options: ['1', '2', '3', 'Unlimited'], correct: 1 },
+      { text: 'Which data structure is best for BFS?', options: ['Stack', 'Queue', 'Heap', 'Array'], correct: 1 },
+    ],
+  },
+  {
+    name: 'Medium', bossHP: 150, icon: '🐉', color: '#c0392b',
+    questions: [
+      { text: 'What is the worst-case time for hash table lookup?', options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'], correct: 2 },
+      { text: 'Which sort is NOT comparison-based?', options: ['Merge sort', 'Quick sort', 'Counting sort', 'Heap sort'], correct: 2 },
+      { text: 'In an AVL tree, the balance factor can be?', options: ['0 only', '-1, 0, 1', '-2 to 2', 'Any integer'], correct: 1 },
+      { text: 'Dijkstra\'s algorithm finds?', options: ['MST', 'Shortest path', 'Max flow', 'Topological order'], correct: 1 },
+      { text: 'A min-heap\'s root contains the?', options: ['Maximum', 'Minimum', 'Median', 'Average'], correct: 1 },
+      { text: 'What property defines a BST?', options: ['Balanced height', 'Left < root < right', 'Complete tree', 'Max 2 children'], correct: 1 },
+      { text: 'Graph DFS uses which structure internally?', options: ['Queue', 'Stack', 'Heap', 'Hash table'], correct: 1 },
+      { text: 'Amortized time for dynamic array push is?', options: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'], correct: 2 },
+      { text: 'Which structure supports union and find in near O(1)?', options: ['BST', 'Hash map', 'Disjoint set', 'Trie'], correct: 2 },
+      { text: 'Postfix expression evaluation uses a?', options: ['Queue', 'Stack', 'Tree', 'Graph'], correct: 1 },
+    ],
+  },
+  {
+    name: 'Hard', bossHP: 200, icon: '💀', color: '#2c3e50',
+    questions: [
+      { text: 'Red-black tree guarantees O(log n) because of?', options: ['AVL rotations', 'Color constraints', 'Hash balancing', 'Skip pointers'], correct: 1 },
+      { text: 'B-tree is commonly used in?', options: ['CPU cache', 'Database indexes', 'GPU shaders', 'Network routing'], correct: 1 },
+      { text: 'Fibonacci heap improves which operation?', options: ['Insert', 'Decrease-key', 'Delete', 'Find-max'], correct: 1 },
+      { text: 'Suffix tree construction can be done in?', options: ['O(n²)', 'O(n log n)', 'O(n)', 'O(2ⁿ)'], correct: 2 },
+      { text: 'Bloom filter can produce?', options: ['False negatives only', 'False positives only', 'Both', 'Neither'], correct: 1 },
+      { text: 'Time complexity of building a heap from array?', options: ['O(n log n)', 'O(n)', 'O(n²)', 'O(log n)'], correct: 1 },
+      { text: 'Kruskal\'s algorithm needs which structure?', options: ['Priority queue', 'Disjoint set', 'Stack', 'Hash map'], correct: 1 },
+      { text: 'A splay tree uses which strategy?', options: ['AVL rotations', 'Color flips', 'Move to root', 'Random balancing'], correct: 2 },
+      { text: 'Skip list expected search time is?', options: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'], correct: 1 },
+      { text: 'Treap combines which two structures?', options: ['BST + heap', 'Trie + graph', 'Stack + queue', 'Hash + array'], correct: 0 },
+      { text: 'Van Emde Boas tree supports predecessor in?', options: ['O(log n)', 'O(log log n)', 'O(1)', 'O(√n)'], correct: 1 },
+      { text: 'Persistent data structure preserves?', options: ['Memory locality', 'All previous versions', 'Constant space', 'Thread safety'], correct: 1 },
+    ],
+  },
+];
+
+type View = 'setup' | 'battle' | 'result';
+
+const BOSS_DAMAGE = 20;
+const PLAYER_DAMAGE = 15;
+const PLAYER_MAX_HP = 100;
+const BOSS_NAME = 'Data Structure Titan';
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export default function BossBattlePage() {
   const router = useRouter();
-  const [topics, setTopics] = useState<any[]>([]);
-  const [view, setView] = useState<View>('select');
-  const [battle, setBattle] = useState<Battle | null>(null);
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const stageId = Number(searchParams.get('stageId')) || 1;
+  const { user } = useAuthStore();
+
+  const [view, setView] = useState<View>('setup');
+  const [phase, setPhase] = useState(0);
+  const [questions, setQuestions] = useState<BBQuestion[]>([]);
+  const [qIdx, setQIdx] = useState(0);
+  const [bossHP, setBossHP] = useState(100);
+  const [playerHP, setPlayerHP] = useState(PLAYER_MAX_HP);
+  const [maxBossHP, setMaxBossHP] = useState(100);
+  const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState(false);
-  const [selected, setSelected] = useState('');
+  const [selectedOpt, setSelectedOpt] = useState(-1);
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null);
   const [dmgText, setDmgText] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState<any>(null);
-  const [bossColorIdx, setBossColorIdx] = useState(0);
+  const [victory, setVictory] = useState(false);
+  const [xpEarned, setXpEarned] = useState(0);
+  const submittedRef = useRef(false);
 
-  useEffect(() => { loadTopics(); }, []);
-
-  const loadTopics = async () => {
-    try {
-      const courses = await curriculumService.getCourses();
-      const cl = (courses as any)?.data ?? courses ?? [];
-      const all: any[] = [];
-      for (const c of Array.isArray(cl) ? cl : []) {
-        try {
-          const subs = await curriculumService.getSubjects(c.id);
-          for (const s of Array.isArray((subs as any)?.data ?? subs ?? []) ? ((subs as any)?.data ?? subs ?? []) : []) {
-            try {
-              const tops = await curriculumService.getTopics(s.id);
-              all.push(...(Array.isArray((tops as any)?.data ?? tops ?? []) ? ((tops as any)?.data ?? tops ?? []) : []));
-            } catch {}
-          }
-        } catch {}
-      }
-      setTopics(all);
-    } catch {}
+  const startBattle = () => {
+    submittedRef.current = false;
+    setPhase(0);
+    initPhase(0);
+    setScore(0);
+    setVictory(false);
+    setXpEarned(0);
+    setView('battle');
   };
 
-  const startBattle = async (topic: any, idx: number) => {
-    setLoading(true); setSelectedTopic(topic); setBossColorIdx(idx % BOSS_COLORS.length);
-    try {
-      const res = await gamificationService.startBossBattle(topic.id);
-      const d = (res as any)?.data ?? res;
-      setBattle({ id: d.id, bossHP: d.bossHP ?? 100, currentHP: d.currentHP ?? 100, playerHP: d.playerHP ?? 100, maxPlayerHP: d.maxPlayerHP ?? 100, status: d.status, score: d.score ?? 0 });
-      setQuestion(d.currentQuestion ?? d.question ?? null);
-      setAnswered(false); setSelected(''); setWasCorrect(null); setDmgText('');
-      setView('battle');
-    } catch { }
-    finally { setLoading(false); }
+  const initPhase = (p: number) => {
+    const ph = PHASES[p];
+    setQuestions(shuffle(ph.questions));
+    setQIdx(0);
+    setBossHP(ph.bossHP);
+    setMaxBossHP(ph.bossHP);
+    setPlayerHP(PLAYER_MAX_HP);
+    setAnswered(false);
+    setSelectedOpt(-1);
+    setWasCorrect(null);
+    setDmgText('');
   };
 
-  const answerQuestion = async (opt: string) => {
-    if (!battle || !question || answered) return;
-    setSelected(opt); setAnswered(true);
+  const completeVictory = useCallback(async () => {
+    if (!user?.id || submittedRef.current) return;
+    submittedRef.current = true;
     try {
-      const res = await gamificationService.answerBattle({ battleId: battle.id, questionId: question.id, selectedOption: opt });
-      const d = (res as any)?.data ?? res;
-      setWasCorrect(d.correct);
-      setDmgText(d.correct ? `-${d.damage ?? 20} HP` : `-${d.damage ?? 15} HP`);
-      setBattle(prev => prev ? {
-        ...prev,
-        currentHP: d.correct ? (d.bossHP ?? Math.max(0, prev.currentHP - (d.damage ?? 20))) : prev.currentHP,
-        playerHP: !d.correct ? Math.max(0, (prev.playerHP ?? 100) - (d.damage ?? 15)) : prev.playerHP,
-        status: d.status ?? prev.status,
-        score: d.score ?? (prev.score + (d.correct ? 1 : 0)),
-        xpEarned: d.xpEarned ?? prev.xpEarned,
-      } : null);
-      if (d.status === 'won' || d.status === 'lost') {
-        setTimeout(() => { markWeekBB('boss-battle'); setView('result'); }, 900);
+      const res = await fetch('/api/gamification/complete-game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, stageId, gameType: 'boss' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setXpEarned(data.data?.xpEarned ?? 300);
+      } else { setXpEarned(300); }
+    } catch { setXpEarned(300); }
+  }, [user?.id, stageId]);
+
+  const selectAnswer = (optIdx: number) => {
+    if (answered) return;
+    setAnswered(true);
+    setSelectedOpt(optIdx);
+    const q = questions[qIdx];
+    const correct = optIdx === q.correct;
+    setWasCorrect(correct);
+
+    if (correct) {
+      setDmgText(`-${BOSS_DAMAGE} Boss HP`);
+      const newBossHP = Math.max(0, bossHP - BOSS_DAMAGE);
+      setBossHP(newBossHP);
+      setScore(s => s + 1);
+
+      if (newBossHP <= 0) {
+        // Phase cleared
+        if (phase < 2) {
+          // Next phase
+          setTimeout(() => {
+            const nextPhase = phase + 1;
+            setPhase(nextPhase);
+            initPhase(nextPhase);
+          }, 1200);
+        } else {
+          // Victory!
+          setVictory(true);
+          completeVictory();
+          setTimeout(() => setView('result'), 1200);
+        }
         return;
       }
-      setTimeout(() => {
-        setQuestion(d.nextQuestion ?? null);
-        setAnswered(false); setSelected(''); setWasCorrect(null);
-        setTimeout(() => setDmgText(''), 200);
-      }, 900);
-    } catch { setAnswered(false); }
+    } else {
+      setDmgText(`-${PLAYER_DAMAGE} Your HP`);
+      const newPlayerHP = Math.max(0, playerHP - PLAYER_DAMAGE);
+      setPlayerHP(newPlayerHP);
+
+      if (newPlayerHP <= 0) {
+        // Defeat
+        setVictory(false);
+        setTimeout(() => setView('result'), 1200);
+        return;
+      }
+    }
+
+    // Next question
+    setTimeout(() => {
+      const nextQ = qIdx + 1;
+      if (nextQ >= questions.length) {
+        // Ran out of questions — recycle shuffled
+        setQuestions(shuffle(PHASES[phase].questions));
+        setQIdx(0);
+      } else {
+        setQIdx(nextQ);
+      }
+      setAnswered(false);
+      setSelectedOpt(-1);
+      setWasCorrect(null);
+      setTimeout(() => setDmgText(''), 200);
+    }, 900);
   };
 
-  const bossHPPct = battle ? Math.max(0, Math.round((battle.currentHP / (battle.bossHP > 0 ? battle.bossHP : 100)) * 100)) : 100;
-  const playerHPPct = battle ? Math.max(0, Math.round(((battle.playerHP ?? 100) / (battle.maxPlayerHP ?? 100)) * 100)) : 100;
-  const bossName = selectedTopic ? (selectedTopic.name || selectedTopic.title || 'Boss') : 'Boss';
-  const bossIcon = BOSS_ICONS[bossColorIdx % BOSS_ICONS.length];
-  const bossColor = BOSS_COLORS[bossColorIdx];
+  const currentPhase = PHASES[phase];
+  const bossHPPct = maxBossHP > 0 ? Math.max(0, Math.round((bossHP / maxBossHP) * 100)) : 0;
+  const playerHPPct = Math.max(0, Math.round((playerHP / PLAYER_MAX_HP) * 100));
+  const q = questions[qIdx];
 
   return (
     <DashboardLayout requiredRole="student">
@@ -129,25 +220,15 @@ export default function BossBattlePage() {
         .bb-back { background:none; border:none; cursor:pointer; font-size:13px; font-weight:700;
           color:#cc99ff; padding:8px 0 12px; align-self:flex-start; }
         .bb-back:hover { color:#fff; }
-        /* SELECT */
         .bb-sel-title { font-family:'Courier New',monospace; font-size:22px; font-weight:900;
           color:#f1c40f; text-align:center; letter-spacing:3px; margin-bottom:4px; }
         .bb-sel-sub { font-size:12px; color:#9b8ab8; text-align:center; margin-bottom:16px; }
-        .bb-boss-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-          gap:12px; width:100%; max-width:600px; }
-        .bb-boss-card { border-radius:14px; border:3px solid; padding:16px;
-          display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;
-          transition:transform 0.15s,box-shadow 0.15s; background:rgba(255,255,255,0.04); }
-        .bb-boss-card:hover { transform:scale(1.04); box-shadow:0 6px 20px rgba(0,0,0,0.5); }
-        .bb-boss-icon { font-size:40px; line-height:1; }
-        .bb-boss-tname { font-size:12px; font-weight:800; color:#fff; text-align:center; }
-        .bb-boss-hp-bar { width:100%; height:6px; background:rgba(255,255,255,0.15); border-radius:3px; overflow:hidden; }
-        .bb-boss-hp-fill { height:100%; background:#c0392b; border-radius:3px; }
-        .bb-enter-btn { margin-top:6px; background:#c0392b; border:2px solid #922b21;
-          border-radius:6px; padding:6px 18px; font-size:11px; font-weight:800;
-          color:#fff; cursor:pointer; letter-spacing:1px; text-transform:uppercase; }
+        .bb-setup { width:100%; max-width:380px; background:rgba(255,255,255,0.06);
+          border-radius:16px; border:3px solid #8e44ad; padding:24px; text-align:center; }
+        .bb-enter-btn { background:#c0392b; border:3px solid #922b21;
+          border-radius:10px; padding:14px 32px; font-size:16px; font-weight:900;
+          color:#fff; cursor:pointer; letter-spacing:2px; text-transform:uppercase; margin-top:16px; }
         .bb-enter-btn:hover { background:#a93226; }
-        /* BATTLE */
         .bb-arena { width:100%; max-width:440px; }
         .bb-field { background:linear-gradient(to bottom,#87ceeb 0%,#87ceeb 50%,#5a9e3b 50%,#5a9e3b 100%);
           border-radius:16px 16px 0 0; border:3px solid #2c3e50; border-bottom:none;
@@ -192,7 +273,8 @@ export default function BossBattlePage() {
         .bb-ans-btn.wrong   { background:#c0392b; border-color:#922b21; color:#fff; }
         .bb-score-strip { display:flex; justify-content:space-between; align-items:center;
           font-size:11px; font-weight:700; color:#cc99ff; padding:6px 0; max-width:440px; width:100%; }
-        /* RESULT */
+        .bb-phase-tag { background:rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;
+          font-size:10px; font-weight:800; color:#f1c40f; letter-spacing:1px; }
         .bb-result-box { width:100%; max-width:380px; background:#1a0030;
           border:4px solid #f1c40f; border-radius:16px; padding:28px; text-align:center; }
         .bb-result-title { font-family:'Courier New',monospace; font-size:28px; font-weight:900;
@@ -209,48 +291,39 @@ export default function BossBattlePage() {
       `}</style>
 
       <div className="bb-bg">
-        {/* ── SELECT SCREEN ── */}
-        {view === 'select' && (
+        {/* ── SETUP SCREEN ── */}
+        {view === 'setup' && (
           <>
-            <button className="bb-back" onClick={() => router.push('/student/gamification')}>◀ Back</button>
+            <button className="bb-back" onClick={() => router.push('/student/gamification/arena')}>◀ Back to Arena</button>
             <div className="bb-sel-title">BOSS BATTLE</div>
-            <div className="bb-sel-sub">Choose a topic to face the boss!</div>
-            {topics.length === 0 ? (
-              <div style={{ color: '#9b8ab8', fontSize: 13, fontWeight: 700, padding: 32 }}>Loading bosses…</div>
-            ) : (
-              <div className="bb-boss-grid">
-                {topics.slice(0, 12).map((t, i) => {
-                  const color = BOSS_COLORS[i % BOSS_COLORS.length];
-                  const icon = BOSS_ICONS[i % BOSS_ICONS.length];
-                  return (
-                    <div key={t.id} className="bb-boss-card" style={{ borderColor: color }}>
-                      <div className="bb-boss-icon">{icon}</div>
-                      <div className="bb-boss-tname">{t.name || t.title}</div>
-                      <div className="bb-boss-hp-bar">
-                        <div className="bb-boss-hp-fill" style={{ width: '100%', background: color }} />
-                      </div>
-                      <button className="bb-enter-btn" style={{ background: color, borderColor: color }}
-                        disabled={loading} onClick={() => startBattle(t, i)}>
-                        {loading ? '…' : 'ENTER BATTLE'}
-                      </button>
-                    </div>
-                  );
-                })}
+            <div className="bb-sel-sub">Defeat the Data Structure Titan across 3 phases!</div>
+            <div className="bb-setup">
+              <div style={{ fontSize: 64 }}>🐉</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: '#f1c40f', marginTop: 8 }}>{BOSS_NAME}</div>
+              <div style={{ fontSize: 11, color: '#9b8ab8', marginTop: 8, lineHeight: 1.6 }}>
+                Phase 1: Easy (HP 100)<br />
+                Phase 2: Medium (HP 150)<br />
+                Phase 3: Hard (HP 200)<br /><br />
+                Correct = Boss takes {BOSS_DAMAGE} damage<br />
+                Wrong = You take {PLAYER_DAMAGE} damage<br />
+                Your HP: {PLAYER_MAX_HP} per phase<br /><br />
+                +300 XP on Victory!
               </div>
-            )}
+              <button className="bb-enter-btn" onClick={startBattle}>⚔️ ENTER BATTLE</button>
+            </div>
           </>
         )}
 
         {/* ── BATTLE SCREEN ── */}
-        {view === 'battle' && battle && (
+        {view === 'battle' && q && (
           <>
-            <button className="bb-back" onClick={() => setView('select')}>◀ Flee</button>
+            <button className="bb-back" onClick={() => { setView('setup'); }}>◀ Flee</button>
             <div className="bb-arena">
               <div className="bb-field">
                 <div className="bb-field-ground" />
                 <div className="bb-boss-sprite">
-                  <div className="bb-boss-face" style={{ filter: `drop-shadow(0 0 8px ${bossColor})` }}>{bossIcon}</div>
-                  <div className="bb-boss-hp-label" style={{ background: bossColor }}>{bossName}</div>
+                  <div className="bb-boss-face" style={{ filter: `drop-shadow(0 0 8px ${currentPhase.color})` }}>{currentPhase.icon}</div>
+                  <div className="bb-boss-hp-label" style={{ background: currentPhase.color }}>{BOSS_NAME}</div>
                 </div>
                 <div className="bb-player-sprite">
                   <div className="bb-player-face">🧑‍💻</div>
@@ -264,51 +337,54 @@ export default function BossBattlePage() {
                 <div className="bb-hp-row">
                   <div className="bb-hp-label">BOSS HP</div>
                   <div className="bb-hp-bar-wrap"><div className="bb-hp-fill boss" style={{ width: `${bossHPPct}%` }} /></div>
-                  <div className="bb-hp-num">{battle.currentHP}/{battle.bossHP}</div>
+                  <div className="bb-hp-num">{bossHP}/{maxBossHP}</div>
                 </div>
                 <div className="bb-hp-row">
                   <div className="bb-hp-label">YOUR HP</div>
                   <div className="bb-hp-bar-wrap"><div className="bb-hp-fill player" style={{ width: `${playerHPPct}%` }} /></div>
-                  <div className="bb-hp-num">{battle.playerHP ?? 100}/{battle.maxPlayerHP ?? 100}</div>
+                  <div className="bb-hp-num">{playerHP}/{PLAYER_MAX_HP}</div>
                 </div>
               </div>
             </div>
             <div className="bb-score-strip">
-              <span>⚔️ Score: {battle.score}</span>
-              <span style={{ color: '#f1c40f' }}>VS {bossName}</span>
+              <span>⚔️ Score: {score}</span>
+              <span className="bb-phase-tag">PHASE {phase + 1}: {currentPhase.name.toUpperCase()}</span>
             </div>
-            {question ? (
-              <>
-                <div className="bb-bubble">{question.questionText}</div>
-                <div className="bb-ans-grid">
-                  {([['A', question.optionA], ['B', question.optionB], ['C', question.optionC], ['D', question.optionD]] as [string, string][]).map(([k, l]) => {
-                    let cls = 'bb-ans-btn';
-                    if (answered && k === selected) cls += wasCorrect ? ' correct' : ' wrong';
-                    return <button key={k} className={cls} disabled={answered} onClick={() => answerQuestion(k)}>{l}</button>;
-                  })}
-                </div>
-              </>
-            ) : (
-              <div className="bb-bubble" style={{ textAlign: 'center', color: '#888' }}>Loading question…</div>
-            )}
+            <div className="bb-bubble">{q.text}</div>
+            <div className="bb-ans-grid">
+              {q.options.map((opt, i) => {
+                let cls = 'bb-ans-btn';
+                if (answered && i === selectedOpt) cls += wasCorrect ? ' correct' : ' wrong';
+                if (answered && i === q.correct && !wasCorrect) cls += ' correct';
+                return <button key={i} className={cls} disabled={answered} onClick={() => selectAnswer(i)}>{opt}</button>;
+              })}
+            </div>
           </>
         )}
 
         {/* ── RESULT SCREEN ── */}
-        {view === 'result' && battle && (
+        {view === 'result' && (
           <>
-            <button className="bb-back" onClick={() => router.push('/student/gamification')}>◀ Back</button>
+            <button className="bb-back" onClick={() => router.push('/student/gamification/arena')}>◀ Back to Arena</button>
             <div style={{ textAlign: 'center', fontSize: 56, padding: '12px 0' }}>
-              {battle.status === 'won' ? '🏆' : '💀'}
+              {victory ? '🏆' : '💀'}
             </div>
             <div className="bb-result-box">
-              <div className="bb-result-title" style={{ color: battle.status === 'won' ? '#f1c40f' : '#e74c3c' }}>
-                {battle.status === 'won' ? 'BOSS DEFEATED!' : 'DEFEATED…'}
+              <div className="bb-result-title" style={{ color: victory ? '#f1c40f' : '#e74c3c' }}>
+                {victory ? 'BOSS DEFEATED!' : 'DEFEATED...'}
               </div>
-              <div className="bb-result-sub">{battle.status === 'won' ? `${bossName} has fallen!` : 'Better luck next time!'}</div>
-              <div className="bb-result-badge">{battle.score}</div>
-              <div style={{ color: '#9b8ab8', fontSize: 12, fontWeight: 700 }}>{battle.xpEarned ?? 0} XP Gained</div>
-              <button className="bb-play-again" onClick={() => setView('select')}>▶ PLAY AGAIN</button>
+              <div className="bb-result-sub">
+                {victory ? `${BOSS_NAME} has fallen!` : `Fell in Phase ${phase + 1} (${currentPhase.name})`}
+              </div>
+              <div className="bb-result-badge">{score}</div>
+              <div style={{ color: '#9b8ab8', fontSize: 12, fontWeight: 700 }}>
+                {victory ? `+${xpEarned || 300} XP Gained` : '0 XP — Try again!'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+                <button className="bb-play-again" onClick={() => setView('setup')}>▶ PLAY AGAIN</button>
+                <button className="bb-play-again" style={{ background: '#27ae60', borderColor: '#1a7a40' }}
+                  onClick={() => router.push('/student/gamification/arena')}>ARENA</button>
+              </div>
             </div>
           </>
         )}

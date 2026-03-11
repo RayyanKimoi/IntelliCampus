@@ -125,9 +125,11 @@ model User {
   gradedAttempts        StudentAttempt[] @relation("GradedAttempts")
   studentXp             StudentXP?
   xpLogs                XPLog[]
+  stageProgress         StageProgress[]
   bossBattles           BossBattle[]
   flashcardProgress     FlashcardProgress[]
   spinRewards           SpinReward[]
+  userBadges            UserBadge[]
   performanceLogs       PerformanceLog[]
   weakTopicFlags        WeakTopicFlag[]
   systemUsageLogs       SystemUsageLog[]
@@ -529,6 +531,22 @@ model XPLog {
   @@map("xp_logs")
 }
 
+model StageProgress {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  stageId        Int      @map("stage_id") // 1-4 for the 4 stages
+  completedGames Int      @default(0) @map("completed_games") // 0-4 games completed
+  progress       Int      @default(0) // 0-100 percentage
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stageId])
+  @@index([userId])
+  @@map("stage_progress")
+}
+
 model BossBattle {
   id        String       @id @default(cuid())
   userId    String       @map("user_id")
@@ -574,6 +592,35 @@ model SpinReward {
 
   @@index([userId])
   @@map("spin_rewards")
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  key         String      @unique
+  name        String
+  description String      @db.Text
+  icon        String
+  sortOrder   Int         @default(0) @map("sort_order")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  badgeId    String   @map("badge_id")
+  unlockedAt DateTime @default(now()) @map("unlocked_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@map("user_badges")
 }
 
 // ========================
