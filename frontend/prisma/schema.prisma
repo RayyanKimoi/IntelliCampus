@@ -85,6 +85,17 @@ enum DifficultyLevel {
   advanced
 }
 
+enum QuizType {
+  CURRICULUM
+  ADAPTIVE
+}
+
+enum QuizDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
 // ========================
 // 1. Users & Auth
 // ========================
@@ -144,6 +155,13 @@ model User {
   enrollments    CourseEnrollment[] @relation("StudentEnrollments")
   evaluations    StudentEvaluation[] @relation("StudentEvaluations")
 
+  // AI Quiz & Adaptive Learning
+  quizzes           Quiz[]
+  quizAttempts      QuizAttempt[]
+  adaptiveResources AdaptiveResource[]
+  conceptMasteries  ConceptMastery[]
+  topicMasteries    TopicMastery[]
+
   @@index([institutionId])
   @@index([role])
   @@map("users")
@@ -201,6 +219,9 @@ model Course {
   teacherAssignments TeacherCourseAssignment[]
   enrollments    CourseEnrollment[]
   evaluations    StudentEvaluation[]
+  quizzes        Quiz[]
+  adaptiveResources AdaptiveResource[]
+  topicMasteries  TopicMastery[]
 
   @@index([institutionId])
   @@map("courses")
@@ -730,6 +751,138 @@ model StudentEvaluation {
 // ========================
 // 10. Admin OTP Authentication
 // ========================
+
+// ========================
+// 11. AI Quiz & Adaptive Learning
+// ========================
+
+model Quiz {
+  id             String        @id @default(cuid())
+  studentId      String        @map("student_id")
+  courseId       String?       @map("course_id")
+  chapterId      String?       @map("chapter_id")
+  type           QuizType
+  difficulty     QuizDifficulty
+  totalQuestions Int           @map("total_questions")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  student   User    @relation(fields: [studentId], references: [id])
+  course    Course? @relation(fields: [courseId], references: [id])
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([chapterId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String  @id @default(cuid())
+  quizId        String  @map("quiz_id")
+  question      String  @db.Text
+  options       Json
+  correctAnswer String  @map("correct_answer")
+  explanation   String  @db.Text
+  concept       String
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String   @map("quiz_id")
+  studentId   String   @map("student_id")
+  score       Int
+  completedAt DateTime @map("completed_at")
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student User         @relation(fields: [studentId], references: [id])
+  answers QuizAnswer[]
+
+  @@index([quizId])
+  @@index([studentId])
+  @@map("quiz_attempts")
+}
+
+model QuizAnswer {
+  id             String  @id @default(cuid())
+  attemptId      String  @map("attempt_id")
+  questionId     String  @map("question_id")
+  selectedAnswer String  @map("selected_answer")
+  isCorrect      Boolean @map("is_correct")
+
+  attempt  QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+  @@map("quiz_answers")
+}
+
+model AdaptiveResource {
+  id          String   @id @default(cuid())
+  studentId   String   @map("student_id")
+  courseId    String   @map("course_id")
+  chapterId   String   @map("chapter_id")
+  concept     String
+  explanation String   @db.Text
+  mindmap     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([chapterId])
+  @@map("adaptive_resources")
+}
+
+model ConceptMastery {
+  id           String   @id @default(cuid())
+  studentId    String   @map("student_id")
+  concept      String
+  masteryScore Float    @default(0) @map("mastery_score")
+  isWeak       Boolean  @default(false) @map("is_weak")
+  correctCount Int      @default(0) @map("correct_count")
+  totalCount   Int      @default(0) @map("total_count")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, concept])
+  @@index([studentId])
+  @@index([studentId, isWeak])
+  @@map("concept_mastery")
+}
+
+// ========================
+// 12. Topic Mastery (Practice Quiz)
+// ========================
+
+model TopicMastery {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  courseId  String   @map("course_id")
+  topic     String
+  attempts  Int      @default(0)
+  correct   Int      @default(0)
+  score     Float    @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId, topic])
+  @@index([studentId])
+  @@index([studentId, courseId])
+  @@map("topic_mastery")
+}
 
 model AdminOTP {
   id        String   @id @default(cuid())

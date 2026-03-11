@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
 import { prisma } from '@/lib/prisma';
@@ -41,16 +41,8 @@ export async function GET(
       },
     });
 
-    if (!assignment) {
+    if (!assignment || !assignment.isPublished) {
       return NextResponse.json({ success: false, error: 'Assignment not found' }, { status: 404 });
-    }
-
-    const enrollment = await prisma.courseEnrollment.findFirst({
-      where: { studentId: user.userId, courseId: assignment.courseId },
-    });
-
-    if (!enrollment) {
-      return NextResponse.json({ success: false, error: 'You are not enrolled in this course' }, { status: 403 });
     }
 
     const latestAttempt = assignment.studentAttempts[0];

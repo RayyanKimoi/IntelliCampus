@@ -19,7 +19,8 @@ class Retriever {
       topicId?: string;
       courseId?: string;
     },
-    topK: number = RAG.TOP_K_RESULTS
+    topK: number = RAG.TOP_K_RESULTS,
+    minScore: number = RAG.MIN_RELEVANCE_SCORE
   ): Promise<RetrievedChunk[]> {
     // Generate query embedding
     const queryEmbedding = await generateEmbedding(query);
@@ -40,7 +41,7 @@ class Retriever {
 
     // Filter by minimum relevance score and map to chunks
     return (results.matches || [])
-      .filter((match) => (match.score || 0) >= RAG.MIN_RELEVANCE_SCORE)
+      .filter((match) => (match.score || 0) >= minScore)
       .map((match) => ({
         id: match.id,
         text: (match.metadata?.text as string) || '',
