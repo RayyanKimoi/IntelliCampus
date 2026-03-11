@@ -3,6 +3,64 @@ import { GAMIFICATION } from '@intellicampus/shared';
 import { masteryService } from './mastery.service';
 import { logger } from '@/utils/logger';
 
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+const DEFAULT_BADGES = [
+  {
+    key: 'first_steps',
+    name: 'First Steps',
+    description: 'Earn your first XP in IntelliCampus.',
+    icon: 'Star',
+    sortOrder: 1,
+  },
+  {
+    key: 'streak_5',
+    name: '5 Day Streak',
+    description: 'Maintain a 5 day study streak.',
+    icon: 'Flame',
+    sortOrder: 2,
+  },
+  {
+    key: 'quiz_master',
+    name: 'Quiz Master',
+    description: 'Score a perfect quiz performance.',
+    icon: 'Target',
+    sortOrder: 3,
+  },
+  {
+    key: 'boss_slayer',
+    name: 'Boss Slayer',
+    description: 'Win 5 boss battles.',
+    icon: 'Swords',
+    sortOrder: 4,
+  },
+  {
+    key: 'xp_hunter',
+    name: 'XP Hunter',
+    description: 'Reach 1000 total XP.',
+    icon: 'Zap',
+    sortOrder: 5,
+  },
+] as const;
+
+function getCurrentWeekBounds(now = new Date()) {
+  const start = new Date(now);
+  const day = start.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  start.setDate(start.getDate() + diffToMonday);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  return { start, end };
+}
+
+function getWeekdayIndex(date: Date) {
+  const day = date.getDay();
+  return day === 0 ? 6 : day - 1;
+}
+
 export class GamificationService {
   // ========================
   // XP System
@@ -120,6 +178,216 @@ export class GamificationService {
         },
       },
     });
+  }
+
+  async getWeeklyStreak(userId: string) {
+    const { start, end } = getCurrentWeekBounds();
+
+    const [xpProfile, logs] = await Promise.all([
+      prisma.studentXP.findUnique({ where: { userId } }),
+      prisma.xPLog.findMany({
+        where: {
+          userId,
+          createdAt: {
+            gte: start,
+            lt: end,
+          },
+        },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const completed = new Set<number>();
+    for (const log of logs) {
+      completed.add(getWeekdayIndex(log.createdAt));
+    }
+
+    const weeklyCompletion = WEEKDAY_LABELS.map((day, index) => ({
+      day,
+      completed: completed.has(index),
+    }));
+
+    return {
+      currentStreak: xpProfile?.streakDays ?? 0,
+      weeklyCompletion,
+    };
+  }
+
+  async getWeeklyLeaderboard(currentUserId: string, limit = 10) {
+    const { start, end } = getCurrentWeekBounds();
+    const grouped = await prisma.xPLog.groupBy({
+      by: ['userId'],
+      where: {
+        createdAt: {
+          gte: start,
+          lt: end,
+        },
+      },
+      _sum: {
+        xpAmount: true,
+      },
+      orderBy: {
+        _sum: {
+          xpAmount: 'desc',
+        },
+      },
+    });
+
+    const ranked = grouped.map((entry, index) => ({
+      userId: entry.userId,
+      weeklyXp: entry._sum.xpAmount ?? 0,
+      rank: index + 1,
+    }));
+
+    const userIds = ranked.map((entry) => entry.userId);
+    const users = userIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: {
+            id: true,
+            name: true,
+            profile: { select: { avatarUrl: true } },
+            studentXp: { select: { level: true, totalXp: true } },
+          },
+        })
+      : [];
+
+    const userMap = new Map(users.map((user) => [user.id, user]));
+    const entries = ranked
+      .map((entry) => {
+        const user = userMap.get(entry.userId);
+        if (!user) return null;
+        return {
+          rank: entry.rank,
+          userId: entry.userId,
+          name: user.name,
+          avatarUrl: user.profile?.avatarUrl ?? null,
+          level: user.studentXp?.level ?? 1,
+          weeklyXp: entry.weeklyXp,
+          isCurrentUser: entry.userId === currentUserId,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+    const leaders = entries.slice(0, limit);
+    const currentUser = entries.find((entry) => entry.userId === currentUserId) ?? null;
+    const includeCurrentUser = currentUser && !leaders.some((entry) => entry.userId === currentUser.userId);
+
+    return {
+      leaders: includeCurrentUser ? [...leaders, currentUser] : leaders,
+      podium: entries.slice(0, 3),
+      currentUser,
+      weekStart: start,
+      weekEndExclusive: end,
+    };
+  }
+
+  async getBadges(userId: string) {
+    try {
+      // Check if Badge model exists on Prisma client
+      if (!('badge' in prisma) || !('userBadge' in prisma)) {
+        console.warn('[Gamification] Badge models not available in Prisma client. Run prisma generate.');
+        // Return default badges as locked
+        return DEFAULT_BADGES.map((badge) => ({
+          id: badge.key,
+          key: badge.key,
+          name: badge.name,
+          description: badge.description,
+          icon: badge.icon,
+          unlocked: false,
+          unlockedAt: null,
+        }));
+      }
+
+      await Promise.all(
+        DEFAULT_BADGES.map((badge) =>
+          (prisma as any).badge.upsert({
+            where: { key: badge.key },
+            update: {
+              name: badge.name,
+              description: badge.description,
+              icon: badge.icon,
+              sortOrder: badge.sortOrder,
+            },
+            create: badge,
+          })
+        )
+      );
+
+      const [badges, xpProfile, bossWins, perfectQuiz, existingUserBadges] = await Promise.all([
+        (prisma as any).badge.findMany({
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        }),
+        prisma.studentXP.findUnique({ where: { userId } }),
+        prisma.bossBattle.count({ where: { userId, status: 'won' } }),
+        prisma.performanceLog.findFirst({
+          where: {
+            userId,
+            activityType: 'quiz',
+            OR: [{ accuracy: { gte: 100 } }, { score: { gte: 100 } }],
+          },
+          select: { id: true },
+        }),
+        (prisma as any).userBadge.findMany({
+          where: { userId },
+          select: { badgeId: true, unlockedAt: true },
+        }),
+      ]);
+
+    const badgeMap = new Map(existingUserBadges.map((badge) => [badge.badgeId, badge]));
+
+    for (const badge of badges) {
+      const shouldUnlock = (() => {
+        switch (badge.key) {
+          case 'first_steps':
+            return (xpProfile?.totalXp ?? 0) > 0;
+          case 'streak_5':
+            return (xpProfile?.streakDays ?? 0) >= 5;
+          case 'quiz_master':
+            return Boolean(perfectQuiz);
+          case 'boss_slayer':
+            return bossWins >= 5;
+          case 'xp_hunter':
+            return (xpProfile?.totalXp ?? 0) >= 1000;
+          default:
+            return false;
+        }
+      })();
+
+      if (shouldUnlock && !badgeMap.has(badge.id)) {
+        const created = await (prisma as any).userBadge.create({
+          data: {
+            userId,
+            badgeId: badge.id,
+          },
+          select: { badgeId: true, unlockedAt: true },
+        });
+        badgeMap.set(badge.id, created);
+      }
+    }
+
+    return badges.map((badge: any) => ({
+      id: badge.id,
+      key: badge.key,
+      name: badge.name,
+      description: badge.description,
+      icon: badge.icon,
+      unlocked: badgeMap.has(badge.id),
+      unlockedAt: badgeMap.get(badge.id)?.unlockedAt ?? null,
+    }));
+    } catch (error: any) {
+      console.error('[Gamification] getBadges error:', error.message);
+      // Return default locked badges on error
+      return DEFAULT_BADGES.map((badge) => ({
+        id: badge.key,
+        key: badge.key,
+        name: badge.name,
+        description: badge.description,
+        icon: badge.icon,
+        unlocked: false,
+        unlockedAt: null,
+      }));
+    }
   }
 
   // ========================

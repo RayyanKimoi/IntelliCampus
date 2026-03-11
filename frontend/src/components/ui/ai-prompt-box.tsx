@@ -91,8 +91,10 @@ export function PromptInputBox({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const interimTranscriptRef = useRef<string>('');
+  const retryCountRef = useRef<number>(0);
+  const maxRetries = 2;
 
   // Auto-resize textarea
   const autoResize = useCallback(() => {
@@ -107,27 +109,206 @@ export function PromptInputBox({
     autoResize();
   }, [value, autoResize]);
 
-  // Voice recording
+  // Cleanup speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Monitor online/offline status during recording
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const handleOffline = () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+      alert('Internet connection lost. Speech recognition has been stopped.');
+    };
+
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [isRecording]);
+
+  // Voice recording with Speech-to-Text
   const toggleRecording = async () => {
     if (isRecording) {
-      mediaRef.current?.stop();
+      // Stop recording
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsRecording(false);
+      retryCountRef.current = 0;
       return;
     }
+
+    // Start recording
+    startRecognition();
+  };
+
+  const startRecognition = () => {
+    setIsRecording(true);
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        // For now we just show the mic as off; real STT wiring happens in ChatWindow
+      // Check browser compatibility
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg');
+      const isEdge = userAgent.includes('edg');
+      const isSafari = userAgent.includes('safari') && !userAgent.includes('chrome');
+      
+      if (!isChrome && !isEdge && !isSafari) {
+        setIsRecording(false);
+        alert('⚠️ Speech recognition works best in Chrome or Edge.\n\nYour current browser may not support this feature. Please use:\n• Google Chrome\n• Microsoft Edge\n• Safari (on Mac)');
+        return;
+      }
+
+      // Check if online
+      if (!navigator.onLine) {
+        setIsRecording(false);
+        alert('You are offline. Speech recognition requires an internet connection.');
+        return;
+      }
+
+      // Check if Speech Recognition is supported
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        setIsRecording(false);
+        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+        return;
+      }
+
+      // Test internet connectivity to Google
+      console.log('Testing connection to Google Speech API...');
+      fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' })
+        .then(() => console.log('✓ Google is reachable'))
+        .catch((err) => {
+          console.error('✗ Cannot reach Google:', err);
+          setIsRecording(false);
+          alert(
+            '⚠️ Cannot reach Google servers.\n\n' +
+            'Speech recognition needs internet access to Google.\n\n' +
+            'Possible issues:\n' +
+            '• Firewall blocking Google\n' +
+            '• VPN or proxy restrictions\n' +
+            '• Browser extensions blocking requests\n' +
+            '• Antivirus blocking connections\n\n' +
+            'Try:\n' +
+            '1. Disable VPN/proxy temporarily\n' +
+            '2. Disable browser extensions\n' +
+            '3. Check firewall settings\n' +
+            '4. Use a different network'
+          );
+        });
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      let finalTranscript = value; // Start with existing text
+
+      recognition.onstart = () => {
+        console.log('✓ Speech recognition started successfully');
+        setIsRecording(true);
+        interimTranscriptRef.current = '';
+        retryCountRef.current = 0; // Reset retry count on successful start
       };
-      recorder.start();
-      mediaRef.current = recorder;
-      setIsRecording(true);
-    } catch {
-      // microphone not available
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          
+          if (event.results[i].isFinal) {
+            // Final result - append to permanent text
+            finalTranscript += (finalTranscript ? ' ' : '') + transcript;
+            setValue(finalTranscript);
+          } else {
+            // Interim result - temporary display
+            interimTranscript += transcript;
+          }
+        }
+        
+        // Update interim display
+        interimTranscriptRef.current = interimTranscript;
+        if (interimTranscript) {
+          const displayText = finalTranscript + (finalTranscript ? ' ' : '') + interimTranscript;
+          setValue(displayText);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error, event);
+        
+        // Handle different error types
+        if (event.error === 'no-speech') {
+          // User didn't speak - silent fail, just stop
+          console.log('No speech detected');
+          setIsRecording(false);
+          return;
+        } else if (event.error === 'aborted') {
+          // User manually stopped - expected behavior
+          console.log('Recognition aborted by user');
+          setIsRecording(false);
+          return;
+        } else if (event.error === 'audio-capture') {
+          setIsRecording(false);
+          alert('Microphone not detected. Please check your microphone connection and try again.');
+        } else if (event.error === 'not-allowed') {
+          setIsRecording(false);
+          alert('Microphone access denied. Please allow microphone access in your browser settings and reload the page.');
+        } else if (event.error === 'network') {
+          // Network error - IMMEDIATE issue with Google Speech API
+          console.error('Network error - Cannot connect to Google Speech API');
+          console.log('This happens immediately, suggesting firewall/network blocking');
+          
+          setIsRecording(false);
+          retryCountRef.current = 0;
+          
+          alert(
+            'NETWORK ERROR: Cannot connect to Google Speech Service\n\n' +
+            'WHY THIS HAPPENS:\n' +
+            'Speech recognition uses Google servers. Your network/firewall is blocking the connection.\n\n' +
+            'SOLUTIONS:\n' +
+            '1. Disable VPN if using one\n' +
+            '2. Try a different network (mobile hotspot)\n' +
+            '3. Check if Google.com is accessible\n' +
+            '4. Disable antivirus/firewall temporarily\n' +
+            '5. Try a different browser (Chrome works best)\n' +
+            '6. Disable browser extensions\n\n' +
+            'ALTERNATIVE:\n' +
+            'Type your question instead of speaking.'
+          );
+        } else if (event.error === 'service-not-allowed') {
+          setIsRecording(false);
+          alert('Speech recognition service is not allowed. This might be due to browser settings or extensions blocking the service.');
+        } else {
+          setIsRecording(false);
+          alert(`Speech recognition error: ${event.error}. Please try again or type your message instead.`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+        interimTranscriptRef.current = '';
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      
+    } catch (error) {
+      console.error('Failed to start speech recognition:', error);
+      setIsRecording(false);
+      alert('Failed to start speech recognition. Please check your microphone permissions and try again.');
     }
   };
 
@@ -173,12 +354,25 @@ export function PromptInputBox({
     <div
       className={cn(
         'rounded-2xl border bg-card transition-all duration-200',
-        focused
+        focused || isRecording
           ? 'border-[#006EB2]/60 shadow-[0_0_0_3px_rgba(0,110,178,0.12)]'
           : 'border-border shadow-sm',
+        isRecording && 'shadow-[0_0_20px_rgba(239,68,68,0.3)]',
         className,
       )}
     >
+      {/* Recording indicator */}
+      {isRecording && (
+        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1.5 border border-red-500/20">
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-xs font-medium text-red-600">Listening...</span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Speak clearly • Requires internet connection
+          </span>
+        </div>
+      )}
       {/* Attached file previews */}
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 pb-0">
