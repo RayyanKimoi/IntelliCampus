@@ -73,12 +73,32 @@ export default function ChapterContentPage() {
   // ── Upload handler (file) ────────────────────────────────────────
   const handleUploadFile = async (file: File, title: string) => {
     try {
+      // Get auth token
+      const getAuthToken = () => {
+        if (typeof window === 'undefined') return null;
+        try {
+          const stored = localStorage.getItem('intellicampus-auth');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            return parsed.state?.token || 'dev-token-mock-authentication';
+          }
+        } catch {
+          return 'dev-token-mock-authentication';
+        }
+        return 'dev-token-mock-authentication';
+      };
+
+      const token = getAuthToken();
+
       // Step 1: Upload the actual file
       const formData = new FormData();
       formData.append('file', file);
 
       const uploadResponse = await fetch('/api/upload/file', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
 

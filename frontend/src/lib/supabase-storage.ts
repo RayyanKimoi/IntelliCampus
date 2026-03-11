@@ -16,7 +16,13 @@ export const getSupabaseAdmin = () => {
     });
   }
   if (!supabaseAdminInstance) {
-    throw new Error('Supabase Admin client not initialized. Check environment variables.');
+    const missingVars = [];
+    if (!supabaseUrl) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+    if (!supabaseServiceKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+    throw new Error(
+      `Supabase Admin client not initialized. Missing environment variables: ${missingVars.join(', ')}. ` +
+      `Please add SUPABASE_SERVICE_ROLE_KEY to your .env file.`
+    );
   }
   return supabaseAdminInstance;
 };

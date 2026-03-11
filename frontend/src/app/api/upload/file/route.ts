@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { uploadToSupabase } from '@/lib/supabase-storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,25 +55,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const fileName = `${timestamp}_${sanitizedFileName}`;
-    const filePath = join(uploadsDir, fileName);
+    const filePath = `curriculum/${user.institutionId}/${fileName}`;
 
-    // Convert file to buffer and save
+    // Convert file to buffer and upload to Supabase
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Return the public URL
-    const fileUrl = `/uploads/${fileName}`;
+    
+    let fileUrl: string;
+    try {
+      fileUrl = await uploadToSupabase('course-materials', filePath, buffer, file.type);
+    } catch (uploadError: any) {
+      console.error('[API] Supabase upload failed:', uploadError);
+      return NextResponse.json(
+        { error: `File upload failed: ${uploadError.message}` },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
