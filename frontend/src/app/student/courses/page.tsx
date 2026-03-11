@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { curriculumService, Course, Subject } from '@/services/curriculumService';
+import { curriculumService, Course } from '@/services/curriculumService';
+import { masteryService } from '@/services/masteryService';
 import { useCourseStore } from '@/store/courseStore';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -121,7 +122,7 @@ function CourseSkeleton() {
 }
 
 export default function StudentCoursesPage() {
-  const { courses, subjectsByCourse, masteryByCourse, setCourses, setSubjects, setCourseMastery, coursesLoaded } =
+  const { courses, masteryByCourse, setCourses, setCourseMastery, coursesLoaded } =
     useCourseStore();
   const [loading, setLoading] = useState(!coursesLoaded);
 
@@ -132,37 +133,32 @@ export default function StudentCoursesPage() {
     async function load() {
       setLoading(true);
       try {
-        // Optimized: Single API call that returns courses with mastery data
         const courseRes = await curriculumService.getCourses() as any;
-        const coursesWithMastery: CourseWithMeta[] = courseRes?.data ?? courseRes ?? [];
-        
-        if (cancelled || !Array.isArray(coursesWithMastery)) return;
+        const rawCourses: Course[] = courseRes?.data ?? courseRes ?? [];
+        if (cancelled || !Array.isArray(rawCourses)) return;
 
         // Fall back to mock data when API returns empty array
-        if (coursesWithMastery.length === 0) {
-          setCourses(MOCK_COURSES as unknown as Course[]);
-          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
+        const coursesToUse: Course[] = rawCourses.length > 0 ? rawCourses : (MOCK_COURSES as unknown as Course[]);
+        setCourses(coursesToUse);
+        if (rawCourses.length === 0) {
           if (!cancelled) setLoading(false);
           return;
         }
 
-        // Store courses with embedded mastery and subjectCount
-        setCourses(coursesWithMastery);
-        
-        // Set mastery data from the response
-        coursesWithMastery.forEach((course) => {
-          setCourseMastery(course.id, { 
-            overallMastery: course.mastery,
-            byTopic: [],
-            weakTopics: []
-          });
-        });
-
+        // Fetch mastery for each course in parallel (skip subjects — subjectCount comes from the API)
+        await Promise.allSettled(
+          coursesToUse.map(async (course) => {
+            try {
+              const masteryRes = await masteryService.getCourseMastery(course.id) as any;
+              const m = masteryRes?.data ?? masteryRes;
+              if (m && !cancelled) setCourseMastery(course.id, m);
+            } catch {}
+          })
+        );
       } catch (e) {
         console.error('[CoursesPage] failed to load courses', e);
         if (!cancelled) {
           setCourses(MOCK_COURSES as any);
-          MOCK_COURSES.forEach((c) => setSubjects(c.id, []));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -171,11 +167,11 @@ export default function StudentCoursesPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [coursesLoaded, setCourses, setSubjects, setCourseMastery]);
+  }, [coursesLoaded, setCourses, setCourseMastery]);
 
   const coursesWithMeta: CourseWithMeta[] = courses.map((c) => ({
     ...c,
-    subjectCount: (c as any).subjectCount ?? (subjectsByCourse[c.id] ?? []).length,
+    subjectCount: (c as any).subjectCount ?? 0,
     mastery: Math.round((c as any).mastery ?? masteryByCourse[c.id]?.overallMastery ?? 0),
   }));
 

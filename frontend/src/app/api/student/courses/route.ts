@@ -11,13 +11,8 @@ export async function GET(req: NextRequest) {
     const user = getAuthUser(req);
     requireRole(user, [UserRole.STUDENT]);
 
-    // Use optimized method that fetches courses with mastery in a single query
-    const coursesWithMastery = await curriculumService.getStudentCoursesWithMastery(
-      user.userId,
-      user.institutionId
-    );
-
-    return NextResponse.json({ success: true, data: coursesWithMastery }, { status: 200 });
+    const courses = await curriculumService.getCourses(user.institutionId);
+    return NextResponse.json({ success: true, data: courses }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message },
