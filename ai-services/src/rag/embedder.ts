@@ -1,5 +1,5 @@
 import openai, { openaiConfig } from '../config/openai';
-import { getIndex, pineconeConfig } from '../config/pinecone';
+import { getPineconeIndex, pineconeConfig } from '../config/pinecone';
 import { TextChunk } from './chunker';
 
 interface EmbeddingMetadata {
@@ -45,7 +45,9 @@ class Embedder {
     const texts = chunks.map((c) => c.text);
     const embeddings = await this.embedBatch(texts);
 
-    const index = getIndex();
+    console.log(`[Embedder] Generated ${embeddings.length} embeddings, vector size: ${embeddings[0]?.length ?? 0}`);
+
+    const index = getPineconeIndex();
     const vectors = chunks.map((chunk, i) => ({
       id: `${metadata.topicId}_chunk_${chunk.index}_${Date.now()}`,
       values: embeddings[i],
@@ -57,11 +59,17 @@ class Embedder {
     }));
 
     // Upsert in batches of 100
+    console.log(`[Embedder] Upserting ${vectors.length} vectors into namespace '${pineconeConfig.namespace}'`);
+    if (vectors.length > 0) {
+      console.log('[Embedder] Sample vector metadata:', JSON.stringify(vectors[0].metadata));
+    }
     const batchSize = 100;
     for (let i = 0; i < vectors.length; i += batchSize) {
       const batch = vectors.slice(i, i + batchSize);
       await index.namespace(pineconeConfig.namespace).upsert(batch);
+      console.log(`[Embedder] Upserted batch ${Math.floor(i / batchSize) + 1} (${batch.length} vectors)`);
     }
+    console.log(`[Embedder] Upsert completed — total vectors: ${vectors.length}`);
 
     return vectors.map((v) => v.id);
   }

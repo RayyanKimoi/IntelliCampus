@@ -84,6 +84,8 @@ export default function CreateQuizPage() {
 
   const [questions, setQuestions] = useState<QuizQuestion[]>([emptyQuestion()]);
   const [createdAssignmentId, setCreatedAssignmentId] = useState('');
+  // True when AI generation already persisted questions — skip addQuestion calls
+  const [aiQuestionsAlreadySaved, setAiQuestionsAlreadySaved] = useState(false);
 
   useEffect(() => {
     chapterCurriculumService.getTeacherCourses()
@@ -123,6 +125,7 @@ export default function CreateQuizPage() {
     if (!form.courseId) { setError('Please select a course.'); return; }
     if (!form.chapterId) { setError('Please select a chapter for AI generation.'); return; }
     if (!form.title.trim()) { setError('Title is required.'); return; }
+    if (!form.dueDate) { setError('Due date is required before generating a quiz.'); return; }
 
     setAiGenerating(true);
     setError('');
@@ -132,7 +135,7 @@ export default function CreateQuizPage() {
         chapterId: form.chapterId,
         title: form.title,
         description: form.description,
-        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+        dueDate: new Date(form.dueDate).toISOString(),
         difficultyLevel: form.difficultyLevel,
         questionCount: form.questionCount,
       });
@@ -148,12 +151,15 @@ export default function CreateQuizPage() {
           explanation: q.explanation || '',
           difficultyLevel: (q.difficultyLevel as any) || 'intermediate',
         })));
+        // AI route already saved the questions — don't add them again
+        setAiQuestionsAlreadySaved(true);
       } else {
         setQuestions(Array.from({ length: form.questionCount }, emptyQuestion));
+        setAiQuestionsAlreadySaved(false);
       }
       setMode('manual');
-    } catch {
-      setError('AI generation failed. You can still fill in questions manually.');
+    } catch (e: any) {
+      setError(e?.message || 'AI generation failed. You can still fill in questions manually.');
       setMode('manual');
     } finally {
       setAiGenerating(false);
@@ -194,18 +200,24 @@ export default function CreateQuizPage() {
     setSubmitting(true);
     setError('');
     try {
-      for (const q of validQuestions) {
-        await assessmentStudioService.addQuestion(createdAssignmentId, {
-          questionText: q.questionText,
-          optionA: q.optionA,
-          optionB: q.optionB,
-          optionC: q.optionC,
-          optionD: q.optionD,
-          correctOption: q.correctOption as 'A' | 'B' | 'C' | 'D',
-          explanation: q.explanation || undefined,
-          difficultyLevel: q.difficultyLevel,
-        });
+      // If AI route already persisted the questions, skip re-adding them (avoids duplicates)
+      if (!aiQuestionsAlreadySaved) {
+        for (const q of validQuestions) {
+          await assessmentStudioService.addQuestion(createdAssignmentId, {
+            questionText: q.questionText,
+            optionA: q.optionA,
+            optionB: q.optionB,
+            optionC: q.optionC,
+            optionD: q.optionD,
+            correctOption: q.correctOption as 'A' | 'B' | 'C' | 'D',
+            explanation: q.explanation || undefined,
+            difficultyLevel: q.difficultyLevel,
+          });
+        }
       }
+      // For manually-created quizzes, publish now. For AI quizzes the route already
+      // created them as published, but calling publish again is harmless (idempotent).
+      await assessmentStudioService.publishAssessment(createdAssignmentId);
       router.push(`/teacher/assessment-studio/${createdAssignmentId}`);
     } catch (e: any) {
       setError(e?.message || 'Failed to save questions');
@@ -468,7 +480,7 @@ export default function CreateQuizPage() {
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
                 ) : (
-                  'Save Quiz'
+                  aiQuestionsAlreadySaved ? 'View Quiz' : 'Save & Publish Quiz'
                 )}
               </Button>
             </div>

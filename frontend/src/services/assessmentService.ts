@@ -8,6 +8,7 @@ export interface Assignment {
   courseId: string;
   subjectId?: string;
   courseName: string;
+  chapterName?: string;
   subjectName?: string;
   status: 'pending' | 'submitted' | 'graded' | 'late';
   totalPoints?: number;
@@ -182,5 +183,16 @@ export const assessmentService = {
   // ── Quizzes ────────────────────────────────────────
   getQuizzesBySubject: (subjectId: string) => api.get<{ success: boolean; data: Assignment[] }>(`/student/subjects/${subjectId}/quizzes`),
 
-  getQuizzes: () => api.get<{ success: boolean; data: Assignment[] }>('/student/quizzes'),
+  getQuizzes: () => api.get<{ success: boolean; data: Assignment[] }>('/student/quizzes', { cache: 'no-store' } as any),
+
+  /** Fetch published quizzes for a specific enrolled course */
+  getQuizzesByCourse: async (courseId: string): Promise<Assignment[]> => {
+    try {
+      const result = await api.get<{ success: boolean; data: Assignment[] }>(`/student/quizzes?courseId=${courseId}`);
+      return result?.data ?? [];
+    } catch (error) {
+      console.error('[assessmentService] Failed to fetch course quizzes:', error);
+      return [];
+    }
+  },
 };

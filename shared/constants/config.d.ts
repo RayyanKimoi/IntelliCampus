@@ -23,7 +23,7 @@ export declare const GAMIFICATION: {
     readonly PLAYER_DAMAGE_PER_WRONG: 25;
     readonly SPRINT_QUIZ_TIME_SECONDS: 45;
     readonly SPRINT_QUIZ_QUESTIONS: 10;
-    readonly LEVEL_XP_MULTIPLIER: 100;
+    readonly LEVEL_XP_MULTIPLIER: 1000;
 };
 export declare const PAGINATION: {
     readonly DEFAULT_PAGE: 1;

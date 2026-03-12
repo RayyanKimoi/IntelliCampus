@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log(`[PDF Upload] PDF Uploaded — name: ${file.name}, size: ${file.size} bytes, type: ${file.type}, url: ${fileUrl}`);
+
     return NextResponse.json(
       {
         success: true,

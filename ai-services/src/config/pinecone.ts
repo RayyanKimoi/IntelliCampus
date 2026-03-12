@@ -21,6 +21,8 @@ export const pineconeConfig = {
   minScore: 0.7,
 };
 
+console.log(`[Pinecone] Initialized — index: "${indexName}", namespace: "curriculum"`);
+
 export function getPineconeIndex() {
   return pinecone.index(indexName as string);
 }

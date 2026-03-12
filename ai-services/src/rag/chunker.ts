@@ -24,7 +24,12 @@ export class Chunker {
   chunkText(text: string): TextChunk[] {
     const chunks: TextChunk[] = [];
 
-    if (!text || text.length === 0) return chunks;
+    console.log(`[Chunker] Input text length: ${text?.length ?? 0} chars`);
+
+    if (!text || text.length === 0) {
+      console.error('[Chunker] ERROR: Chunking returned empty array — input text was empty');
+      return chunks;
+    }
 
     // Clean the text
     const cleanedText = text
@@ -70,6 +75,13 @@ export class Chunker {
           endChar: startChar + currentChunk.length,
         },
       });
+    }
+
+    if (chunks.length === 0) {
+      console.error('[Chunker] ERROR: Chunking returned empty array — no chunks produced from non-empty text');
+    } else {
+      console.log(`[Chunker] Chunks generated: ${chunks.length}`);
+      console.log('[Chunker] Sample chunk:', JSON.stringify(chunks[0].text.slice(0, 200)));
     }
 
     return chunks;

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { assessmentService, Assignment } from '@/services/assessmentService';
-import { MOCK_SUBJECT_QUIZZES } from '@/lib/mockData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -34,21 +33,15 @@ export default function SubjectQuizzesPage() {
     async function load() {
       setLoading(true);
       try {
-        const res = await assessmentService.getQuizzes() as any;
+        // The URL segment "subjectId" carries a courseId — fetch quizzes for that course directly
+        const quizzes = await assessmentService.getQuizzesByCourse(subjectId);
         if (cancelled) return;
-        const all: Assignment[] = res?.data ?? res ?? [];
-        const filtered = Array.isArray(all)
-          ? all.filter(q => q.subjectId === subjectId || q.courseId === subjectId)
-          : [];
-        const toUse = filtered.length > 0 ? filtered : (MOCK_SUBJECT_QUIZZES[subjectId] ?? []);
-        setQuizzes(toUse);
-        if (toUse.length > 0) setSubjectName(toUse[0].subjectName ?? toUse[0].courseName ?? 'Quizzes');
+        setQuizzes(quizzes);
+        if (quizzes.length > 0) setSubjectName(quizzes[0].courseName ?? 'Quizzes');
       } catch (e) {
-        console.warn('[SubjectQuizzes] API unavailable, using mock data', e);
-        const fallback = MOCK_SUBJECT_QUIZZES[subjectId] ?? [];
+        console.warn('[SubjectQuizzes] load error', e);
         if (!cancelled) {
-          setQuizzes(fallback);
-          if (fallback.length > 0) setSubjectName(fallback[0].subjectName ?? fallback[0].courseName ?? 'Quizzes');
+          setQuizzes([]);
         }
       } finally {
         if (!cancelled) setLoading(false);

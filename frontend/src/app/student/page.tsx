@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { analyticsService } from '@/services/analyticsService';
-import { gamificationService } from '@/services/gamificationService';
+import { api } from '@/services/apiClient';
 import { Panel } from '@/components/panels/Panel';
 import { StatRing } from '@/components/panels/StatRing';
 import { ActionCard } from '@/components/panels/ActionCard';
@@ -25,7 +24,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
-import { MOCK_STUDENT_DASHBOARD, MOCK_XP_PROFILE, MOCK_PERFORMANCE_TREND, MOCK_INSIGHTS_DASHBOARD } from '@/lib/mockData';
+
 import dynamic from 'next/dynamic';
 
 const PerformanceChart = dynamic(
@@ -48,6 +47,11 @@ interface DashboardData {
   overallMastery: number;
   recentActivities: RecentActivity[];
   weakTopics: WeakTopic[];
+  // insight card values
+  streak: number;
+  avgSessionTime: number;
+  correctRate: number;
+  topicsStudied: number;
 }
 
 interface RecentActivity {
@@ -91,6 +95,10 @@ const DEFAULT_DASHBOARD: DashboardData = {
   overallMastery: 0,
   recentActivities: [],
   weakTopics: [],
+  streak: 0,
+  avgSessionTime: 0,
+  correctRate: 0,
+  topicsStudied: 0,
 };
 
 const DEFAULT_XP_PROFILE: XPProfile = {
@@ -365,37 +373,46 @@ export default function StudentDashboardPage() {
     else setLoading(true);
 
     try {
-      const [dashRes, xpRes, trendRes] = await Promise.allSettled([
-        analyticsService.getStudentDashboard(),
-        gamificationService.getXPProfile(),
-        analyticsService.getPerformanceTrend(30),
-      ]);
-
-      if (dashRes.status === 'fulfilled' && dashRes.value?.data) {
-        setDashboard({ ...DEFAULT_DASHBOARD, ...dashRes.value.data });
-      } else {
-        setDashboard(MOCK_STUDENT_DASHBOARD);
-      }
-      if (xpRes.status === 'fulfilled' && xpRes.value?.data) {
-        setXpProfile({ ...DEFAULT_XP_PROFILE, ...xpRes.value.data });
-      } else {
-        setXpProfile(MOCK_XP_PROFILE);
-      }
-      if (trendRes.status === 'fulfilled' && trendRes.value?.data) {
-        const raw = trendRes.value.data as PerformanceTrendPoint[];
-        setTrend(
-          raw.map((p) => ({
-            ...p,
-            date: new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          }))
-        );
-      } else {
-        setTrend(MOCK_PERFORMANCE_TREND);
+      const json = await api.get('/student/overview');
+      if (json?.success && json?.data) {
+        const d = json.data;
+        setDashboard({
+          ...DEFAULT_DASHBOARD,
+          coursesEnrolled: d.coursesEnrolled ?? 0,
+          totalXP: d.xp?.totalXP ?? 0,
+          currentLevel: d.xp?.level ?? 1,
+          streakDays: d.streak ?? 0,
+          overallMastery: d.overallMastery ?? 0,
+          recentActivities: d.recentActivities ?? [],
+          weakTopics: d.weakTopics ?? [],
+          streak: d.streak ?? 0,
+          avgSessionTime: d.avgSessionTime ?? 0,
+          correctRate: d.correctRate ?? 0,
+          topicsStudied: d.topicsStudied ?? 0,
+        });
+        setXpProfile({
+          totalXP: d.xp?.totalXP ?? 0,
+          level: d.xp?.level ?? 1,
+          xpToNextLevel: d.xp?.xpToNextLevel ?? 100,
+          currentLevelXP: d.xp?.currentLevelXP ?? 0,
+        });
+        if (Array.isArray(d.performanceTrend) && d.performanceTrend.length > 0) {
+          setTrend(
+            d.performanceTrend.map((p: PerformanceTrendPoint) => ({
+              ...p,
+              xp: p.xp ?? 0,
+              date: new Date(p.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              }),
+            }))
+          );
+        } else {
+          setTrend([]);
+        }
       }
     } catch {
-      setDashboard(MOCK_STUDENT_DASHBOARD);
-      setXpProfile(MOCK_XP_PROFILE);
-      setTrend(MOCK_PERFORMANCE_TREND);
+      // On error keep default empty state — no mock data
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -440,7 +457,7 @@ export default function StudentDashboardPage() {
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <AnimatedInsightCard
             label="Study Streak"
-            rawValue={MOCK_INSIGHTS_DASHBOARD.studyStreak}
+            rawValue={dashboard.streak}
             suffix=" days"
             iconSrc="/icons/flame.png"
             trendText="Keep going!"
@@ -450,7 +467,7 @@ export default function StudentDashboardPage() {
           />
           <AnimatedInsightCard
             label="Avg Session"
-            rawValue={MOCK_INSIGHTS_DASHBOARD.avgSessionMinutes}
+            rawValue={dashboard.avgSessionTime}
             suffix=" min"
             iconSrc="/icons/hourglass.png"
             trendText="Per session"
@@ -460,7 +477,7 @@ export default function StudentDashboardPage() {
           />
           <AnimatedInsightCard
             label="Correct Rate"
-            rawValue={MOCK_INSIGHTS_DASHBOARD.correctRate}
+            rawValue={dashboard.correctRate}
             suffix="%"
             iconSrc="/icons/radar.png"
             trendText="Strong accuracy"
@@ -470,7 +487,7 @@ export default function StudentDashboardPage() {
           />
           <AnimatedInsightCard
             label="Topics Studied"
-            rawValue={MOCK_INSIGHTS_DASHBOARD.topicsStudied}
+            rawValue={dashboard.topicsStudied}
             iconSrc="/icons/book.png"
             trendText="This month"
             glowColor="#A855F7"

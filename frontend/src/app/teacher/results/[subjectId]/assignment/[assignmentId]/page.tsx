@@ -116,6 +116,8 @@ export default function AssignmentGradingPage({
         teacherComment: result.teacherComment,
         rubricScores: result.rubricScores,
         answers: result.studentAnswers || [],
+        aiEvaluation: result.aiEvaluation ?? null,
+        aiGraded: result.aiGraded ?? false,
       }));
       
       setSubmissions(mappedSubmissions);

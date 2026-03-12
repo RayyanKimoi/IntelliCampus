@@ -254,45 +254,44 @@ type AssignmentTab = 'active' | 'completed';
 export default function SubjectAssignmentsPage() {
   const params = useParams();
   const router = useRouter();
-  const subjectId = params.subjectId as string;
+  // The URL segment is named "subjectId" but carries a courseId value
+  const courseId = params.subjectId as string;
 
   const [tab, setTab] = useState<AssignmentTab>('active');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [subjectName, setSubjectName] = useState('');
+  const [courseName, setCourseName] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const [assignmentsRes, submissionsRes] = await Promise.allSettled([
-          assessmentService.getAssignments() as Promise<any>,
+        const [courseAssignments, submissionsRes] = await Promise.allSettled([
+          // Use the course-specific endpoint to avoid stale/wrong data
+          assessmentService.getAssignmentsByCourse(courseId),
           assessmentService.getSubmissions() as Promise<any>,
         ]);
         if (cancelled) return;
 
-        const allAssignments: Assignment[] = assignmentsRes.status === 'fulfilled'
-          ? (assignmentsRes.value?.data ?? assignmentsRes.value ?? [])
-          : [];
+        const courseSpecificAssignments: Assignment[] =
+          courseAssignments.status === 'fulfilled' ? courseAssignments.value : [];
 
         const allSubmissions: Submission[] = submissionsRes.status === 'fulfilled'
           ? (submissionsRes.value?.data ?? submissionsRes.value ?? [])
           : [];
 
-        const filtered = Array.isArray(allAssignments)
-          ? allAssignments.filter(a => a.subjectId === subjectId || a.courseId === subjectId)
-          : [];
-
-        const filteredIds = new Set(filtered.map(a => a.id));
+        const submittedIds = new Set(courseSpecificAssignments
+          .filter(a => a.status === 'submitted' || a.status === 'graded')
+          .map(a => a.id));
 
         if (!cancelled) {
-          setAssignments(filtered);
-          setSubjectName(filtered[0]?.subjectName ?? filtered[0]?.courseName ?? 'Assignments');
+          setAssignments(courseSpecificAssignments);
+          setCourseName(courseSpecificAssignments[0]?.courseName ?? 'Assignments');
           setSubmissions(
             Array.isArray(allSubmissions)
-              ? allSubmissions.filter(s => filteredIds.has(s.assignmentId))
+              ? allSubmissions.filter(s => submittedIds.has(s.assignmentId))
               : [],
           );
         }
@@ -304,7 +303,7 @@ export default function SubjectAssignmentsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [subjectId]);
+  }, [courseId]);
 
   const active = assignments.filter(a => a.status === 'pending' || a.status === 'late');
 
@@ -319,7 +318,7 @@ export default function SubjectAssignmentsPage() {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold">{subjectName || 'Assignments'}</h1>
+          <h1 className="text-2xl font-bold">{courseName || 'Assignments'}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {active.length} active &middot; {submissions.length} completed
           </p>

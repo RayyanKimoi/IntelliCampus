@@ -3,7 +3,7 @@ import { GAMIFICATION } from '@intellicampus/shared';
 import { masteryService } from './mastery.service';
 import { logger } from '@/utils/logger';
 
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const WEEKDAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const;
 
 const DEFAULT_BADGES = [
   {
@@ -154,11 +154,19 @@ export class GamificationService {
       });
     }
 
-    const xpForNextLevel = (xp.level) * GAMIFICATION.LEVEL_XP_MULTIPLIER;
+    // Recalculate level in case it was stored with the wrong divisor
+    const correctLevel = Math.floor(xp.totalXp / GAMIFICATION.LEVEL_XP_MULTIPLIER) + 1;
+    if (correctLevel !== xp.level) {
+      await prisma.studentXP.update({ where: { userId }, data: { level: correctLevel } });
+    }
+    const level = correctLevel;
+
+    const xpForNextLevel = level * GAMIFICATION.LEVEL_XP_MULTIPLIER;
     const xpProgress = xp.totalXp % GAMIFICATION.LEVEL_XP_MULTIPLIER;
 
     return {
       ...xp,
+      level,
       xpForNextLevel,
       xpProgress,
       progressPercent: Math.round((xpProgress / GAMIFICATION.LEVEL_XP_MULTIPLIER) * 100),

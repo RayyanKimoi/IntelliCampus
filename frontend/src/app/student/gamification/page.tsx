@@ -285,7 +285,7 @@ export default function GamificationPage() {
                   {formatXp(profile.xpProgress)} / {formatXp(profile.xpForNextLevel)} toward next level
                 </div>
               </div>
-              <Progress value={profile.progressPercent} className="mt-4 h-3 transition-all duration-700 ease-out [&>*]:bg-gradient-to-r [&>*]:from-emerald-500 [&>*]:to-teal-500 [&>*]:transition-all [&>*]:duration-700" />
+              <Progress value={profile.progressPercent} className="mt-4 h-3 rounded-full bg-emerald-100/80 transition-all duration-700 ease-out dark:bg-emerald-900/40 [&>*]:bg-gradient-to-r [&>*]:from-emerald-500 [&>*]:to-teal-500 [&>*]:transition-all [&>*]:duration-700" />
             </div>
           </GlowCard>
 
@@ -313,16 +313,16 @@ export default function GamificationPage() {
 
             <div className="grid grid-cols-7 gap-2">
               {(streak?.weeklyCompletion ?? [
-                { day: 'Mon', completed: false },
-                { day: 'Tue', completed: false },
-                { day: 'Wed', completed: false },
-                { day: 'Thu', completed: false },
-                { day: 'Fri', completed: false },
-                { day: 'Sat', completed: false },
-                { day: 'Sun', completed: false },
-              ]).map((entry) => (
+                { day: 'M', completed: false },
+                { day: 'T', completed: false },
+                { day: 'W', completed: false },
+                { day: 'T', completed: false },
+                { day: 'F', completed: false },
+                { day: 'S', completed: false },
+                { day: 'S', completed: false },
+              ]).map((entry, idx) => (
                 <div
-                  key={entry.day}
+                  key={idx}
                   className={cn(
                     'rounded-2xl border px-2 py-3 text-center shadow-sm transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-110 hover:shadow-md',
                     entry.completed

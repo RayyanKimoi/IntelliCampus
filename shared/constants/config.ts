@@ -31,7 +31,7 @@ export const GAMIFICATION = {
   PLAYER_DAMAGE_PER_WRONG: 25,
   SPRINT_QUIZ_TIME_SECONDS: 45,
   SPRINT_QUIZ_QUESTIONS: 10,
-  LEVEL_XP_MULTIPLIER: 100, // XP needed = level * multiplier
+  LEVEL_XP_MULTIPLIER: 1000, // XP needed = level * multiplier
 } as const;
 
 // Pagination
@@ -54,5 +54,5 @@ export const RAG = {
   CHUNK_SIZE: 1000,
   CHUNK_OVERLAP: 200,
   TOP_K_RESULTS: 5,
-  MIN_RELEVANCE_SCORE: 0.7,
+  MIN_RELEVANCE_SCORE: 0.3,
 } as const;

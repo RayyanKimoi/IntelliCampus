@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -57,10 +57,10 @@ function buildCards(): MemCard[] {
   }));
 }
 
-export default function FlashcardsPage() {
+function FlashcardsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stageId = Number(searchParams.get('stageId')) || 1;
+  const stageId = Number(searchParams?.get('stageId')) || 1;
   const { user } = useAuthStore();
 
   const [view, setView] = useState<View>('setup');
@@ -275,6 +275,14 @@ export default function FlashcardsPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function FlashcardsPage() {
+  return (
+    <Suspense fallback={null}>
+      <FlashcardsPageInner />
+    </Suspense>
   );
 }
 

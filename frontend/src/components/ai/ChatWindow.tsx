@@ -1,14 +1,17 @@
 ﻿'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageBubble } from './MessageBubble';
+import { MindMapRenderer } from './MindMapRenderer';
 import { aiService } from '@/services/aiService';
 import { useVoice } from '@/hooks/useVoice';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
 import { Volume2, VolumeX } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
+import { generateMindMap } from '@/lib/generateMindMap';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -30,8 +33,31 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const [mindMap, setMindMap] = useState<string | null>(null);
+  const [isMindMapLoading, setIsMindMapLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { speak, stopSpeaking, isSpeaking } = useVoice();
+  const { toast } = useToast();
+
+  // Track the last AI answer + corresponding user question for mind map generation
+  const lastAiIndex = messages.findLastIndex((m) => m.sender === 'ai');
+  const lastAiAnswer = lastAiIndex >= 0 ? messages[lastAiIndex].text : null;
+  const lastUserQuestion = lastAiIndex > 0
+    ? (messages.slice(0, lastAiIndex).findLast((m) => m.sender === 'student')?.text ?? null)
+    : null;
+
+  const runMindMap = useCallback(async (answer: string, question: string) => {
+    setIsMindMapLoading(true);
+    try {
+      const chart = await generateMindMap(answer, question);
+      setMindMap(chart);
+    } catch (err: any) {
+      console.error('Mind map generation failed:', err);
+      toast({ title: 'Unable to generate mind map. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsMindMapLoading(false);
+    }
+  }, [toast]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -41,8 +67,11 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async (text: string, _files?: File[]) => {
+  const sendMessage = async (text: string, mindMapEnabled: boolean) => {
     if (!text.trim() || isLoading) return;
+
+    // Clear any existing mind map when a new question is asked
+    setMindMap(null);
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -81,6 +110,10 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
         if (autoSpeak) {
           speak(response.data.message);
         }
+
+        if (mindMapEnabled) {
+          runMindMap(response.data.message, text.trim());
+        }
       }
     } catch (error: any) {
       const errorMessage: Message = {
@@ -95,6 +128,11 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
       setIsLoading(false);
     }
   };
+
+  const handleGenerateMindMap = useCallback(async () => {
+    if (!lastAiAnswer || isMindMapLoading) return;
+    runMindMap(lastAiAnswer, lastUserQuestion ?? lastAiAnswer);
+  }, [lastAiAnswer, lastUserQuestion, isMindMapLoading, runMindMap]);
 
   const modeLabel = mode === 'assessment' ? 'Assessment Mode (Hints Only)' :
     mode === 'practice' ? 'Practice Mode' : 'Learning Mode';
@@ -196,12 +234,41 @@ export function ChatWindow({ courseId, topicId, topicName, mode }: ChatWindowPro
         )}
 
         <div ref={messagesEndRef} />
+
+        {/* Mind Map */}
+        {mindMap && (
+          <div className="bg-card border rounded-xl shadow-md p-6 mt-2 overflow-x-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-2 mb-4">
+              <div
+                className="flex h-6 w-6 items-center justify-center rounded-md"
+                style={{ background: 'linear-gradient(135deg,#002F4C,#006EB2)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-foreground">Mind Map</span>
+              <button
+                type="button"
+                onClick={() => setMindMap(null)}
+                className="ml-auto rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="Close mind map"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <MindMapRenderer chart={mindMap} />
+          </div>
+        )}
       </CardContent>
 
       {/* ── Prompt input ────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-border p-3">
         <PromptInputBox
           onSend={sendMessage}
+          isMindMapLoading={isMindMapLoading}
           isLoading={isLoading}
           placeholder={
             mode === 'assessment'
