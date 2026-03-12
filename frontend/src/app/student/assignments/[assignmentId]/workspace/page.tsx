@@ -457,6 +457,11 @@ export default function AssignmentWorkspacePage({
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('python');
   const [output, setOutput] = useState('');
+  const [executionResult, setExecutionResult] = useState<{
+    stdout: string;
+    stderr: string;
+    executionTime: string;
+  } | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{ name: string; url: string; size: number }>
   >([]);
@@ -554,6 +559,29 @@ export default function AssignmentWorkspacePage({
         }
         if (time) out += `\n\nTime: ${time}s | Memory: ${memory} KB`;
         setOutput(out);
+
+        // Persist execution result for teacher review
+        setExecutionResult({
+          stdout: stdout || '',
+          stderr: stderr || compile_output || '',
+          executionTime: time || '0',
+        });
+
+        // Auto-save execution output to draft
+        if (attempt && !attempt.submittedAt) {
+          api.patch(`/student/attempts/${attempt.id}/draft`, {
+            codeContent: code,
+            textContent,
+            language,
+            files: uploadedFiles,
+            lastSaved: new Date().toISOString(),
+            executionResult: {
+              stdout: stdout || '',
+              stderr: stderr || compile_output || '',
+              executionTime: time || '0',
+            },
+          }).catch(() => { /* silent */ });
+        }
       } else {
         setOutput('Compilation failed. Check your code for syntax errors.');
       }
@@ -593,7 +621,9 @@ export default function AssignmentWorkspacePage({
       await assessmentService.submitAssignmentWork(attempt.id, {
         textContent,
         codeContent: code,
+        codeLanguage: language,
         submissionFileUrl: uploadedFiles[0]?.url,
+        executionResult: executionResult || undefined,
       });
       // Mark attempt as submitted locally so auto-save stops firing during navigation
       setAttempt(prev => prev ? { ...prev, submittedAt: new Date().toISOString() } : prev);

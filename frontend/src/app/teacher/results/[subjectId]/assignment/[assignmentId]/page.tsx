@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { ArrowLeft, Search, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -16,9 +16,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'motion/react';
 import { StudentReviewSheet, type GradeSavePayload } from '@/components/evaluation/StudentReviewSheet';
 import { teacherService } from '@/services/teacherService';
+import { api } from '@/services/apiClient';
 
 type CategoryFilter = 'all' | 'toppers' | 'average' | 'risky';
-type StatusFilter = 'all' | 'not-submitted' | 'ai-graded' | 'teacher-graded';
+type StatusFilter = 'all' | 'not-submitted' | 'submitted' | 'ai-graded' | 'teacher-graded';
 
 // ─── Skeleton Components ─────────────────────────────────────────────
 function HeaderSkeleton() {
@@ -108,6 +109,7 @@ export default function AssignmentGradingPage({
           name: result.student?.name || 'Unknown Student',
           email: result.student?.email || '',
           avatarUrl: result.student?.profile?.avatarUrl,
+          rollNumber: result.student?.rollNumber,
         },
         score: result.score,
         completedAt: result.submittedAt,
@@ -115,9 +117,12 @@ export default function AssignmentGradingPage({
         gradedBy: result.gradedBy,
         teacherComment: result.teacherComment,
         rubricScores: result.rubricScores,
-        answers: result.studentAnswers || [],
+        answers: result.answers || null,
+        submissionFileUrl: result.submissionFileUrl || null,
+        studentAnswers: result.studentAnswers || [],
         aiEvaluation: result.aiEvaluation ?? null,
         aiGraded: result.aiGraded ?? false,
+        notSubmitted: result.notSubmitted ?? false,
       }));
       
       setSubmissions(mappedSubmissions);
@@ -158,11 +163,16 @@ export default function AssignmentGradingPage({
 
   const filteredSubmissions = submissions.filter((sub: any) => {
     if (searchQuery && !sub.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (statusFilter === 'teacher-graded' && !sub.gradedAt) return false;
-    if (statusFilter === 'ai-graded' && (sub.gradedAt || !sub.completedAt)) return false;
+    
+    // Status filter
     if (statusFilter === 'not-submitted' && sub.completedAt) return false;
-    if (category === 'toppers' && sub.score < 85) return false;
-    if (category === 'average' && (sub.score >= 85 || sub.score < 60)) return false;
+    if (statusFilter === 'submitted' && (!sub.completedAt || sub.aiGraded || sub.gradedAt)) return false;
+    if (statusFilter === 'ai-graded' && (!sub.aiGraded || sub.gradedAt)) return false;
+    if (statusFilter === 'teacher-graded' && !sub.gradedAt) return false;
+    
+    // Category filter
+    if (category === 'toppers' && (sub.score === undefined || sub.score < 85)) return false;
+    if (category === 'average' && (sub.score === undefined || sub.score >= 85 || sub.score < 60)) return false;
     if (category === 'risky' && (sub.score === undefined || sub.score >= 60)) return false;
     return true;
   });
@@ -176,6 +186,50 @@ export default function AssignmentGradingPage({
     setSubmissions(prev =>
       prev.map((s: any) => selectedIds.has(s.id) ? { ...s, gradedAt: new Date().toISOString() } : s)
     );
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  // Bulk AI Evaluation
+  const [bulkAiRunning, setBulkAiRunning] = useState(false);
+  const [bulkAiProgress, setBulkAiProgress] = useState(0);
+
+  const handleBulkAIEvaluate = async () => {
+    const eligibleIds = Array.from(selectedIds).filter(id => {
+      const sub = submissions.find((s: any) => s.id === id);
+      return sub && sub.completedAt && !sub.notSubmitted;
+    });
+    if (eligibleIds.length === 0) return;
+    
+    setBulkAiRunning(true);
+    setBulkAiProgress(0);
+    
+    for (let i = 0; i < eligibleIds.length; i++) {
+      try {
+        const data = await api.post<{ success: boolean; data: any }>('/ai/assignment/evaluate', {
+          attemptId: eligibleIds[i],
+        });
+        if (data.success) {
+          setSubmissions(prev =>
+            prev.map((s: any) =>
+              s.id === eligibleIds[i]
+                ? {
+                    ...s,
+                    aiEvaluation: data.data.evaluation,
+                    aiGraded: true,
+                    score: data.data.score ?? s.score,
+                  }
+                : s
+            )
+          );
+        }
+      } catch (err) {
+        console.error(`AI evaluation failed for ${eligibleIds[i]}`, err);
+      }
+      setBulkAiProgress(i + 1);
+    }
+    
+    setBulkAiRunning(false);
     setIsSelectMode(false);
     setSelectedIds(new Set());
   };
@@ -342,7 +396,18 @@ export default function AssignmentGradingPage({
                   Select Students
                 </button>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={handleBulkAIEvaluate}
+                    disabled={selectedIds.size === 0 || bulkAiRunning}
+                    className="px-4 py-2.5 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl whitespace-nowrap transition-all shadow-sm flex items-center gap-2"
+                  >
+                    {bulkAiRunning ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> AI Eval {bulkAiProgress}/{selectedIds.size}</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4" /> AI Evaluate ({selectedIds.size})</>
+                    )}
+                  </button>
                   <button
                     onClick={handleBatchMarkAsDone}
                     disabled={selectedIds.size === 0}
@@ -367,7 +432,8 @@ export default function AssignmentGradingPage({
               <SelectContent className="rounded-xl border-border/60 shadow-lg">
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="not-submitted">Not Submitted</SelectItem>
-                <SelectItem value="ai-graded">AI Graded Preview</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="ai-graded">AI Graded</SelectItem>
                 <SelectItem value="teacher-graded">Teacher Verified</SelectItem>
               </SelectContent>
             </Select>
@@ -425,11 +491,16 @@ export default function AssignmentGradingPage({
                     accentClass = 'bg-emerald-500';
                     badgeClass = 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-500/20';
                     statusText = 'Teacher Verified';
+                  } else if (sub.aiGraded) {
+                    cardClass = 'border-violet-500/25 dark:border-violet-500/15 bg-violet-500/[0.03] dark:bg-violet-500/[0.04]';
+                    accentClass = 'bg-violet-500';
+                    badgeClass = 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-200/70 dark:border-violet-500/20';
+                    statusText = 'AI Graded';
                   } else if (sub.completedAt) {
                     cardClass = 'border-sky-500/25 dark:border-sky-500/15 bg-sky-500/[0.03] dark:bg-sky-500/[0.04]';
                     accentClass = 'bg-sky-400 dark:bg-sky-500';
                     badgeClass = 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-200/70 dark:border-sky-500/20';
-                    statusText = 'AI Graded';
+                    statusText = 'Submitted';
                   }
 
                   return (
@@ -457,7 +528,7 @@ export default function AssignmentGradingPage({
                         )}
                         <Card
                           className={`flex-1 cursor-pointer border overflow-hidden shadow-sm hover:shadow-md transition-all duration-250 rounded-2xl ${cardClass} ${
-                            !sub.gradedAt && !sub.completedAt ? 'opacity-60 dark:opacity-50' : ''
+                            !sub.completedAt && !sub.gradedAt && !sub.aiGraded ? 'opacity-60 dark:opacity-50' : ''
                           }`}
                           onClick={() => {
                             if (isSelectMode) {
@@ -466,7 +537,7 @@ export default function AssignmentGradingPage({
                               else newSet.add(sub.id);
                               setSelectedIds(newSet);
                             } else {
-                              if (sub.completedAt || sub.gradedAt) setReviewSubmission(sub);
+                              if (sub.completedAt || sub.gradedAt || sub.aiGraded) setReviewSubmission(sub);
                             }
                           }}
                         >
@@ -474,13 +545,20 @@ export default function AssignmentGradingPage({
                             {/* Left accent bar */}
                             <div className={`w-1 flex-shrink-0 ${accentClass} rounded-l-2xl`} />
                             <div className="flex-1 flex items-center justify-between px-5 py-3.5">
-                              <div>
-                                <p className="font-semibold text-[15px] text-foreground leading-tight">
-                                  {sub.user?.name || 'Unknown Student'}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
-                                  Roll No: {sub.user?.rollNumber || `22CS${100 + (parseInt(sub.id?.slice(-3) || '0', 16) % 100).toString().padStart(3, '0')}`}
-                                </p>
+                              <div className="flex items-center gap-3">
+                                <div>
+                                  <p className="font-semibold text-[15px] text-foreground leading-tight">
+                                    {sub.user?.name || 'Unknown Student'}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                                    Roll No: {sub.user?.rollNumber || `22CS${String(100 + (parseInt(sub.id?.slice(-3) || '0', 16) % 100)).padStart(3, '0')}`}
+                                  </p>
+                                </div>
+                                {sub.score !== undefined && sub.score > 0 && sub.completedAt && (
+                                  <span className="text-xs font-bold text-foreground bg-muted/50 dark:bg-muted/30 px-2 py-0.5 rounded-md">
+                                    {sub.score}/100
+                                  </span>
+                                )}
                               </div>
                               <span className={`text-[11px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full ${badgeClass}`}>
                                 {statusText}

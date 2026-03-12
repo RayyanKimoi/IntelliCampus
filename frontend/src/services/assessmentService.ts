@@ -17,6 +17,9 @@ export interface Assignment {
   attachmentUrl?: string;
   type?: 'assignment' | 'quiz' | 'prerequisite';
   strictMode?: boolean;
+  aiGraded?: boolean;
+  teacherComment?: string | null;
+  attemptId?: string | null;
 }
 
 export interface AssignmentQuestion {
@@ -162,7 +165,13 @@ export const assessmentService = {
   /** Submit an open-ended assignment attempt with text/code/file content */
   submitAssignmentWork: (
     attemptId: string,
-    content: { textContent?: string; codeContent?: string; submissionFileUrl?: string },
+    content: {
+      textContent?: string;
+      codeContent?: string;
+      codeLanguage?: string;
+      submissionFileUrl?: string;
+      executionResult?: { stdout: string; stderr: string; executionTime: string };
+    },
   ) => api.post<{ success: boolean; data: Attempt }>(`/student/attempts/${attemptId}/submit`, content),
 
   /** Upload a file for a student submission; returns { url, filename, size } */
@@ -173,6 +182,9 @@ export const assessmentService = {
   },
 
   getAttemptResult: (attemptId: string) => api.get<{ success: boolean; data: Attempt }>(`/student/attempts/${attemptId}`),
+
+  /** Fetch full assignment result with evaluation details */
+  getAssignmentResult: (assignmentId: string) => api.get(`/student/assignments/${assignmentId}/result`),
 
   // ── Comments ───────────────────────────────────────
   getComments: (assignmentId: string) => api.get<{ success: boolean; data: AssignmentComment[] }>(`/student/assignments/${assignmentId}/comments`),

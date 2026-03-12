@@ -87,6 +87,14 @@ export async function POST(req: NextRequest) {
         if (submissionText) submissionText += '\n\n--- Code ---\n\n';
         submissionText += answers.codeContent.trim();
       }
+      // Include execution output for code submissions
+      if (answers.executionResult) {
+        const exec = answers.executionResult;
+        submissionText += '\n\n--- Program Output ---\n\n';
+        if (exec.stdout) submissionText += `stdout:\n${exec.stdout}\n`;
+        if (exec.stderr) submissionText += `stderr:\n${exec.stderr}\n`;
+        if (exec.executionTime) submissionText += `Execution time: ${exec.executionTime}s\n`;
+      }
     }
 
     // Fallback: if no assignment JSON content, note it
