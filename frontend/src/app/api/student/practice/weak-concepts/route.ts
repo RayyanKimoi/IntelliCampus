@@ -13,15 +13,37 @@ export async function GET(req: NextRequest) {
     const user = getAuthUser(req);
     requireRole(user, [UserRole.STUDENT]);
 
+    const { searchParams } = new URL(req.url);
+    const courseId = searchParams.get('courseId');
+
+    // If courseId is provided, only return concepts that appeared in quizzes for that course
+    let allowedConcepts: string[] | null = null;
+    if (courseId) {
+      const courseQuizConcepts = await (prisma as any).quizQuestion.findMany({
+        where: { quiz: { studentId: user.userId, courseId } },
+        select: { concept: true },
+        distinct: ['concept'],
+      });
+      allowedConcepts = courseQuizConcepts.map((r: any) => r.concept as string);
+    }
+
+    const whereClause: any = { studentId: user.userId, isWeak: true };
+    if (allowedConcepts !== null) {
+      if (allowedConcepts.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+      whereClause.concept = { in: allowedConcepts };
+    }
+
     const records = await (prisma as any).conceptMastery.findMany({
-      where: { studentId: user.userId, isWeak: true },
+      where: whereClause,
       orderBy: { masteryScore: 'asc' },
     });
 
     // Count distinct quiz sessions per concept (not individual questions)
     const conceptQuizRows = await (prisma as any).quizQuestion.findMany({
       where: {
-        quiz: { studentId: user.userId },
+        quiz: { studentId: user.userId, ...(courseId ? { courseId } : {}) },
         concept: { in: records.map((r: any) => r.concept) },
       },
       select: { quizId: true, concept: true },

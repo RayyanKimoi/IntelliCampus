@@ -19,7 +19,7 @@ import {
   ChevronLeft, Lightbulb, Target, ChevronRight,
   FileText, MessageSquare, CheckCircle2, AlertTriangle, Layers, Loader2,
   ClipboardList, Calendar, Clock, PlayCircle, ExternalLink, Download,
-  Sparkles, BookOpen, Brain, ChevronDown, ChevronUp,
+  Sparkles, Brain, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { FaBook } from 'react-icons/fa';
 
@@ -430,139 +430,17 @@ function TeacherResources({
 // Sub-components: Adaptive Resources
 // ────────────────────────────────────────────────────────────────────────────────
 
-interface WeakTopicCardProps {
-  topic: Topic & { subjectName?: string; masteryScore: number };
-  courseId: string;
-}
-
-function WeakTopicCard({ topic, courseId }: WeakTopicCardProps) {
-  const router = useRouter();
-  const [notes, setNotes] = useState<string | null>(null);
-  const [loadingNotes, setLoadingNotes] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  async function fetchNotes() {
-    if (notes !== null) { setExpanded((v) => !v); return; }
-    setLoadingNotes(true);
-    setExpanded(true);
-    try {
-      const res = await (aiService as any).getTopicContext(topic.id) as any;
-      const content: string = res?.data?.summary ?? res?.summary ?? res?.content ?? 'No AI notes available for this topic yet.';
-      setNotes(content);
-    } catch {
-      setNotes('Could not load AI notes. Try again later.');
-    } finally {
-      setLoadingNotes(false);
-    }
-  }
-
-  const mastery = Math.round(topic.masteryScore ?? 0);
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-semibold text-card-foreground">{topic.name}</h4>
-          {topic.subjectName && (
-            <p className="text-xs text-muted-foreground mt-0.5">{topic.subjectName}</p>
-          )}
-        </div>
-        <Badge
-          variant="outline"
-          className={cn('text-xs border shrink-0', mastery < 50
-            ? 'bg-red-50 border-red-200 text-red-600'
-            : 'bg-amber-50 border-amber-200 text-amber-600'
-          )}
-        >
-          {mastery < 50 ? 'Needs Work' : 'Developing'}
-        </Badge>
-      </div>
-      <div className="flex items-center gap-2 mb-3">
-        <Progress value={mastery} className="flex-1 h-1.5 [&>*]:bg-red-500" />
-        <span className="text-xs text-muted-foreground w-12 text-right">{mastery}%</span>
-      </div>
-
-      {expanded && (
-        <div className="mb-4 rounded-lg bg-muted/40 p-4 text-sm text-card-foreground">
-          {loadingNotes ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generating AI notes…
-            </div>
-          ) : (
-            <p className="whitespace-pre-wrap leading-relaxed">{notes}</p>
-          )}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" className="flex-1" onClick={fetchNotes}>
-          <Lightbulb className="mr-2 h-3.5 w-3.5" />
-          {expanded ? (notes !== null ? 'Hide Notes' : 'Loading…') : 'AI Notes'}
-        </Button>
-        <Button
-          size="sm"
-          className="flex-1"
-          onClick={() => router.push(`/student/ai-tutor?topicId=${topic.id}&courseId=${courseId}`)}
-        >
-          <MessageSquare className="mr-2 h-3.5 w-3.5" />
-          Tutor
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          className="flex-1"
-          onClick={() => router.push(`/student/practice?topicId=${topic.id}`)}
-        >
-          <Target className="mr-2 h-3.5 w-3.5" />
-          Practice
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function AdaptiveResources({
-  subjects,
   courseId,
 }: {
-  subjects: SubjectWithTopics[];
   courseId: string;
 }) {
-  const [weakTopics, setWeakTopics] = useState<(Topic & { subjectName?: string; masteryScore: number })[]>([]);
-  const [loading, setLoading] = useState(true);
-
   // AI Adaptive Summaries state
   const [weakConcepts, setWeakConcepts] = useState<{ name: string; masteryScore: number }[]>([]);
   const [summaries, setSummaries] = useState<ConceptSummary[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [generateError, setGenerateError] = useState('');
-
-  // ── Fetch mastery-based weak topics ──────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await masteryService.getWeakTopics() as any;
-        const raw: any[] = res?.data ?? res ?? [];
-        if (!cancelled && Array.isArray(raw)) {
-          const subjectMap = new Map(subjects.flatMap((s) => s.topics.map((t) => [t.id, s.name])));
-          const enriched = raw
-            .map((t) => ({ ...t, subjectName: subjectMap.get(t.id) ?? '', masteryScore: t.masteryScore ?? t.mastery ?? 0 }))
-            .sort((a, b) => a.masteryScore - b.masteryScore);
-          setWeakTopics(enriched);
-        }
-      } catch {
-        setWeakTopics([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [subjects]);
 
   // ── Fetch concept-level weak data from quiz attempts ─────────────────────
   useEffect(() => {
@@ -576,7 +454,7 @@ function AdaptiveResources({
           } catch {}
           return 'dev-token-mock-authentication';
         })();
-        const res = await fetch('/api/student/practice/weak-concepts', {
+        const res = await fetch(`/api/student/practice/weak-concepts?courseId=${courseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const payload = await res.json();
@@ -598,9 +476,7 @@ function AdaptiveResources({
 
   // ── Generate AI adaptive summaries ───────────────────────────────────────
   async function handleGenerate() {
-    const concepts = weakConcepts.length > 0
-      ? weakConcepts.map((c) => c.name)
-      : weakTopics.slice(0, 6).map((t) => t.name);
+    const concepts = weakConcepts.map((c) => c.name);
 
     if (concepts.length === 0) return;
 
@@ -636,23 +512,8 @@ function AdaptiveResources({
     }
   }
 
-  if (loading) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-5 animate-pulse">
-            <div className="h-5 w-3/4 rounded bg-muted mb-2" />
-            <div className="h-3 w-1/2 rounded bg-muted mb-4" />
-            <div className="h-1.5 rounded bg-muted mb-4" />
-            <div className="flex gap-2"><div className="h-8 flex-1 rounded bg-muted" /><div className="h-8 flex-1 rounded bg-muted" /></div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const hasConcepts = weakConcepts.length > 0 || weakTopics.length > 0;
-  const conceptCount = weakConcepts.length > 0 ? weakConcepts.length : weakTopics.slice(0, 6).length;
+  const hasConcepts = weakConcepts.length > 0;
+  const conceptCount = weakConcepts.length;
 
   return (
     <div className="space-y-8">
@@ -732,24 +593,6 @@ function AdaptiveResources({
           </div>
         )}
       </div>
-
-      {/* ── Mastery-based weak topic cards ───────────────────────────────────── */}
-      {weakTopics.length > 0 && (
-        <div>
-          <h3 className="font-semibold text-base flex items-center gap-2 mb-4">
-            <BookOpen className="h-4 w-4 text-amber-500" />
-            Topics Needing Attention
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Showing <strong className="text-foreground">{weakTopics.length}</strong> topics ordered by lowest mastery first.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {weakTopics.map((t) => (
-              <WeakTopicCard key={t.id} topic={t} courseId={courseId} />
-            ))}
-          </div>
-        </div>
-      )}
 
     </div>
   );
@@ -1056,8 +899,9 @@ export default function CourseDetailPage() {
         {/* Tab toggle */}
         <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1 w-fit">
           {([ 
-            { id: 'teacher', label: 'Teacher Resources', icon: FaBook },
-            { id: 'adaptive', label: 'Adaptive Resources', icon: Lightbulb },
+            { id: 'teacher',     label: 'Faculty Curriculum',    icon: FaBook },
+            { id: 'adaptive',   label: 'AI Adaptive Curriculum', icon: Brain },
+            { id: 'assignments', label: 'Assignments',            icon: ClipboardList },
           ] as { id: CourseTab; label: string; icon: React.ElementType }[]).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -1076,7 +920,9 @@ export default function CourseDetailPage() {
         </div>
 
         {/* Content */}
-        {tab === 'teacher' ? (
+        {tab === 'assignments' ? (
+          <AssignmentsTab courseId={courseId} />
+        ) : tab === 'teacher' ? (
           // Show chapters view when chapters exist (course uses Chapter model),
           // fall back to legacy Subject→Topic view if only subjects are present
           chapters.length > 0 ? (
@@ -1091,7 +937,7 @@ export default function CourseDetailPage() {
             </div>
           )
         ) : (
-          <AdaptiveResources subjects={subjects} courseId={courseId} />
+          <AdaptiveResources courseId={courseId} />
         )}
       </div>
     </DashboardLayout>

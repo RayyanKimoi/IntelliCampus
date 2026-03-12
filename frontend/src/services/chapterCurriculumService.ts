@@ -78,7 +78,7 @@ export const chapterCurriculumService = {
     description?: string;
     orderIndex?: number;
   }): Promise<Chapter> {
-    const response = await api.post(`/teacher/curriculum/chapters`, data);
+    const response = await api.post(`/teacher/curriculum/courses/${data.courseId}/chapters`, data);
     return response.data || response;
   },
 

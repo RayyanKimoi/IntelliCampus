@@ -194,6 +194,42 @@ export async function POST(
       uploader: content.uploader,
     };
 
+    // Trigger RAG ingestion asynchronously for PDFs — do NOT await so response returns immediately
+    if (content.fileType === 'application/pdf' && content.fileUrl) {
+      const courseId = chapter.courseId;
+      const contentFileUrl = content.fileUrl;
+      const contentTitle = content.title;
+      const chapterName = chapter.name;
+      const aiServiceUrl = process.env.AI_SERVICE_URL ?? 'http://localhost:5000';
+
+      console.log(`[PDF Upload] PDF Uploaded — name: ${contentTitle}, size: ${content.fileSize} bytes, url: ${contentFileUrl}`);
+
+      // Delegate PDF fetch + parse + embed to ai-services (pdf-parse only lives there)
+      ;(async () => {
+        try {
+          const ingestRes = await fetch(`${aiServiceUrl}/ingest-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileUrl: contentFileUrl,
+              courseId,
+              topicId: chapterId,
+              chapterTitle: chapterName,
+            }),
+          });
+
+          const ingestData = await ingestRes.json() as { success: boolean; data?: { chunkCount: number; textLength: number }; error?: string };
+          if (ingestData.success) {
+            console.log(`[Ingestion] SUCCESS — ${ingestData.data?.chunkCount ?? 0} chunks upserted to Pinecone for chapter ${chapterId} (textLength: ${ingestData.data?.textLength ?? 0})`);
+          } else {
+            console.error(`[Ingestion] ERROR: Ingest failed — ${ingestData.error}`);
+          }
+        } catch (err: any) {
+          console.error(`[Ingestion] WARNING: ingestion not triggered — ${err.message}`);
+        }
+      })();
+    }
+
     return NextResponse.json(result, { status: 201 });
   } catch (error: any) {
     console.error('[API] POST /api/teacher/curriculum/chapters/[chapterId]/content error:', error);

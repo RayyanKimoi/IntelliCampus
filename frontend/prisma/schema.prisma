@@ -1,8 +1,3 @@
-// ========================
-// IntelliCampus — Prisma Schema
-// PostgreSQL + Prisma ORM
-// ========================
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -14,9 +9,719 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ========================
-// Enums
-// ========================
+model Institution {
+  id               String            @id @default(cuid())
+  name             String
+  domain           String            @unique
+  createdAt        DateTime          @default(now()) @map("created_at")
+  aiPolicySettings AIPolicySettings?
+  courses          Course[]
+  integrityPolicy  IntegrityPolicy?
+  users            User[]
+
+  @@map("institutions")
+}
+
+model User {
+  id                     String                    @id @default(cuid())
+  name                   String
+  email                  String                    @unique
+  passwordHash           String                    @map("password_hash")
+  role                   UserRole
+  institutionId          String                    @map("institution_id")
+  createdAt              DateTime                  @default(now()) @map("created_at")
+  updatedAt              DateTime                  @updatedAt @map("updated_at")
+  isActive               Boolean                   @default(true) @map("is_active")
+  accessibilitySettings  AccessibilitySettings?
+  adaptiveResources      AdaptiveResource[]
+  aiSessions             AISession[]
+  createdAssignments     Assignment[]              @relation("AssignmentCreator")
+  bossBattles            BossBattle[]
+  uploadedChapterContent ChapterContent[]          @relation("ChapterContentUploader")
+  conceptInteractions    ConceptInteraction[]
+  conceptMasteries       ConceptMastery[]
+  enrollments            CourseEnrollment[]        @relation("StudentEnrollments")
+  createdCourses         Course[]                  @relation("CourseCreator")
+  uploadedContent        CurriculumContent[]       @relation("ContentUploader")
+  flashcardProgress      FlashcardProgress[]
+  masteryGraphs          MasteryGraph[]
+  performanceLogs        PerformanceLog[]
+  quizAttempts           QuizAttempt[]
+  quizzes                Quiz[]
+  spinRewards            SpinReward[]
+  gradedAttempts         StudentAttempt[]          @relation("GradedAttempts")
+  studentAttempts        StudentAttempt[]
+  evaluations            StudentEvaluation[]       @relation("StudentEvaluations")
+  studentXp              StudentXP?
+  systemUsageLogs        SystemUsageLog[]
+  assignedCourses        TeacherCourseAssignment[] @relation("TeacherCourseAssignments")
+  teacherInsights        TeacherInsight[]          @relation("TeacherInsights")
+  topicMasteries         TopicMastery[]
+  profile                UserProfile?
+  institution            Institution               @relation(fields: [institutionId], references: [id])
+  weakTopicFlags         WeakTopicFlag[]
+  xpLogs                 XPLog[]
+  stageProgress          StageProgress[]
+
+  @@index([institutionId])
+  @@index([role])
+  @@map("users")
+}
+
+model UserProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique @map("user_id")
+  avatarUrl   String? @map("avatar_url")
+  yearOfStudy Int?    @map("year_of_study")
+  department  String?
+  bio         String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model AccessibilitySettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique @map("user_id")
+  adhdMode      Boolean  @default(false) @map("adhd_mode")
+  dyslexiaFont  Boolean  @default(false) @map("dyslexia_font")
+  highContrast  Boolean  @default(false) @map("high_contrast")
+  speechEnabled Boolean  @default(false) @map("speech_enabled")
+  focusMode     Boolean  @default(false) @map("focus_mode")
+  fontScale     Float    @default(1.0) @map("font_scale")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accessibility_settings")
+}
+
+model Course {
+  id                 String                    @id @default(cuid())
+  institutionId      String                    @map("institution_id")
+  name               String
+  description        String                    @default("")
+  createdBy          String                    @map("created_by")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  adaptiveResources  AdaptiveResource[]
+  aiSessions         AISession[]
+  assignments        Assignment[]
+  chapters           Chapter[]
+  enrollments        CourseEnrollment[]
+  creator            User                      @relation("CourseCreator", fields: [createdBy], references: [id])
+  institution        Institution               @relation(fields: [institutionId], references: [id])
+  quizzes            Quiz[]
+  evaluations        StudentEvaluation[]
+  subjects           Subject[]
+  teacherAssignments TeacherCourseAssignment[]
+  teacherInsights    TeacherInsight[]
+  topicMasteries     TopicMastery[]
+
+  @@index([institutionId])
+  @@map("courses")
+}
+
+model TeacherCourseAssignment {
+  id         String   @id @default(cuid())
+  teacherId  String   @map("teacher_id")
+  courseId   String   @map("course_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher    User     @relation("TeacherCourseAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, courseId])
+  @@index([teacherId])
+  @@index([courseId])
+  @@map("teacher_course_assignments")
+}
+
+model Chapter {
+  id          String           @id @default(cuid())
+  courseId    String           @map("course_id")
+  name        String
+  description String           @default("")
+  orderIndex  Int              @default(0) @map("order_index")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  assignments Assignment[]
+  content     ChapterContent[]
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("chapters")
+}
+
+model ChapterContent {
+  id          String   @id @default(cuid())
+  chapterId   String   @map("chapter_id")
+  uploadedBy  String   @map("uploaded_by")
+  title       String
+  description String   @default("")
+  fileUrl     String   @map("file_url")
+  fileType    String   @default("pdf") @map("file_type")
+  fileSize    Int?     @map("file_size")
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at")
+  chapter     Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  uploader    User     @relation("ChapterContentUploader", fields: [uploadedBy], references: [id])
+
+  @@index([chapterId])
+  @@map("chapter_content")
+}
+
+model Subject {
+  id          String  @id @default(cuid())
+  courseId    String  @map("course_id")
+  name        String
+  description String  @default("")
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topics      Topic[]
+
+  @@index([courseId])
+  @@map("subjects")
+}
+
+model Topic {
+  id                  String                 @id @default(cuid())
+  subjectId           String                 @map("subject_id")
+  name                String
+  description         String                 @default("")
+  difficultyLevel     DifficultyLevel        @default(beginner) @map("difficulty_level")
+  orderIndex          Int                    @default(0) @map("order_index")
+  aiSessions          AISession[]
+  bossBattles         BossBattle[]
+  conceptInteractions ConceptInteraction[]
+  curriculumContent   CurriculumContent[]
+  flashcardProgress   FlashcardProgress[]
+  masteryGraphs       MasteryGraph[]
+  performanceLogs     PerformanceLog[]
+  dependentTopics     PrerequisiteRelation[] @relation("PrerequisiteOf")
+  prerequisites       PrerequisiteRelation[] @relation("TopicPrerequisites")
+  questions           Question[]
+  teacherInsights     TeacherInsight[]
+  subject             Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  weakTopicFlags      WeakTopicFlag[]
+
+  @@index([subjectId])
+  @@map("topics")
+}
+
+model CurriculumContent {
+  id          String   @id @default(cuid())
+  topicId     String   @map("topic_id")
+  uploadedBy  String   @map("uploaded_by")
+  title       String
+  contentText String   @map("content_text")
+  fileUrl     String?  @map("file_url")
+  embeddingId String?  @map("embedding_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  topic       Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  uploader    User     @relation("ContentUploader", fields: [uploadedBy], references: [id])
+
+  @@index([topicId])
+  @@map("curriculum_content")
+}
+
+model PrerequisiteRelation {
+  id                  String @id @default(cuid())
+  topicId             String @map("topic_id")
+  prerequisiteTopicId String @map("prerequisite_topic_id")
+  prerequisite        Topic  @relation("PrerequisiteOf", fields: [prerequisiteTopicId], references: [id], onDelete: Cascade)
+  topic               Topic  @relation("TopicPrerequisites", fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, prerequisiteTopicId])
+  @@map("prerequisite_relations")
+}
+
+model AISession {
+  id        String      @id @default(cuid())
+  userId    String      @map("user_id")
+  courseId  String      @map("course_id")
+  topicId   String      @map("topic_id")
+  mode      AIMode
+  createdAt DateTime    @default(now()) @map("created_at")
+  messages  AIMessage[]
+  course    Course      @relation(fields: [courseId], references: [id])
+  topic     Topic       @relation(fields: [topicId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([courseId])
+  @@map("ai_sessions")
+}
+
+model AIMessage {
+  id           String        @id @default(cuid())
+  sessionId    String        @map("session_id")
+  sender       MessageSender
+  messageText  String        @map("message_text")
+  responseType ResponseType  @map("response_type")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  session      AISession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("ai_messages")
+}
+
+model ConceptInteraction {
+  id              String          @id @default(cuid())
+  userId          String          @map("user_id")
+  topicId         String          @map("topic_id")
+  interactionType InteractionType @map("interaction_type")
+  correct         Boolean
+  timeSpent       Int             @map("time_spent")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  topic           Topic           @relation(fields: [topicId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
+
+  @@index([userId, topicId])
+  @@map("concept_interactions")
+}
+
+model MasteryGraph {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  topicId         String   @map("topic_id")
+  masteryScore    Float    @default(0) @map("mastery_score")
+  confidenceScore Float    @default(0) @map("confidence_score")
+  attemptsCount   Int      @default(0) @map("attempts_count")
+  correctCount    Int      @default(0) @map("correct_count")
+  lastUpdated     DateTime @updatedAt @map("last_updated")
+  topic           Topic    @relation(fields: [topicId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, topicId])
+  @@index([userId])
+  @@map("mastery_graph")
+}
+
+model Assignment {
+  id                    String           @id @default(cuid())
+  courseId              String           @map("course_id")
+  teacherId             String           @map("teacher_id")
+  title                 String
+  description           String           @default("")
+  dueDate               DateTime         @map("due_date")
+  strictMode            Boolean          @default(false) @map("strict_mode")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  type                  String           @default("assignment")
+  rubric                Json?
+  isPublished           Boolean          @default(false) @map("is_published")
+  chapterId             String?          @map("chapter_id")
+  assignmentDocumentUrl String?          @map("assignment_document_url")
+  evaluationPoints      String?          @default("") @map("evaluation_points")
+  submissionTypes       String[]         @map("submission_types")
+  chapter               Chapter?         @relation(fields: [chapterId], references: [id])
+  course                Course           @relation(fields: [courseId], references: [id])
+  teacher               User             @relation("AssignmentCreator", fields: [teacherId], references: [id])
+  questions             Question[]
+  studentAttempts       StudentAttempt[]
+
+  @@index([courseId])
+  @@index([chapterId])
+  @@index([teacherId])
+  @@map("assignments")
+}
+
+model Question {
+  id              String          @id @default(cuid())
+  assignmentId    String?         @map("assignment_id")
+  topicId         String?         @map("topic_id")
+  questionText    String          @map("question_text")
+  optionA         String          @map("option_a")
+  optionB         String          @map("option_b")
+  optionC         String          @map("option_c")
+  optionD         String          @map("option_d")
+  correctOption   String          @map("correct_option")
+  difficultyLevel String          @default("beginner") @map("difficulty_level")
+  explanation     String?
+  assignment      Assignment?     @relation(fields: [assignmentId], references: [id])
+  topic           Topic?          @relation(fields: [topicId], references: [id])
+  studentAnswers  StudentAnswer[]
+
+  @@index([assignmentId])
+  @@index([topicId])
+  @@map("questions")
+}
+
+model StudentAttempt {
+  id                String          @id @default(cuid())
+  assignmentId      String          @map("assignment_id")
+  studentId         String          @map("student_id")
+  score             Float           @default(0)
+  startedAt         DateTime        @default(now()) @map("started_at")
+  submittedAt       DateTime?       @map("submitted_at")
+  integrityFlag     Boolean         @default(false) @map("integrity_flag")
+  gradedAt          DateTime?       @map("graded_at")
+  gradedBy          String?         @map("graded_by")
+  teacherComment    String?         @map("teacher_comment")
+  rubricScores      Json?           @map("rubric_scores")
+  submissionFileUrl String?         @map("submission_file_url")
+  answers           Json?
+  aiEvaluation      Json?           @map("ai_evaluation")
+  aiGraded          Boolean         @default(false) @map("ai_graded")
+  studentAnswers    StudentAnswer[]
+  assignment        Assignment      @relation(fields: [assignmentId], references: [id])
+  grader            User?           @relation("GradedAttempts", fields: [gradedBy], references: [id])
+  student           User            @relation(fields: [studentId], references: [id])
+
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([gradedBy])
+  @@map("student_attempts")
+}
+
+model StudentAnswer {
+  id             String         @id @default(cuid())
+  attemptId      String         @map("attempt_id")
+  questionId     String         @map("question_id")
+  selectedOption String         @map("selected_option")
+  isCorrect      Boolean        @map("is_correct")
+  timeTaken      Int            @map("time_taken")
+  attempt        StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       Question       @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+  @@map("student_answers")
+}
+
+model StudentXP {
+  id               String   @id @default(cuid())
+  userId           String   @unique @map("user_id")
+  totalXp          Int      @default(0) @map("total_xp")
+  level            Int      @default(1)
+  streakDays       Int      @default(0) @map("streak_days")
+  lastActivityDate DateTime @default(now()) @map("last_activity_date")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_xp")
+}
+
+model XPLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  source    XPSource
+  xpAmount  Int      @map("xp_amount")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("xp_logs")
+}
+
+model BossBattle {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  topicId   String       @map("topic_id")
+  bossHp    Int          @map("boss_hp")
+  playerHp  Int          @map("player_hp")
+  status    BattleStatus @default(active)
+  startedAt DateTime     @default(now()) @map("started_at")
+  endedAt   DateTime?    @map("ended_at")
+  topic     Topic        @relation(fields: [topicId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([topicId])
+  @@map("boss_battles")
+}
+
+model FlashcardProgress {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  topicId         String   @map("topic_id")
+  cardText        String   @map("card_text")
+  known           Boolean  @default(false)
+  repetitionCount Int      @default(0) @map("repetition_count")
+  lastReviewed    DateTime @default(now()) @map("last_reviewed")
+  topic           Topic    @relation(fields: [topicId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, topicId])
+  @@map("flashcard_progress")
+}
+
+model SpinReward {
+  id          String     @id @default(cuid())
+  userId      String     @map("user_id")
+  rewardType  RewardType @map("reward_type")
+  rewardValue String     @map("reward_value")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("spin_rewards")
+}
+
+model PerformanceLog {
+  id           String       @id @default(cuid())
+  userId       String       @map("user_id")
+  topicId      String       @map("topic_id")
+  activityType ActivityType @map("activity_type")
+  score        Float        @default(0)
+  accuracy     Float        @default(0)
+  timeSpent    Int          @default(0) @map("time_spent")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  topic        Topic        @relation(fields: [topicId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([userId, topicId])
+  @@index([userId])
+  @@map("performance_logs")
+}
+
+model WeakTopicFlag {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  topicId       String   @map("topic_id")
+  weaknessScore Float    @map("weakness_score")
+  detectedAt    DateTime @default(now()) @map("detected_at")
+  topic         Topic    @relation(fields: [topicId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("weak_topic_flags")
+}
+
+model TeacherInsight {
+  id               String   @id @default(cuid())
+  teacherId        String   @map("teacher_id")
+  courseId         String   @map("course_id")
+  topicId          String   @map("topic_id")
+  avgMastery       Float    @map("avg_mastery")
+  weakStudentCount Int      @map("weak_student_count")
+  generatedAt      DateTime @default(now()) @map("generated_at")
+  course           Course   @relation(fields: [courseId], references: [id])
+  teacher          User     @relation("TeacherInsights", fields: [teacherId], references: [id])
+  topic            Topic    @relation(fields: [topicId], references: [id])
+
+  @@index([teacherId, courseId])
+  @@map("teacher_insights")
+}
+
+model AIPolicySettings {
+  id             String      @id @default(cuid())
+  institutionId  String      @unique @map("institution_id")
+  hintModeOnly   Boolean     @default(false) @map("hint_mode_only")
+  strictExamMode Boolean     @default(false) @map("strict_exam_mode")
+  maxTokens      Int         @default(1024) @map("max_tokens")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  institution    Institution @relation(fields: [institutionId], references: [id])
+
+  @@map("ai_policy_settings")
+}
+
+model IntegrityPolicy {
+  id                        String      @id @default(cuid())
+  institutionId             String      @unique @map("institution_id")
+  rapidGuessingEnabled      Boolean     @default(true) @map("rapid_guessing_enabled")
+  rapidGuessingThreshold    Int         @default(10) @map("rapid_guessing_threshold")
+  tabSwitchingEnabled       Boolean     @default(true) @map("tab_switching_enabled")
+  tabSwitchingThreshold     Int         @default(5) @map("tab_switching_threshold")
+  copyPasteEnabled          Boolean     @default(true) @map("copy_paste_enabled")
+  highAnomalyEnabled        Boolean     @default(true) @map("high_anomaly_enabled")
+  unusualPatternEnabled     Boolean     @default(true) @map("unusual_pattern_enabled")
+  fastCompletionEnabled     Boolean     @default(true) @map("fast_completion_enabled")
+  fastCompletionThreshold   Int         @default(40) @map("fast_completion_threshold")
+  multipleReattemptEnabled  Boolean     @default(true) @map("multiple_reattempt_enabled")
+  similarityDetectedEnabled Boolean     @default(true) @map("similarity_detected_enabled")
+  similarityThreshold       Int         @default(80) @map("similarity_threshold")
+  createdAt                 DateTime    @default(now()) @map("created_at")
+  updatedAt                 DateTime    @updatedAt @map("updated_at")
+  institution               Institution @relation(fields: [institutionId], references: [id])
+
+  @@map("integrity_policies")
+}
+
+model SystemUsageLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  actionType String   @map("action_type")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([actionType])
+  @@map("system_usage_logs")
+}
+
+model CourseEnrollment {
+  id         String   @id @default(cuid())
+  courseId   String   @map("course_id")
+  studentId  String   @map("student_id")
+  enrolledAt DateTime @default(now()) @map("enrolled_at")
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student    User     @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("course_enrollments")
+}
+
+model StudentEvaluation {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  courseId  String   @map("course_id")
+  score     Float    @default(0)
+  feedback  String   @default("")
+  gradedAt  DateTime @default(now()) @map("graded_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User     @relation("StudentEvaluations", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([studentId])
+  @@map("student_evaluations")
+}
+
+model Quiz {
+  id             String         @id @default(cuid())
+  studentId      String         @map("student_id")
+  courseId       String?        @map("course_id")
+  chapterId      String?        @map("chapter_id")
+  type           QuizType
+  difficulty     QuizDifficulty
+  totalQuestions Int            @map("total_questions")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  attempts       QuizAttempt[]
+  questions      QuizQuestion[]
+  course         Course?        @relation(fields: [courseId], references: [id])
+  student        User           @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([chapterId])
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String       @id @default(cuid())
+  quizId        String       @map("quiz_id")
+  question      String
+  options       Json
+  correctAnswer String       @map("correct_answer")
+  explanation   String
+  concept       String
+  answers       QuizAnswer[]
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id          String       @id @default(cuid())
+  quizId      String       @map("quiz_id")
+  studentId   String       @map("student_id")
+  score       Int
+  completedAt DateTime     @map("completed_at")
+  answers     QuizAnswer[]
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     User         @relation(fields: [studentId], references: [id])
+
+  @@index([quizId])
+  @@index([studentId])
+  @@map("quiz_attempts")
+}
+
+model QuizAnswer {
+  id             String       @id @default(cuid())
+  attemptId      String       @map("attempt_id")
+  questionId     String       @map("question_id")
+  selectedAnswer String       @map("selected_answer")
+  isCorrect      Boolean      @map("is_correct")
+  attempt        QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question       QuizQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([attemptId])
+  @@map("quiz_answers")
+}
+
+model AdaptiveResource {
+  id          String   @id @default(cuid())
+  studentId   String   @map("student_id")
+  courseId    String   @map("course_id")
+  chapterId   String   @map("chapter_id")
+  concept     String
+  explanation String
+  mindmap     String
+  createdAt   DateTime @default(now()) @map("created_at")
+  course      Course   @relation(fields: [courseId], references: [id])
+  student     User     @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([chapterId])
+  @@map("adaptive_resources")
+}
+
+model ConceptMastery {
+  id           String   @id @default(cuid())
+  studentId    String   @map("student_id")
+  concept      String
+  masteryScore Float    @default(0) @map("mastery_score")
+  isWeak       Boolean  @default(false) @map("is_weak")
+  correctCount Int      @default(0) @map("correct_count")
+  totalCount   Int      @default(0) @map("total_count")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, concept])
+  @@index([studentId])
+  @@index([studentId, isWeak])
+  @@map("concept_mastery")
+}
+
+model TopicMastery {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  courseId  String   @map("course_id")
+  topic     String
+  attempts  Int      @default(0)
+  correct   Int      @default(0)
+  score     Float    @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId, topic])
+  @@index([studentId])
+  @@index([studentId, courseId])
+  @@map("topic_mastery")
+}
+
+model AdminOTP {
+  id        String   @id @default(cuid())
+  email     String
+  otpHash   String   @map("otp_hash")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@index([email, used, expiresAt])
+  @@map("admin_otp")
+}
+
+model StageProgress {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  stageId        Int      @map("stage_id")
+  completedGames Int      @default(0) @map("completed_games")
+  progress       Int      @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stageId])
+  @@index([userId])
+  @@map("stage_progress")
+}
 
 enum UserRole {
   student
@@ -94,855 +799,4 @@ enum QuizDifficulty {
   EASY
   MEDIUM
   HARD
-}
-
-// ========================
-// 1. Users & Auth
-// ========================
-
-model Institution {
-  id        String   @id @default(cuid())
-  name      String
-  domain    String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
-
-  users          User[]
-  courses        Course[]
-  aiPolicySettings AIPolicySettings?
-  integrityPolicy  IntegrityPolicy?
-
-  @@map("institutions")
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  passwordHash  String    @map("password_hash")
-  role          UserRole
-  institutionId String    @map("institution_id")
-  isActive      Boolean   @default(true) @map("is_active")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  institution   Institution @relation(fields: [institutionId], references: [id])
-
-  profile               UserProfile?
-  accessibilitySettings AccessibilitySettings?
-  aiSessions            AISession[]
-  conceptInteractions   ConceptInteraction[]
-  masteryGraphs         MasteryGraph[]
-  studentAttempts       StudentAttempt[]
-  gradedAttempts        StudentAttempt[] @relation("GradedAttempts")
-  studentXp             StudentXP?
-  xpLogs                XPLog[]
-  stageProgress         StageProgress[]
-  bossBattles           BossBattle[]
-  flashcardProgress     FlashcardProgress[]
-  spinRewards           SpinReward[]
-  userBadges            UserBadge[]
-  performanceLogs       PerformanceLog[]
-  weakTopicFlags        WeakTopicFlag[]
-  systemUsageLogs       SystemUsageLog[]
-
-  // Teacher relations
-  createdCourses        Course[]       @relation("CourseCreator")
-  assignedCourses       TeacherCourseAssignment[] @relation("TeacherCourseAssignments")
-  uploadedContent       CurriculumContent[] @relation("ContentUploader")
-  uploadedChapterContent ChapterContent[] @relation("ChapterContentUploader")
-  createdAssignments    Assignment[]   @relation("AssignmentCreator")
-  teacherInsights       TeacherInsight[] @relation("TeacherInsights")
-
-  // Enrollment & Evaluation
-  enrollments    CourseEnrollment[] @relation("StudentEnrollments")
-  evaluations    StudentEvaluation[] @relation("StudentEvaluations")
-
-  // AI Quiz & Adaptive Learning
-  quizzes           Quiz[]
-  quizAttempts      QuizAttempt[]
-  adaptiveResources AdaptiveResource[]
-  conceptMasteries  ConceptMastery[]
-  topicMasteries    TopicMastery[]
-
-  @@index([institutionId])
-  @@index([role])
-  @@map("users")
-}
-
-model UserProfile {
-  id          String  @id @default(cuid())
-  userId      String  @unique @map("user_id")
-  avatarUrl   String? @map("avatar_url")
-  yearOfStudy Int?    @map("year_of_study")
-  department  String?
-  bio         String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_profiles")
-}
-
-model AccessibilitySettings {
-  id            String   @id @default(cuid())
-  userId        String   @unique @map("user_id")
-  adhdMode      Boolean  @default(false) @map("adhd_mode")
-  dyslexiaFont  Boolean  @default(false) @map("dyslexia_font")
-  highContrast  Boolean  @default(false) @map("high_contrast")
-  speechEnabled Boolean  @default(false) @map("speech_enabled")
-  focusMode     Boolean  @default(false) @map("focus_mode")
-  fontScale     Float    @default(1.0) @map("font_scale")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("accessibility_settings")
-}
-
-// ========================
-// 2. Courses & Curriculum
-// ========================
-
-model Course {
-  id            String   @id @default(cuid())
-  institutionId String   @map("institution_id")
-  name          String
-  description   String   @default("")
-  createdBy     String   @map("created_by")
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  institution Institution @relation(fields: [institutionId], references: [id])
-  creator     User        @relation("CourseCreator", fields: [createdBy], references: [id])
-
-  subjects       Subject[]
-  chapters       Chapter[]
-  assignments    Assignment[]
-  aiSessions     AISession[]
-  teacherInsights TeacherInsight[]
-  teacherAssignments TeacherCourseAssignment[]
-  enrollments    CourseEnrollment[]
-  evaluations    StudentEvaluation[]
-  quizzes        Quiz[]
-  adaptiveResources AdaptiveResource[]
-  topicMasteries  TopicMastery[]
-
-  @@index([institutionId])
-  @@map("courses")
-}
-
-model TeacherCourseAssignment {
-  id        String   @id @default(cuid())
-  teacherId String   @map("teacher_id")
-  courseId  String   @map("course_id")
-  assignedAt DateTime @default(now()) @map("assigned_at")
-
-  teacher User   @relation("TeacherCourseAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([teacherId, courseId])
-  @@index([teacherId])
-  @@index([courseId])
-  @@map("teacher_course_assignments")
-}
-
-model Chapter {
-  id          String   @id @default(cuid())
-  courseId    String   @map("course_id")
-  name        String
-  description String   @default("")
-  orderIndex  Int      @default(0) @map("order_index")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  content     ChapterContent[]
-  assignments Assignment[]
-
-  @@index([courseId])
-  @@map("chapters")
-}
-
-model ChapterContent {
-  id          String   @id @default(cuid())
-  chapterId   String   @map("chapter_id")
-  uploadedBy  String   @map("uploaded_by")
-  title       String
-  description String   @default("")
-  fileUrl     String   @map("file_url")
-  fileType    String   @default("pdf") @map("file_type")
-  fileSize    Int?     @map("file_size")
-  orderIndex  Int      @default(0) @map("order_index")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  chapter  Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  uploader User    @relation("ChapterContentUploader", fields: [uploadedBy], references: [id])
-
-  @@index([chapterId])
-  @@map("chapter_content")
-}
-
-model Subject {
-  id          String @id @default(cuid())
-  courseId     String @map("course_id")
-  name        String
-  description String @default("")
-
-  course Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  topics Topic[]
-
-  @@index([courseId])
-  @@map("subjects")
-}
-
-model Topic {
-  id              String          @id @default(cuid())
-  subjectId       String          @map("subject_id")
-  name            String
-  description     String          @default("")
-  difficultyLevel DifficultyLevel @default(beginner) @map("difficulty_level")
-  orderIndex      Int             @default(0) @map("order_index")
-
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  curriculumContent    CurriculumContent[]
-  aiSessions           AISession[]
-  conceptInteractions  ConceptInteraction[]
-  masteryGraphs        MasteryGraph[]
-  questions            Question[]
-  bossBattles          BossBattle[]
-  flashcardProgress    FlashcardProgress[]
-  performanceLogs      PerformanceLog[]
-  weakTopicFlags       WeakTopicFlag[]
-  teacherInsights      TeacherInsight[]
-
-  // Prerequisite relations
-  prerequisites     PrerequisiteRelation[] @relation("TopicPrerequisites")
-  dependentTopics   PrerequisiteRelation[] @relation("PrerequisiteOf")
-
-  @@index([subjectId])
-  @@map("topics")
-}
-
-model CurriculumContent {
-  id          String   @id @default(cuid())
-  topicId     String   @map("topic_id")
-  uploadedBy  String   @map("uploaded_by")
-  title       String
-  contentText String   @map("content_text") @db.Text
-  fileUrl     String?  @map("file_url")
-  embeddingId String?  @map("embedding_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  topic    Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  uploader User  @relation("ContentUploader", fields: [uploadedBy], references: [id])
-
-  @@index([topicId])
-  @@map("curriculum_content")
-}
-
-model PrerequisiteRelation {
-  id                   String @id @default(cuid())
-  topicId              String @map("topic_id")
-  prerequisiteTopicId  String @map("prerequisite_topic_id")
-
-  topic        Topic @relation("TopicPrerequisites", fields: [topicId], references: [id], onDelete: Cascade)
-  prerequisite Topic @relation("PrerequisiteOf", fields: [prerequisiteTopicId], references: [id], onDelete: Cascade)
-
-  @@unique([topicId, prerequisiteTopicId])
-  @@map("prerequisite_relations")
-}
-
-// ========================
-// 3. AI Interaction & Learning
-// ========================
-
-model AISession {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  courseId   String   @map("course_id")
-  topicId   String   @map("topic_id")
-  mode      AIMode
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user     User       @relation(fields: [userId], references: [id])
-  course   Course     @relation(fields: [courseId], references: [id])
-  topic    Topic      @relation(fields: [topicId], references: [id])
-  messages AIMessage[]
-
-  @@index([userId])
-  @@index([courseId])
-  @@map("ai_sessions")
-}
-
-model AIMessage {
-  id           String       @id @default(cuid())
-  sessionId    String       @map("session_id")
-  sender       MessageSender
-  messageText  String       @map("message_text") @db.Text
-  responseType ResponseType @map("response_type")
-  createdAt    DateTime     @default(now()) @map("created_at")
-
-  session AISession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@map("ai_messages")
-}
-
-model ConceptInteraction {
-  id              String          @id @default(cuid())
-  userId          String          @map("user_id")
-  topicId         String          @map("topic_id")
-  interactionType InteractionType @map("interaction_type")
-  correct         Boolean
-  timeSpent       Int             @map("time_spent") // seconds
-  createdAt       DateTime        @default(now()) @map("created_at")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@index([userId, topicId])
-  @@map("concept_interactions")
-}
-
-// ========================
-// 4. Mastery Tracking
-// ========================
-
-model MasteryGraph {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  topicId         String   @map("topic_id")
-  masteryScore    Float    @default(0) @map("mastery_score")
-  confidenceScore Float    @default(0) @map("confidence_score")
-  attemptsCount   Int      @default(0) @map("attempts_count")
-  correctCount    Int      @default(0) @map("correct_count")
-  lastUpdated     DateTime @updatedAt @map("last_updated")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@unique([userId, topicId])
-  @@index([userId])
-  @@map("mastery_graph")
-}
-
-// ========================
-// 5. Assignments & Assessment
-// ========================
-
-model Assignment {
-  id                     String   @id @default(cuid())
-  courseId               String   @map("course_id")
-  chapterId              String?  @map("chapter_id")
-  teacherId              String   @map("teacher_id")
-  title                  String
-  description            String   @default("")
-  type                   String   @default("assignment") // "assignment" | "quiz"
-  dueDate                DateTime @map("due_date")
-  strictMode             Boolean  @default(false) @map("strict_mode")
-  isPublished            Boolean  @default(false) @map("is_published")
-  submissionTypes        String[] @map("submission_types")
-  rubric                 Json?
-  assignmentDocumentUrl  String?  @map("assignment_document_url")
-  evaluationPoints       String?  @default("") @map("evaluation_points") @db.Text
-  createdAt              DateTime @default(now()) @map("created_at")
-
-  course   Course  @relation(fields: [courseId], references: [id])
-  chapter  Chapter? @relation(fields: [chapterId], references: [id])
-  teacher  User    @relation("AssignmentCreator", fields: [teacherId], references: [id])
-
-  questions       Question[]
-  studentAttempts StudentAttempt[]
-
-  @@index([courseId])
-  @@index([chapterId])
-  @@index([teacherId])
-  @@map("assignments")
-}
-
-model Question {
-  id              String  @id @default(cuid())
-  assignmentId    String? @map("assignment_id")
-  topicId         String? @map("topic_id")
-  questionText    String  @map("question_text") @db.Text
-  optionA         String  @map("option_a")
-  optionB         String  @map("option_b")
-  optionC         String  @map("option_c")
-  optionD         String  @map("option_d")
-  correctOption   String  @map("correct_option")
-  explanation     String? @db.Text
-  difficultyLevel String  @default("beginner") @map("difficulty_level")
-
-  assignment    Assignment?    @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  topic         Topic?         @relation(fields: [topicId], references: [id])
-  studentAnswers StudentAnswer[]
-
-  @@index([assignmentId])
-  @@index([topicId])
-  @@map("questions")
-}
-
-model StudentAttempt {
-  id                String    @id @default(cuid())
-  assignmentId      String    @map("assignment_id")
-  studentId         String    @map("student_id")
-  score             Float     @default(0)
-  answers           Json?     // for text/code/file answers on assignments
-  submissionFileUrl String?   @map("submission_file_url")
-  startedAt         DateTime  @default(now()) @map("started_at")
-  submittedAt       DateTime? @map("submitted_at")
-  integrityFlag     Boolean   @default(false) @map("integrity_flag")
-  gradedAt          DateTime? @map("graded_at")
-  gradedBy          String?   @map("graded_by")
-  teacherComment    String?   @map("teacher_comment") @db.Text
-  rubricScores      Json?     @map("rubric_scores")
-
-  assignment     Assignment     @relation(fields: [assignmentId], references: [id])
-  student        User           @relation(fields: [studentId], references: [id])
-  grader         User?          @relation("GradedAttempts", fields: [gradedBy], references: [id])
-  studentAnswers StudentAnswer[]
-
-  @@index([assignmentId])
-  @@index([studentId])
-  @@index([gradedBy])
-  @@map("student_attempts")
-}
-
-model StudentAnswer {
-  id             String  @id @default(cuid())
-  attemptId      String  @map("attempt_id")
-  questionId     String  @map("question_id")
-  selectedOption String  @map("selected_option")
-  isCorrect      Boolean @map("is_correct")
-  timeTaken      Int     @map("time_taken") // seconds
-
-  attempt  StudentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question Question       @relation(fields: [questionId], references: [id])
-
-  @@index([attemptId])
-  @@map("student_answers")
-}
-
-// ========================
-// 6. Gamification System
-// ========================
-
-model StudentXP {
-  id               String   @id @default(cuid())
-  userId           String   @unique @map("user_id")
-  totalXp          Int      @default(0) @map("total_xp")
-  level            Int      @default(1)
-  streakDays       Int      @default(0) @map("streak_days")
-  lastActivityDate DateTime @default(now()) @map("last_activity_date")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("student_xp")
-}
-
-model XPLog {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  source    XPSource
-  xpAmount  Int      @map("xp_amount")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@map("xp_logs")
-}
-
-model StageProgress {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  stageId        Int      @map("stage_id") // 1-4 for the 4 stages
-  completedGames Int      @default(0) @map("completed_games") // 0-4 games completed
-  progress       Int      @default(0) // 0-100 percentage
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, stageId])
-  @@index([userId])
-  @@map("stage_progress")
-}
-
-model BossBattle {
-  id        String       @id @default(cuid())
-  userId    String       @map("user_id")
-  topicId   String       @map("topic_id")
-  bossHp    Int          @map("boss_hp")
-  playerHp  Int          @map("player_hp")
-  status    BattleStatus @default(active)
-  startedAt DateTime     @default(now()) @map("started_at")
-  endedAt   DateTime?    @map("ended_at")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@index([userId])
-  @@index([topicId])
-  @@map("boss_battles")
-}
-
-model FlashcardProgress {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  topicId         String   @map("topic_id")
-  cardText        String   @map("card_text") @db.Text
-  known           Boolean  @default(false)
-  repetitionCount Int      @default(0) @map("repetition_count")
-  lastReviewed    DateTime @default(now()) @map("last_reviewed")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@index([userId, topicId])
-  @@map("flashcard_progress")
-}
-
-model SpinReward {
-  id          String     @id @default(cuid())
-  userId      String     @map("user_id")
-  rewardType  RewardType @map("reward_type")
-  rewardValue String     @map("reward_value")
-  createdAt   DateTime   @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@map("spin_rewards")
-}
-
-model Badge {
-  id          String      @id @default(cuid())
-  key         String      @unique
-  name        String
-  description String      @db.Text
-  icon        String
-  sortOrder   Int         @default(0) @map("sort_order")
-  createdAt   DateTime    @default(now()) @map("created_at")
-
-  userBadges UserBadge[]
-
-  @@map("badges")
-}
-
-model UserBadge {
-  id         String   @id @default(cuid())
-  userId     String   @map("user_id")
-  badgeId    String   @map("badge_id")
-  unlockedAt DateTime @default(now()) @map("unlocked_at")
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, badgeId])
-  @@index([userId])
-  @@index([badgeId])
-  @@map("user_badges")
-}
-
-// ========================
-// 7. Analytics & Insights
-// ========================
-
-model PerformanceLog {
-  id           String       @id @default(cuid())
-  userId       String       @map("user_id")
-  topicId      String       @map("topic_id")
-  activityType ActivityType @map("activity_type")
-  score        Float        @default(0)
-  accuracy     Float        @default(0)
-  timeSpent    Int          @default(0) @map("time_spent")
-  createdAt    DateTime     @default(now()) @map("created_at")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@index([userId, topicId])
-  @@index([userId])
-  @@map("performance_logs")
-}
-
-model WeakTopicFlag {
-  id             String   @id @default(cuid())
-  userId         String   @map("user_id")
-  topicId        String   @map("topic_id")
-  weaknessScore  Float    @map("weakness_score")
-  detectedAt     DateTime @default(now()) @map("detected_at")
-
-  user  User  @relation(fields: [userId], references: [id])
-  topic Topic @relation(fields: [topicId], references: [id])
-
-  @@index([userId])
-  @@map("weak_topic_flags")
-}
-
-model TeacherInsight {
-  id               String   @id @default(cuid())
-  teacherId        String   @map("teacher_id")
-  courseId          String   @map("course_id")
-  topicId          String   @map("topic_id")
-  avgMastery       Float    @map("avg_mastery")
-  weakStudentCount Int      @map("weak_student_count")
-  generatedAt      DateTime @default(now()) @map("generated_at")
-
-  teacher User   @relation("TeacherInsights", fields: [teacherId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
-  topic   Topic  @relation(fields: [topicId], references: [id])
-
-  @@index([teacherId, courseId])
-  @@map("teacher_insights")
-}
-
-// ========================
-// 8. Admin & Governance
-// ========================
-
-model AIPolicySettings {
-  id              String   @id @default(cuid())
-  institutionId   String   @unique @map("institution_id")
-  hintModeOnly    Boolean  @default(false) @map("hint_mode_only")
-  strictExamMode  Boolean  @default(false) @map("strict_exam_mode")
-  maxTokens       Int      @default(1024) @map("max_tokens")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
-  institution Institution @relation(fields: [institutionId], references: [id])
-
-  @@map("ai_policy_settings")
-}
-
-model IntegrityPolicy {
-  id            String   @id @default(cuid())
-  institutionId String   @unique @map("institution_id")
-
-  rapidGuessingEnabled   Boolean @default(true) @map("rapid_guessing_enabled")
-  rapidGuessingThreshold Int     @default(10)   @map("rapid_guessing_threshold")
-
-  tabSwitchingEnabled   Boolean @default(true) @map("tab_switching_enabled")
-  tabSwitchingThreshold Int     @default(5)    @map("tab_switching_threshold")
-
-  copyPasteEnabled Boolean @default(true) @map("copy_paste_enabled")
-  highAnomalyEnabled Boolean @default(true) @map("high_anomaly_enabled")
-  unusualPatternEnabled Boolean @default(true) @map("unusual_pattern_enabled")
-
-  fastCompletionEnabled   Boolean @default(true) @map("fast_completion_enabled")
-  fastCompletionThreshold Int     @default(40)   @map("fast_completion_threshold")
-
-  multipleReattemptEnabled Boolean @default(true) @map("multiple_reattempt_enabled")
-
-  similarityDetectedEnabled Boolean @default(true) @map("similarity_detected_enabled")
-  similarityThreshold       Int     @default(80)   @map("similarity_threshold")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
-
-  institution Institution @relation(fields: [institutionId], references: [id])
-
-  @@map("integrity_policies")
-}
-
-model SystemUsageLog {
-  id         String   @id @default(cuid())
-  userId     String   @map("user_id")
-  actionType String   @map("action_type")
-  metadata   Json     @default("{}")
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@index([actionType])
-  @@map("system_usage_logs")
-}
-
-// ========================
-// 9. Enrollment & Evaluation
-// ========================
-
-model CourseEnrollment {
-  id         String   @id @default(cuid())
-  courseId   String   @map("course_id")
-  studentId  String   @map("student_id")
-  enrolledAt DateTime @default(now()) @map("enrolled_at")
-
-  student User   @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([courseId, studentId])
-  @@index([courseId])
-  @@index([studentId])
-  @@map("course_enrollments")
-}
-
-model StudentEvaluation {
-  id        String   @id @default(cuid())
-  studentId String   @map("student_id")
-  courseId  String   @map("course_id")
-  score     Float    @default(0)
-  feedback  String   @default("") @db.Text
-  gradedAt  DateTime @default(now()) @map("graded_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  student User   @relation("StudentEvaluations", fields: [studentId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, courseId])
-  @@index([courseId])
-  @@index([studentId])
-  @@map("student_evaluations")
-}
-
-// ========================
-// 10. Admin OTP Authentication
-// ========================
-
-// ========================
-// 11. AI Quiz & Adaptive Learning
-// ========================
-
-model Quiz {
-  id             String        @id @default(cuid())
-  studentId      String        @map("student_id")
-  courseId       String?       @map("course_id")
-  chapterId      String?       @map("chapter_id")
-  type           QuizType
-  difficulty     QuizDifficulty
-  totalQuestions Int           @map("total_questions")
-  createdAt      DateTime      @default(now()) @map("created_at")
-
-  student   User    @relation(fields: [studentId], references: [id])
-  course    Course? @relation(fields: [courseId], references: [id])
-
-  questions QuizQuestion[]
-  attempts  QuizAttempt[]
-
-  @@index([studentId])
-  @@index([courseId])
-  @@index([chapterId])
-  @@map("quizzes")
-}
-
-model QuizQuestion {
-  id            String  @id @default(cuid())
-  quizId        String  @map("quiz_id")
-  question      String  @db.Text
-  options       Json
-  correctAnswer String  @map("correct_answer")
-  explanation   String  @db.Text
-  concept       String
-
-  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  answers QuizAnswer[]
-
-  @@index([quizId])
-  @@map("quiz_questions")
-}
-
-model QuizAttempt {
-  id          String   @id @default(cuid())
-  quizId      String   @map("quiz_id")
-  studentId   String   @map("student_id")
-  score       Int
-  completedAt DateTime @map("completed_at")
-
-  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  student User         @relation(fields: [studentId], references: [id])
-  answers QuizAnswer[]
-
-  @@index([quizId])
-  @@index([studentId])
-  @@map("quiz_attempts")
-}
-
-model QuizAnswer {
-  id             String  @id @default(cuid())
-  attemptId      String  @map("attempt_id")
-  questionId     String  @map("question_id")
-  selectedAnswer String  @map("selected_answer")
-  isCorrect      Boolean @map("is_correct")
-
-  attempt  QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question QuizQuestion @relation(fields: [questionId], references: [id])
-
-  @@index([attemptId])
-  @@map("quiz_answers")
-}
-
-model AdaptiveResource {
-  id          String   @id @default(cuid())
-  studentId   String   @map("student_id")
-  courseId    String   @map("course_id")
-  chapterId   String   @map("chapter_id")
-  concept     String
-  explanation String   @db.Text
-  mindmap     String   @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  student User   @relation(fields: [studentId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
-
-  @@index([studentId])
-  @@index([courseId])
-  @@index([chapterId])
-  @@map("adaptive_resources")
-}
-
-model ConceptMastery {
-  id           String   @id @default(cuid())
-  studentId    String   @map("student_id")
-  concept      String
-  masteryScore Float    @default(0) @map("mastery_score")
-  isWeak       Boolean  @default(false) @map("is_weak")
-  correctCount Int      @default(0) @map("correct_count")
-  totalCount   Int      @default(0) @map("total_count")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, concept])
-  @@index([studentId])
-  @@index([studentId, isWeak])
-  @@map("concept_mastery")
-}
-
-// ========================
-// 12. Topic Mastery (Practice Quiz)
-// ========================
-
-model TopicMastery {
-  id        String   @id @default(cuid())
-  studentId String   @map("student_id")
-  courseId  String   @map("course_id")
-  topic     String
-  attempts  Int      @default(0)
-  correct   Int      @default(0)
-  score     Float    @default(0)
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, courseId, topic])
-  @@index([studentId])
-  @@index([studentId, courseId])
-  @@map("topic_mastery")
-}
-
-model AdminOTP {
-  id        String   @id @default(cuid())
-  email     String
-  otpHash   String   @map("otp_hash")
-  expiresAt DateTime @map("expires_at")
-  used      Boolean  @default(false)
-  attempts  Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([email])
-  @@index([expiresAt])
-  @@index([createdAt])
-  @@index([email, used, expiresAt])
-  @@map("admin_otp")
 }

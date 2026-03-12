@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useCallback,
   KeyboardEvent,
-  ChangeEvent,
 } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -14,23 +13,16 @@ import {
   Mic,
   MicOff,
   Search,
-  Paperclip,
-  X,
-  ImageIcon,
+  GitBranch,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AttachedFile {
-  id: string;
-  file: File;
-  preview?: string;
-}
-
 interface PromptInputBoxProps {
-  onSend: (message: string, files?: File[]) => void;
+  onSend: (message: string, mindMapEnabled: boolean) => void;
+  isMindMapLoading?: boolean;
   isLoading?: boolean;
   placeholder?: string;
   className?: string;
@@ -78,19 +70,19 @@ function ToggleButton({
 
 export function PromptInputBox({
   onSend,
+  isMindMapLoading = false,
   isLoading = false,
   placeholder = 'Ask anything about your curriculum…',
   className,
   disabled = false,
 }: PromptInputBoxProps) {
   const [value, setValue] = useState('');
-  const [files, setFiles] = useState<AttachedFile[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
+  const [mindMapActive, setMindMapActive] = useState(false);
   const [focused, setFocused] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const interimTranscriptRef = useRef<string>('');
   const retryCountRef = useRef<number>(0);
@@ -312,32 +304,11 @@ export function PromptInputBox({
     }
   };
 
-  // File attach
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    const newFiles: AttachedFile[] = picked.map((f) => ({
-      id: crypto.randomUUID(),
-      file: f,
-      preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : undefined,
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
-    e.target.value = '';
-  };
-
-  const removeFile = (id: string) => {
-    setFiles((prev) => {
-      const target = prev.find((f) => f.id === id);
-      if (target?.preview) URL.revokeObjectURL(target.preview);
-      return prev.filter((f) => f.id !== id);
-    });
-  };
-
   // Send
   const handleSend = () => {
-    if ((!value.trim() && files.length === 0) || isLoading || disabled) return;
-    onSend(value.trim(), files.map((f) => f.file));
+    if (!value.trim() || isLoading || disabled) return;
+    onSend(value.trim(), mindMapActive);
     setValue('');
-    setFiles([]);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -347,7 +318,7 @@ export function PromptInputBox({
     }
   };
 
-  const canSend = (value.trim().length > 0 || files.length > 0) && !isLoading && !disabled;
+  const canSend = value.trim().length > 0 && !isLoading && !disabled;
 
   // ── JSX ──
   return (
@@ -371,35 +342,6 @@ export function PromptInputBox({
           <span className="text-xs text-muted-foreground">
             Speak clearly • Requires internet connection
           </span>
-        </div>
-      )}
-      {/* Attached file previews */}
-      {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 pb-0">
-          {files.map((f) => (
-            <div
-              key={f.id}
-              className="group relative flex items-center gap-2 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground"
-            >
-              {f.preview ? (
-                <img
-                  src={f.preview}
-                  alt=""
-                  className="h-8 w-8 rounded object-cover"
-                />
-              ) : (
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="max-w-[120px] truncate">{f.file.name}</span>
-              <button
-                type="button"
-                onClick={() => removeFile(f.id)}
-                className="ml-1 rounded p-0.5 text-muted-foreground hover:text-red-500 transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
         </div>
       )}
 
@@ -430,24 +372,20 @@ export function PromptInputBox({
       <div className="flex items-center gap-1 px-3 py-2.5">
         {/* Left actions */}
         <div className="flex items-center gap-0.5">
-          {/* Attach */}
-          <button
-            type="button"
-            title="Attach file"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isLoading}
-            className="rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
+          {/* Mind Map toggle */}
+          <ToggleButton
+            active={mindMapActive}
+            activeColor="text-[#006EB2] bg-[#006EB2]/10 dark:bg-[#006EB2]/20"
+            onClick={() => setMindMapActive((v) => !v)}
+            title={mindMapActive ? 'Mind Map ON — click to disable' : 'Mind Map OFF — click to enable'}
           >
-            <Paperclip className="h-4 w-4" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf,.doc,.docx,.txt"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+            {isMindMapLoading ? (
+              <span className="h-3.5 w-3.5 rounded-full border-2 border-[#006EB2]/30 border-t-[#006EB2] animate-spin" />
+            ) : (
+              <GitBranch className="h-3.5 w-3.5" />
+            )}
+            <span>{isMindMapLoading ? 'Generating…' : 'Mind Map'}</span>
+          </ToggleButton>
 
           {/* Voice */}
           <button

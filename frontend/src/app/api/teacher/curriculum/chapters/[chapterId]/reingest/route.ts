@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { join } from 'path';
 import { getAuthUser, requireRole } from '@/lib/auth';
 import { UserRole } from '@intellicampus/shared';
 import { prisma } from '@/lib/prisma';
@@ -45,27 +44,29 @@ export async function POST(
           continue;
         }
 
-        // Delegate PDF extraction + ingestion to ai-services (avoids Next.js webpack/pdf-parse issues)
-        const absoluteFilePath = join(process.cwd(), 'public', item.fileUrl);
-        const ingestRes = await fetch(`${aiServiceUrl}/ingest-file`, {
+        console.log(`[Reingest] Sending PDF URL to ai-services: ${item.fileUrl}`);
+
+        // Delegate PDF fetch + parse + chunk + embed to ai-services (/ingest-url)
+        const ingestRes = await fetch(`${aiServiceUrl}/ingest-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            filePath: absoluteFilePath,
+            fileUrl: item.fileUrl,
             courseId: chapter.courseId,
-            chapterId,
+            topicId: chapterId,
             chapterTitle: chapter.name,
           }),
         });
 
-        const ingestData = await ingestRes.json();
+        const ingestData = await ingestRes.json() as { success: boolean; data?: { chunkCount: number }; error?: string };
 
-        if (!ingestRes.ok) {
+        if (!ingestRes.ok || !ingestData.success) {
           results.push({ title: item.title, error: ingestData?.error ?? 'Ingest failed' });
           continue;
         }
 
         const chunkCount: number = ingestData?.data?.chunkCount ?? 0;
+        console.log(`[Reingest] SUCCESS — ${chunkCount} chunks upserted for "${item.title}"`);
 
         // Best-effort: upsert CurriculumContent record to track ingestion
         try {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { curriculumService, Course } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
+import { api } from '@/services/apiClient';
 import { useCourseStore } from '@/store/courseStore';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ import { GlowingEffect } from '@/components/ui/glowing-effect';
 interface CourseWithMeta extends Course {
   subjectCount: number;
   mastery: number;
+  hasWeakTopics: boolean;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -67,6 +69,11 @@ function SubjectCard({ course }: { course: CourseWithMeta }) {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <FaBook className="h-5 w-5 text-primary" />
             </div>
+            {course.hasWeakTopics && (
+              <Badge variant="outline" className="text-xs bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-700 dark:text-amber-400">
+                ⚠ Weak Topics
+              </Badge>
+            )}
           </div>
           <h3 className="text-base font-semibold text-card-foreground leading-tight mb-1 group-hover:text-primary transition-colors">
             {course.name}
@@ -118,6 +125,19 @@ export default function StudentCoursesPage() {
   const { courses, masteryByCourse, setCourses, setCourseMastery, coursesLoaded } =
     useCourseStore();
   const [loading, setLoading] = useState(!coursesLoaded);
+  const [weakConceptCourseIds, setWeakConceptCourseIds] = useState<Set<string>>(new Set());
+
+  // Fetch which courses have weak concepts — independent of course load cache
+  useEffect(() => {
+    let cancelled = false;
+    api.get<{ success: boolean; data: string[] }>('/student/practice/weak-courses')
+      .then((res: any) => {
+        const ids: string[] = res?.data ?? res ?? [];
+        if (!cancelled && Array.isArray(ids)) setWeakConceptCourseIds(new Set(ids));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (coursesLoaded) return;
@@ -175,6 +195,7 @@ export default function StudentCoursesPage() {
     ...c,
     subjectCount: (c as any).subjectCount ?? 0,
     mastery: Math.round((c as any).mastery ?? masteryByCourse[c.id]?.overallMastery ?? 0),
+    hasWeakTopics: (masteryByCourse[c.id]?.weakTopics?.length ?? 0) > 0 || weakConceptCourseIds.has(c.id),
   }));
 
   return (

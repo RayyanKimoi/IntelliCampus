@@ -1,5 +1,6 @@
 import { chunker } from '../rag/chunker';
-import { storeEmbedding, EmbeddingMetadata } from '../rag/vectorStore';
+import { generateEmbeddingBatch } from '../rag/embeddings';
+import { getPineconeIndex, pineconeConfig } from '../config/pinecone';
 
 export interface IngestCurriculumInput {
   courseId: string;
@@ -8,11 +9,15 @@ export interface IngestCurriculumInput {
   rawText: string;
 }
 
+/** Batch size for HuggingFace embedding API calls — avoids rate-limit failures on large PDFs */
+const EMBED_BATCH_SIZE = 32;
+
 /**
  * Ingest curriculum content into the vector store.
  *
- * Splits rawText into ~500-char chunks with 100-char overlap, generates
- * embeddings for each chunk, and stores them in Pinecone.
+ * Splits rawText into ~1000-char chunks with 200-char overlap, generates
+ * embeddings in sequential batches (to avoid HuggingFace rate limits),
+ * and upserts them into Pinecone.
  *
  * @returns Number of chunks stored
  */
@@ -21,27 +26,51 @@ export async function ingestCurriculum(
 ): Promise<number> {
   const { courseId, topicId, chapterTitle, rawText } = input;
 
+  console.log(`[IngestCurriculum] Starting ingestion — courseId: ${courseId}, topicId: ${topicId}, chapterTitle: "${chapterTitle}"`);
+  console.log(`[IngestCurriculum] PDF text length: ${rawText.length} chars`);
+
   if (!rawText.trim()) {
     throw new Error('ingestCurriculum: rawText must not be empty');
   }
 
-  // ~500 tokens ≈ ~1000 characters; overlap ~100 tokens ≈ ~200 characters
-  // (uses shared RAG defaults: CHUNK_SIZE=1000, CHUNK_OVERLAP=200)
   const chunks = chunker.chunkText(rawText);
 
-  if (chunks.length === 0) return 0;
+  console.log(`[IngestCurriculum] Chunks generated: ${chunks.length}`);
 
-  await Promise.all(
-    chunks.map((chunk) => {
-      const id = `${topicId}_chunk_${chunk.index}_${Date.now()}`;
-      return storeEmbedding(id, chunk.text, {
+  if (chunks.length === 0) {
+    console.error('[IngestCurriculum] ERROR: Chunking returned empty array — aborting ingest');
+    return 0;
+  }
+
+  const index = getPineconeIndex();
+  const now = Date.now();
+  let totalUpserted = 0;
+
+  // Process in sequential batches to avoid HuggingFace rate limits
+  for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
+    const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
+    const batchNum = Math.floor(i / EMBED_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(chunks.length / EMBED_BATCH_SIZE);
+    console.log(`[IngestCurriculum] Embedding batch ${batchNum}/${totalBatches} (${batch.length} chunks)…`);
+
+    const embeddings = await generateEmbeddingBatch(batch.map((c) => c.text));
+
+    const vectors = batch.map((chunk, j) => ({
+      id: `${topicId}_chunk_${chunk.index}_${now}`,
+      values: embeddings[j],
+      metadata: {
         courseId,
         topicId,
         chapter: chapterTitle,
         text: chunk.text,
-      });
-    })
-  );
+      },
+    }));
 
-  return chunks.length;
+    await index.namespace(pineconeConfig.namespace).upsert(vectors);
+    totalUpserted += vectors.length;
+    console.log(`[IngestCurriculum] Upserted batch ${batchNum}/${totalBatches} — total so far: ${totalUpserted}`);
+  }
+
+  console.log(`[IngestCurriculum] SUCCESS — ${totalUpserted} chunks stored for topicId: ${topicId}`);
+  return totalUpserted;
 }

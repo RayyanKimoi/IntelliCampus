@@ -28,17 +28,25 @@ Be clear, concise, and educational. Do not fabricate facts.`;
 export async function askTutor(input: AiTutorInput): Promise<AiTutorOutput> {
   const { question } = input;
 
+  console.log(`[AiTutor] Tutor query: "${question.slice(0, 150)}"`);
+
   // Step 1: Generate query embedding
   const queryEmbedding = await generateEmbedding(question);
 
   // Step 2-3: Check semantic cache
   const cached = await checkCache(queryEmbedding);
   if (cached) {
+    console.log('[AiTutor] Cache hit — returning cached answer');
     return { answer: cached, fromCache: true, sources: [] };
   }
 
   // Step 4: Retrieve relevant chunks from Pinecone
   const chunks = await retrieveRelevantChunks(question);
+
+  console.log(`[AiTutor] Retrieved matches: ${chunks.length}`);
+  if (chunks.length === 0) {
+    console.warn('[AiTutor] WARNING: Pinecone retrieval returned no chunks — LLM will have no context');
+  }
 
   // Step 5: Build prompt with retrieved context
   const context = chunks.length > 0
@@ -48,17 +56,25 @@ export async function askTutor(input: AiTutorInput): Promise<AiTutorOutput> {
   const userPrompt = `Context from course material:\n${context}\n\nStudent question: ${question}`;
 
   // Step 6: Call Groq chat completion
-  const completion = await groq.chat.completions.create({
-    model: groqConfig.defaultModel,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: groqConfig.maxTokens,
-    temperature: groqConfig.temperature,
-  });
+  console.log('[AiTutor] Groq generation started');
+  let completion;
+  try {
+    completion = await groq.chat.completions.create({
+      model: groqConfig.defaultModel,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: groqConfig.maxTokens,
+      temperature: groqConfig.temperature,
+    });
+  } catch (error: any) {
+    console.error('[AiTutor] Groq API error:', error?.message ?? error);
+    throw error;
+  }
 
   const answer = completion.choices[0]?.message?.content?.trim() ?? '';
+  console.log(`[AiTutor] Groq generation complete — answer length: ${answer.length} chars`);
 
   // Step 7: Store in semantic cache
   await storeCache(queryEmbedding, answer);

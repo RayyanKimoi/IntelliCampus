@@ -7,16 +7,19 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/student/quizzes
- * Fetch all quizzes (assignments with type='quiz') for courses the student is enrolled in
- * Uses Supabase Admin client to bypass RLS
+ * GET /api/student/quizzes?courseId=
+ * Fetch published quizzes (type='quiz') for enrolled courses.
+ * Optional ?courseId= narrows to a single course.
+ * Uses Supabase Admin to bypass RLS.
  */
 export async function GET(req: NextRequest) {
   try {
     const user = getAuthUser(req);
     requireRole(user, [UserRole.STUDENT]);
 
-    // Get enrolled course IDs using Supabase Admin (bypasses RLS)
+    const courseId = req.nextUrl.searchParams.get('courseId') ?? undefined;
+
+    // Get enrolled course IDs
     const { data: enrollments, error: enrollError } = await supabaseAdmin
       .from('course_enrollments')
       .select('course_id')
@@ -27,12 +30,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    const courseIds = enrollments?.map(e => e.course_id) || [];
-    if (courseIds.length === 0) {
+    const enrolledCourseIds = enrollments?.map((e) => e.course_id) || [];
+    if (enrolledCourseIds.length === 0) {
       return NextResponse.json({ success: true, data: [] });
     }
 
-    // Fetch quizzes using Supabase Admin (LEFT JOIN — shows quizzes even with no attempts)
+    // If a courseId filter is requested, verify enrollment
+    if (courseId && !enrolledCourseIds.includes(courseId)) {
+      return NextResponse.json({ success: false, error: 'Not enrolled in this course' }, { status: 403 });
+    }
+
+    const applicableCourseIds = courseId ? [courseId] : enrolledCourseIds;
+
+    // Fetch quizzes via Supabase Admin (bypasses RLS)
     const { data: assignments, error: assignError } = await supabaseAdmin
       .from('assignments')
       .select(`
@@ -47,19 +57,18 @@ export async function GET(req: NextRequest) {
         is_published,
         evaluation_points,
         created_at,
-        courses (
-          id,
-          name
-        ),
-        chapters (
-          id,
-          name
-        )
+        courses ( id, name ),
+        chapters ( id, name )
       `)
       .eq('type', 'quiz')
       .eq('is_published', true)
-      .in('course_id', courseIds)
+      .in('course_id', applicableCourseIds)
       .order('due_date', { ascending: true });
+
+    if (assignError) {
+      console.error('[Student Quizzes API] Assignment fetch error:', assignError);
+      return NextResponse.json({ success: true, data: [] });
+    }
 
     // Fetch this student's quiz attempts separately to avoid inner-join exclusion
     const { data: allAttempts } = await supabaseAdmin
@@ -74,23 +83,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (assignError) {
-      console.error('[Student Quizzes API] Assignment fetch error:', assignError);
-      return NextResponse.json({ success: true, data: [] });
-    }
-
     // Format the response
     const formattedQuizzes = (assignments || []).map((assignment: any) => {
       const latestAttempt = attemptsByQuizId.get(assignment.id) ?? null;
       const isPastDue = new Date(assignment.due_date) < new Date();
-
       let status: 'pending' | 'submitted' | 'graded' | 'late' = 'pending';
       if (latestAttempt?.submitted_at) {
         status = latestAttempt.graded_at ? 'graded' : 'submitted';
       } else if (isPastDue) {
         status = 'late';
       }
-
       return {
         id: assignment.id,
         title: assignment.title,
@@ -112,7 +114,7 @@ export async function GET(req: NextRequest) {
     console.error('[Student Quizzes API] Error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch quizzes' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -12,8 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { teacherService } from '@/services/teacherService';
-import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2, AlertTriangle, Bot, ThumbsUp, ThumbsDown, BookOpen, Zap } from 'lucide-react';
+
+interface AIEvaluationResult {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  missingConcepts: string[];
+  feedback: string;
+  weakTopics?: string[];
+}
 
 export interface GradeSavePayload {
   submissionId: string;
@@ -40,7 +50,8 @@ const RUBRIC_CRITERIA = [
 
 // ─── Rubric Progress Bar ────────────────────────────────────────────
 function RubricBar({ label, score, max = 10, onChange }: { label: string; score: number; max?: number; onChange: (v: number) => void }) {
-  const pct = (score / max) * 100;
+  const safeScore = isNaN(score) ? 0 : score;
+  const pct = (safeScore / max) * 100;
   const color =
     pct >= 80 ? 'bg-emerald-500 dark:bg-emerald-400' :
     pct >= 60 ? 'bg-amber-500 dark:bg-amber-400' :
@@ -55,7 +66,7 @@ function RubricBar({ label, score, max = 10, onChange }: { label: string; score:
             type="number"
             min={0}
             max={max}
-            value={score}
+            value={safeScore}
             onChange={e => onChange(Math.min(max, Math.max(0, Number(e.target.value))))}
             className="w-10 text-center text-xs font-bold bg-muted/50 dark:bg-muted/20 border border-border/50 rounded-md py-0.5 focus:outline-none focus:ring-1 focus:ring-primary/50"
           />
@@ -81,17 +92,34 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // AI Evaluation state
+  const [aiEvaluation, setAiEvaluation] = useState<AIEvaluationResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
   useEffect(() => {
-    setSaveSuccess(false); // Reset success state when opening a new submission
+    setSaveSuccess(false);
+    setAiEvaluation(null);
+    setAiError('');
     if (submission) {
       setScore(submission.score ? String(submission.score) : '');
       setComments(submission.teacherComment || '');
+
+      // Pre-load AI evaluation if already stored on the submission
+      if (submission.aiEvaluation) {
+        setAiEvaluation(submission.aiEvaluation as AIEvaluationResult);
+        if (!submission.score && submission.aiEvaluation.score) {
+          setScore(String(submission.aiEvaluation.score));
+        }
+        if (!submission.teacherComment && submission.aiEvaluation.feedback) {
+          setComments(submission.aiEvaluation.feedback);
+        }
+      }
       
       // Load existing rubric scores if available, otherwise use defaults
       if (submission.rubricScores) {
         setRubricScores(submission.rubricScores);
       } else {
-        // Vary rubric scores based on submission id for realistic mock data
         const seed = parseInt(submission.id?.slice(-2) || '0', 16);
         setRubricScores({
           correctness:    Math.min(10, 6 + (seed % 5)),
@@ -103,6 +131,32 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
       }
     }
   }, [submission]);
+
+  const handleAIEvaluate = async () => {
+    if (!submission?.id) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const res = await fetch('/api/ai/assignment/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId: submission.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'AI evaluation failed');
+      }
+      const evaluation: AIEvaluationResult = data.data.evaluation;
+      setAiEvaluation(evaluation);
+      // Auto-populate score and feedback if not yet set by teacher
+      if (!score) setScore(String(evaluation.score));
+      if (!comments) setComments(evaluation.feedback);
+    } catch (err: any) {
+      setAiError(err.message || 'Failed to run AI evaluation. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!submission) return;
@@ -200,16 +254,25 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
 
               {/* AI Grading Section */}
               <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold text-[11px] tracking-widest uppercase bg-violet-50 dark:bg-violet-500/10 px-3 py-1.5 rounded-full border border-violet-200/50 dark:border-violet-500/20">
-                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  AI Grading Insights
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center gap-2 text-violet-700 dark:text-violet-300 font-semibold text-[11px] tracking-widest uppercase bg-violet-50 dark:bg-violet-500/10 px-3 py-1.5 rounded-full border border-violet-200/50 dark:border-violet-500/20">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                    AI Grading Insights
+                  </div>
+                  {submission?.aiGraded && (
+                    <Badge className="bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300 border border-violet-200/60 dark:border-violet-500/20 text-[10px] font-bold tracking-wider uppercase gap-1">
+                      <Bot className="w-3 h-3" /> AI Graded
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="bg-card/60 dark:bg-muted/10 rounded-2xl border border-border/50 p-5 space-y-5">
 
                   {/* AI Score */}
                   <div>
-                    <Label htmlFor="ai-score" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Grading Score</Label>
+                    <Label htmlFor="ai-score" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">
+                      {aiEvaluation ? 'AI Score' : 'Score'}
+                    </Label>
                     <div className="relative mt-2">
                       <Input
                         id="ai-score"
@@ -221,6 +284,94 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-muted-foreground font-bold opacity-40">/ 100</div>
                     </div>
                   </div>
+
+                  {/* AI Evaluate Button & Results */}
+                  {!aiEvaluation ? (
+                    <div className="space-y-3">
+                      {aiError && (
+                        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-lg">
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                          {aiError}
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-violet-300 dark:border-violet-500/30 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-500/10 font-semibold gap-2 rounded-xl h-11"
+                        onClick={handleAIEvaluate}
+                        disabled={aiLoading}
+                      >
+                        {aiLoading ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing submission...</>
+                        ) : (
+                          <><Zap className="w-4 h-4" /> Run AI Evaluation</>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Strengths */}
+                      {aiEvaluation.strengths.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold uppercase tracking-widest">
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            Strengths
+                          </div>
+                          <ul className="space-y-1.5">
+                            {aiEvaluation.strengths.map((s, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Weaknesses */}
+                      {aiEvaluation.weaknesses.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 text-[11px] font-bold uppercase tracking-widest">
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                            Areas to Improve
+                          </div>
+                          <ul className="space-y-1.5">
+                            {aiEvaluation.weaknesses.map((w, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                {w}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Missing Concepts */}
+                      {aiEvaluation.missingConcepts.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400 text-[11px] font-bold uppercase tracking-widest">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            Missing Concepts
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {aiEvaluation.missingConcepts.map((c, i) => (
+                              <span key={i} className="px-2 py-0.5 text-[11px] font-semibold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200/60 dark:border-rose-500/20 rounded-full">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+                        onClick={() => { setAiEvaluation(null); setAiError(''); }}
+                      >
+                        Re-run AI evaluation
+                      </button>
+                    </div>
+                  )}
 
                   <div className="h-px bg-border/50" />
 
@@ -241,14 +392,16 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
 
                   <div className="h-px bg-border/50" />
 
-                  {/* AI Comment */}
+                  {/* AI Comment / Feedback */}
                   <div>
-                    <Label htmlFor="ai-comments" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">AI Generated Comment</Label>
+                    <Label htmlFor="ai-comments" className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold ml-0.5">
+                      {aiEvaluation ? 'AI Feedback (editable)' : 'Comment'}
+                    </Label>
                     <Textarea
                       id="ai-comments"
-                      value={comments || 'The student demonstrated a solid understanding of the core concepts. The solution was mostly correct with minor inefficiencies in edge case handling.'}
+                      value={comments}
                       onChange={e => setComments(e.target.value)}
-                      placeholder="Add your final personalized feedback here..."
+                      placeholder={aiEvaluation ? 'AI feedback loaded above. Add your notes here...' : 'Add feedback for the student. Run AI evaluation to auto-generate...'}
                       rows={4}
                       className="mt-2 resize-none text-[13px] leading-relaxed bg-muted/30 dark:bg-muted/15 border-border/40 focus-visible:border-primary/40 focus-visible:ring-0 rounded-xl px-4 py-3"
                     />

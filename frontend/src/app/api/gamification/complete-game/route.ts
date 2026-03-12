@@ -110,9 +110,24 @@ export async function POST(req: NextRequest) {
       const newTotalXp = studentXp.totalXp + xpReward.amount;
       const newLevel = Math.floor(newTotalXp / 1000) + 1;
 
+      // Streak calculation using pre-update lastActivityDate
+      const today = new Date();
+      const lastActive = studentXp.lastActivityDate ? new Date(studentXp.lastActivityDate) : null;
+      const diffDays = lastActive
+        ? Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
+        : 1;
+      let newStreakDays = studentXp.streakDays ?? 0;
+      if (diffDays >= 1) {
+        // New day (or first time) — increment or start streak
+        newStreakDays = diffDays === 1 ? newStreakDays + 1 : 1;
+      } else if (newStreakDays === 0) {
+        // Same day but streak never started — initialise to 1
+        newStreakDays = 1;
+      }
+
       const updatedStudentXp = await tx.studentXP.update({
         where: { userId },
-        data: { totalXp: newTotalXp, level: newLevel, lastActivityDate: new Date() },
+        data: { totalXp: newTotalXp, level: newLevel, lastActivityDate: new Date(), streakDays: newStreakDays },
       });
 
       return { stageProgress: updatedStageProgress, studentXp: updatedStudentXp };
@@ -126,6 +141,7 @@ export async function POST(req: NextRequest) {
         xpEarned: xpReward.amount,
         totalXp: result.studentXp.totalXp,
         level: result.studentXp.level,
+        streakDays: result.studentXp.streakDays,
         completedGames: result.stageProgress.completedGames,
         progress: result.stageProgress.progress,
         dropletsRemaining: 4 - result.stageProgress.completedGames,

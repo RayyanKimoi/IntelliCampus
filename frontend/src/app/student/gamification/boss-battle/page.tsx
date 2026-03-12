@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -84,10 +84,10 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export default function BossBattlePage() {
+function BossBattlePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stageId = Number(searchParams.get('stageId')) || 1;
+  const stageId = Number(searchParams?.get('stageId')) || 1;
   const { user } = useAuthStore();
 
   const [view, setView] = useState<View>('setup');
@@ -390,6 +390,14 @@ export default function BossBattlePage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function BossBattlePage() {
+  return (
+    <Suspense fallback={null}>
+      <BossBattlePageInner />
+    </Suspense>
   );
 }
 

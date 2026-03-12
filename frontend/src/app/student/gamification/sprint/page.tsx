@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -50,10 +50,10 @@ const QUIZ_QUESTIONS: Question[] = [
 const TIMER_DURATION = 30;
 const PASS_SCORE = 3;
 
-export default function SprintQuizPage() {
+function SprintQuizPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stageId = Number(searchParams.get('stageId')) || 1;
+  const stageId = Number(searchParams?.get('stageId')) || 1;
   const { user } = useAuthStore();
 
   const [started, setStarted] = useState(false);
@@ -284,5 +284,13 @@ export default function SprintQuizPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function SprintQuizPage() {
+  return (
+    <Suspense fallback={null}>
+      <SprintQuizPageInner />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/store/authStore';
@@ -118,10 +118,10 @@ const TOPIC_QUESTIONS: Record<string, Question[]> = {
 
 type View = 'wheel' | 'quiz' | 'result';
 
-export default function SpinWheelPage() {
+function SpinWheelPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stageId = Number(searchParams.get('stageId')) || 1;
+  const stageId = Number(searchParams?.get('stageId')) || 1;
   const { user } = useAuthStore();
 
   const [view, setView] = useState<View>('wheel');
@@ -385,5 +385,13 @@ export default function SpinWheelPage() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function SpinWheelPage() {
+  return (
+    <Suspense fallback={null}>
+      <SpinWheelPageInner />
+    </Suspense>
   );
 }

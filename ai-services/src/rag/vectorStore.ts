@@ -22,6 +22,7 @@ export async function storeEmbedding(
   metadata: EmbeddingMetadata
 ): Promise<void> {
   const vector = await generateEmbedding(text);
+  console.log(`[VectorStore] Embedding vector size: ${vector.length} for id: ${id}`);
   const index = getPineconeIndex();
 
   await index.namespace(pineconeConfig.namespace).upsert([
@@ -31,6 +32,8 @@ export async function storeEmbedding(
       metadata: { ...metadata, text },
     },
   ]);
+  console.log(`[VectorStore] Upserted vector — id: ${id}, namespace: ${pineconeConfig.namespace}`);
+  console.log('[VectorStore] Sample vector metadata:', JSON.stringify({ courseId: metadata.courseId, topicId: metadata.topicId, chapter: metadata.chapter }));
 }
 
 /**

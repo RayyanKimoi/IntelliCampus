@@ -22,6 +22,9 @@ class Retriever {
     topK: number = RAG.TOP_K_RESULTS,
     minScore: number = RAG.MIN_RELEVANCE_SCORE
   ): Promise<RetrievedChunk[]> {
+    console.log(`[Retriever] Tutor query: "${query.slice(0, 100)}"`);
+    console.log(`[Retriever] Using namespace: '${pineconeConfig.namespace}', topK: ${topK}, minScore: ${minScore}`, filters ? `filters: ${JSON.stringify(filters)}` : '');
+
     // Generate query embedding
     const queryEmbedding = await generateEmbedding(query);
 
@@ -39,8 +42,11 @@ class Retriever {
       filter: Object.keys(filter).length > 0 ? filter : undefined,
     });
 
+    const allMatches = results.matches || [];
+    console.log(`[Retriever] Pinecone returned ${allMatches.length} raw matches (before score filter)`);
+
     // Filter by minimum relevance score and map to chunks
-    return (results.matches || [])
+    const filtered = allMatches
       .filter((match) => (match.score || 0) >= minScore)
       .map((match) => ({
         id: match.id,
@@ -48,6 +54,14 @@ class Retriever {
         score: match.score || 0,
         metadata: match.metadata || {},
       }));
+
+    if (filtered.length === 0) {
+      console.warn(`[Retriever] WARNING: Pinecone retrieval returned no chunks above minScore=${minScore}. Raw matches: ${allMatches.length}. Top scores: ${allMatches.slice(0, 3).map(m => m.score?.toFixed(3)).join(', ')}`);
+    } else {
+      console.log(`[Retriever] Retrieved matches: ${filtered.length} (after score filter)`);
+    }
+
+    return filtered;
   }
 
   /**
