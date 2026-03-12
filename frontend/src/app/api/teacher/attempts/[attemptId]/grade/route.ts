@@ -41,7 +41,7 @@ export async function POST(
       data: {
         score,
         teacherComment: comment || '',
-        rubricScores: rubricScores ? JSON.stringify(rubricScores) : Prisma.JsonNull,
+        rubricScores: rubricScores ?? Prisma.JsonNull,
         gradedAt: new Date(),
         gradedBy: user.userId,
       },

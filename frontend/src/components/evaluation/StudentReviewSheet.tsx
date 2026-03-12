@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { teacherService } from '@/services/teacherService';
+import { SubmissionPreview } from './SubmissionPreview';
+import { api } from '@/services/apiClient';
 import { Sparkles, Save, X, Loader2, User, Hash, BadgeCheck, CheckCircle2, AlertTriangle, Bot, ThumbsUp, ThumbsDown, BookOpen, Zap } from 'lucide-react';
 
 interface AIEvaluationResult {
@@ -137,13 +139,10 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
     setAiLoading(true);
     setAiError('');
     try {
-      const res = await fetch('/api/ai/assignment/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attemptId: submission.id }),
+      const data = await api.post<{ success: boolean; data: any; error?: string }>('/ai/assignment/evaluate', {
+        attemptId: submission.id,
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'AI evaluation failed');
       }
       const evaluation: AIEvaluationResult = data.data.evaluation;
@@ -151,6 +150,21 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
       // Auto-populate score and feedback if not yet set by teacher
       if (!score) setScore(String(evaluation.score));
       if (!comments) setComments(evaluation.feedback);
+      // Auto-populate rubric from AI if available
+      if (evaluation.score) {
+        const aiRubric = {
+          correctness: Math.round((evaluation.score / 100) * 10),
+          codeQuality: Math.round((evaluation.score / 100) * 8),
+          problemSolving: Math.round((evaluation.score / 100) * 9),
+          efficiency: Math.round((evaluation.score / 100) * 7),
+          documentation: Math.round((evaluation.score / 100) * 8),
+        };
+        setRubricScores(prev => {
+          // Only auto-fill if still at defaults
+          const isDefault = RUBRIC_CRITERIA.every(c => prev[c.key] === c.defaultScore);
+          return isDefault ? aiRubric : prev;
+        });
+      }
     } catch (err: any) {
       setAiError(err.message || 'Failed to run AI evaluation. Please try again.');
     } finally {
@@ -241,15 +255,16 @@ export function StudentReviewSheet({ submission, onClose, onSaved }: StudentRevi
               </div>
 
               {/* Submission Preview */}
-              <div className="bg-card w-full h-36 rounded-2xl border border-border/40 dark:border-white/5 flex flex-col items-center justify-center text-sm text-muted-foreground relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 z-0" />
-                <div className="w-10 h-10 bg-muted dark:bg-muted/40 rounded-full flex items-center justify-center mb-2 relative z-10 group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-5 h-5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 text-sky-700 dark:text-sky-300 font-semibold text-[11px] tracking-widest uppercase bg-sky-50 dark:bg-sky-500/10 px-3 py-1.5 rounded-full border border-sky-200/50 dark:border-sky-500/20">
+                  <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+                  Submission Preview
                 </div>
-                <span className="relative z-10 font-medium text-[13px]">Submission Preview</span>
-                <span className="text-[11px] opacity-50 relative z-10 mt-0.5">PDF Placeholder</span>
+                <SubmissionPreview
+                  answers={submission.answers}
+                  fileUrl={submission.submissionFileUrl}
+                  compact
+                />
               </div>
 
               {/* AI Grading Section */}

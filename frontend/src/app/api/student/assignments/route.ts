@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
           where: { studentId: user.userId },
           orderBy: { submittedAt: 'desc' },
           take: 1,
-          select: { id: true, score: true, submittedAt: true, gradedAt: true, teacherComment: true },
+          select: { id: true, score: true, submittedAt: true, gradedAt: true, teacherComment: true, aiGraded: true, aiEvaluation: true },
         },
       },
       orderBy: { dueDate: 'asc' },
@@ -83,6 +83,9 @@ export async function GET(req: NextRequest) {
         submissionTypes: a.submissionTypes,
         rubric: a.rubric,
         strictMode: a.strictMode,
+        aiGraded: attempt?.aiGraded ?? false,
+        teacherComment: attempt?.teacherComment ?? null,
+        attemptId: attempt?.id ?? null,
       };
     });
 

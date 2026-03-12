@@ -19,7 +19,7 @@ export async function POST(
     let body: any = {};
     try { body = await req.json(); } catch { /* no body for quiz submits */ }
 
-    const { textContent, codeContent, codeLanguage, labReportContent, submissionFileUrl } = body ?? {};
+    const { textContent, codeContent, codeLanguage, labReportContent, submissionFileUrl, executionResult } = body ?? {};
 
     // Verify the attempt belongs to this student
     const attempt: any = await (prisma.studentAttempt.findUnique as any)({
@@ -55,6 +55,13 @@ export async function POST(
         codeLanguage,
         labReportContent,
         submittedAt: new Date().toISOString(),
+        ...(executionResult && {
+          executionResult: {
+            stdout: executionResult.stdout ?? '',
+            stderr: executionResult.stderr ?? '',
+            executionTime: executionResult.executionTime ?? '0',
+          },
+        }),
       };
     }
 

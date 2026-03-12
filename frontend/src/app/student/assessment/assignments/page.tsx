@@ -8,7 +8,7 @@ import { assessmentService, Assignment } from '@/services/assessmentService';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { ClipboardCheck, Clock, ArrowRight, CheckCircle2, BookOpen, Layers, ChevronDown } from 'lucide-react';
+import { ClipboardCheck, Clock, ArrowRight, CheckCircle2, BookOpen, Layers, ChevronDown, Bot, Sparkles } from 'lucide-react';
 import { formatDistanceToNow, isPast, parseISO } from '@/lib/dateUtils';
 
 type Tab = 'active' | 'completed';
@@ -21,32 +21,38 @@ function getDueInfo(dueDate: string) {
   return { label: `Due ${formatDistanceToNow(d, { addSuffix: true })}`, cls: 'bg-muted text-muted-foreground border-border' };
 }
 
-function AssignmentCard({ assignment }: { assignment: Assignment }) {
+function AssignmentCard({ assignment }: { assignment: Assignment & { aiGraded?: boolean; attemptId?: string } }) {
   const router = useRouter();
   const { label: dueLabel, cls: dueCls } = getDueInfo(assignment.dueDate);
   const isSubmitted = assignment.status === 'submitted' || assignment.status === 'graded';
+  const isGraded = assignment.status === 'graded';
+  const isAiGraded = (assignment as any).aiGraded === true;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
-      className="flex items-start gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      className="flex items-start gap-4 rounded-2xl border border-border/60 dark:border-white/[0.06] bg-card p-5 shadow-sm hover:border-primary/40 hover:shadow-md transition-all duration-200"
     >
       {/* Icon */}
       <div className={cn(
         'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-        isSubmitted ? 'bg-green-100 dark:bg-green-900/40' : 'bg-primary/10',
+        isGraded ? 'bg-emerald-100 dark:bg-emerald-900/40' :
+        isSubmitted ? 'bg-sky-100 dark:bg-sky-900/40' :
+        'bg-primary/10 dark:bg-primary/15',
       )}>
-        {isSubmitted
-          ? <CheckCircle2 className="h-5 w-5 text-green-600" />
-          : <ClipboardCheck className="h-5 w-5 text-primary" />}
+        {isGraded
+          ? <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          : isSubmitted
+            ? <ClipboardCheck className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+            : <ClipboardCheck className="h-5 w-5 text-primary" />}
       </div>
 
       {/* Body */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <h3 className="font-semibold text-base leading-snug">{assignment.title}</h3>
+          <h3 className="font-semibold text-base leading-snug text-foreground">{assignment.title}</h3>
           <Badge variant="outline" className={cn('text-xs border shrink-0', dueCls)}>
             <Clock className="h-3 w-3 mr-1" />{dueLabel}
           </Badge>
@@ -67,25 +73,48 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
         {/* Footer */}
         <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            {isSubmitted && (
-              <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] gap-1">
-                <CheckCircle2 className="h-2.5 w-2.5" /> Submitted
+            {isGraded && (
+              <Badge className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20 text-[10px] gap-1">
+                <CheckCircle2 className="h-2.5 w-2.5" /> Graded
+              </Badge>
+            )}
+            {isSubmitted && !isGraded && isAiGraded && (
+              <Badge className="bg-violet-100 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-500/20 text-[10px] gap-1">
+                <Bot className="h-2.5 w-2.5" /> AI Graded
+              </Badge>
+            )}
+            {isSubmitted && !isGraded && !isAiGraded && (
+              <Badge className="bg-sky-100 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20 text-[10px] gap-1">
+                <ClipboardCheck className="h-2.5 w-2.5" /> Submitted
               </Badge>
             )}
             {assignment.status === 'late' && !isSubmitted && (
-              <Badge className="bg-red-100 text-red-600 border-red-200 text-[10px]">Late</Badge>
+              <Badge className="bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/20 text-[10px]">Late</Badge>
             )}
-            {assignment.totalPoints && (
+            {assignment.score !== undefined && assignment.score > 0 && (
+              <span className="text-xs font-bold text-foreground bg-muted/50 dark:bg-muted/30 px-2 py-0.5 rounded-md">
+                {assignment.score}/100
+              </span>
+            )}
+            {assignment.totalPoints && !assignment.score && (
               <span className="text-xs text-muted-foreground">{assignment.totalPoints} pts</span>
             )}
           </div>
           <Button
             size="sm"
             variant={isSubmitted ? 'outline' : 'default'}
-            onClick={() => router.push(`/student/assignments/${assignment.id}/workspace`)}
+            onClick={() => {
+              if (isGraded || isAiGraded) {
+                router.push(`/student/assignments/${assignment.id}/result`);
+              } else if (isSubmitted) {
+                router.push(`/student/assignments/${assignment.id}/result`);
+              } else {
+                router.push(`/student/assignments/${assignment.id}/workspace`);
+              }
+            }}
             className="gap-1.5 shrink-0"
           >
-            {isSubmitted ? 'View' : 'Start'}
+            {isGraded ? 'View Result' : isSubmitted ? 'View Submission' : 'Start'}
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
