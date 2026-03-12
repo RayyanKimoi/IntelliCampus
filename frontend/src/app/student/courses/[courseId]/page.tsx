@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { curriculumService, Course, Subject, Topic, Chapter, ChapterContentItem } from '@/services/curriculumService';
 import { masteryService } from '@/services/masteryService';
@@ -771,13 +771,19 @@ function ChaptersView({ chapters, courseId }: { chapters: ChapterWithContent[]; 
 export default function CourseDetailPage() {
   const params = useParams();
   const courseId = params.courseId as string;
+  const searchParams = useSearchParams();
 
   const store = useCourseStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [subjects, setSubjects] = useState<SubjectWithTopics[]>([]);
   const [chapters, setChapters] = useState<ChapterWithContent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<CourseTab>('teacher');
+
+  // Initialise tab from ?tab= URL param so the quiz result page can deep-link here
+  const urlTab = searchParams.get('tab') as CourseTab | null;
+  const [tab, setTab] = useState<CourseTab>(
+    urlTab === 'adaptive' || urlTab === 'assignments' || urlTab === 'teacher' ? urlTab : 'teacher'
+  );
 
   useEffect(() => {
     if (!courseId) return;

@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
   Clock, ChevronRight, ChevronLeft, CheckCircle2, XCircle,
-  AlertTriangle, Flag, Loader2, Send, RotateCcw,
+  AlertTriangle, Flag, Loader2, Send, RotateCcw, Sparkles,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────
@@ -140,10 +140,23 @@ function ResultsScreen({ attempt, questions, answers, subjectId }: {
   }, [pct]);
 
   const scoreColor = pct >= 80 ? 'text-green-600' : pct >= 60 ? 'text-amber-600' : 'text-red-600';
-  const wrongTopics = answers.filter(a => !a.isCorrect);
+
+  // Derive unique weak topics from wrong answers, grouped by topicName
+  const weakTopics = React.useMemo(() => {
+    const map = new Map<string, { topicId: string; topicName: string; count: number }>();
+    for (const ans of answers) {
+      if (ans.isCorrect) continue;
+      const key = ans.topicName ?? ans.topicId ?? 'General';
+      if (!map.has(key)) {
+        map.set(key, { topicId: ans.topicId ?? key, topicName: key, count: 0 });
+      }
+      map.get(key)!.count += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [answers]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 pb-8">
       {/* Score hero */}
       <div className="rounded-2xl border border-border bg-card p-8 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Quiz Complete</p>
@@ -160,22 +173,25 @@ function ResultsScreen({ attempt, questions, answers, subjectId }: {
           </span>
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
-          {pct === 100 ? '🎉 Perfect score!' : pct >= 80 ? '🌟 Excellent work!' : pct >= 60 ? '📚 Good effort. Review weak areas.' : '💡 Keep practising — adaptive quiz ready for you.'}
+          {pct === 100 ? '🎉 Perfect score!' : pct >= 80 ? '🌟 Excellent work!' : pct >= 60 ? '📚 Good effort. Review weak areas below.' : '💡 Keep practising — check your weak topics below.'}
         </p>
       </div>
 
-      {/* Question breakdown */}
+      {/* Question breakdown — attempted answers vs correct answers */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-3">
         <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2">Question Review</h2>
         {questions.map((q, idx) => {
           const ans = answers.find(a => a.questionId === q.id);
           const isCorrect = ans?.isCorrect ?? false;
+          const notAnswered = !ans;
           return (
             <div
               key={q.id}
               className={cn(
                 'rounded-lg border p-4 space-y-2',
-                isCorrect ? 'border-green-200/60 bg-green-50/30 dark:bg-green-950/10' : 'border-red-200/60 bg-red-50/30 dark:bg-red-950/10'
+                isCorrect
+                  ? 'border-green-200/60 bg-green-50/30 dark:bg-green-950/10'
+                  : 'border-red-200/60 bg-red-50/30 dark:bg-red-950/10'
               )}
             >
               <div className="flex items-start gap-2">
@@ -185,16 +201,20 @@ function ResultsScreen({ attempt, questions, answers, subjectId }: {
                 <p className="text-sm font-medium flex-1">{q.questionText}</p>
                 <Badge variant="outline" className="text-[10px] shrink-0">{idx + 1}/{questions.length}</Badge>
               </div>
-              <div className="pl-6 space-y-1 text-xs">
-                <p>
-                  <span className="text-muted-foreground">Your answer: </span>
-                  <span className={isCorrect ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>
-                    {ans?.selectedOption ?? '—'}: {ans?.selectedOption ? getOptionText(q, ans.selectedOption) : '—'}
-                  </span>
-                </p>
+              <div className="pl-6 space-y-1.5 text-xs">
+                {notAnswered ? (
+                  <p className="text-amber-600 font-medium italic">Not answered</p>
+                ) : (
+                  <p>
+                    <span className="text-muted-foreground">Your answer: </span>
+                    <span className={isCorrect ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>
+                      {ans.selectedOption}: {getOptionText(q, ans.selectedOption)}
+                    </span>
+                  </p>
+                )}
                 {!isCorrect && ans?.correctOption && (
                   <p>
-                    <span className="text-muted-foreground">Correct: </span>
+                    <span className="text-muted-foreground">Correct answer: </span>
                     <span className="text-green-600 font-semibold">
                       {ans.correctOption}: {getOptionText(q, ans.correctOption)}
                     </span>
@@ -213,34 +233,52 @@ function ResultsScreen({ attempt, questions, answers, subjectId }: {
         })}
       </div>
 
-      {/* Weak topic notice */}
-      {wrongTopics.length > 0 && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
-            <h3 className="font-semibold">Weak Topics Detected</h3>
+      {/* AI-derived weak topics from wrong answers */}
+      {weakTopics.length > 0 && (
+        <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-700/40 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+            <h3 className="font-semibold text-base">Weak Topics from This Quiz</h3>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            These topics have been flagged in your mastery profile. Visit Adaptive Resources to strengthen them.
+            These topics were identified from your wrong answers. Your mastery profile has been updated — visit Adaptive Resources to get AI-generated summaries and strengthening exercises.
           </p>
-          <div className="flex gap-3 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => router.push('/student/courses')}>
-              View Adaptive Resources
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => router.push('/student/practice')}>
-              Practice Now
-            </Button>
+          <div className="flex flex-wrap gap-2 mb-5">
+            {weakTopics.map(t => (
+              <span
+                key={t.topicId}
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:border-red-700 dark:text-red-400"
+              >
+                <XCircle className="h-3 w-3" />
+                {t.topicName}
+                {t.count > 1 && (
+                  <span className="ml-0.5 rounded-full bg-red-100 dark:bg-red-900/60 px-1.5 py-0.5 text-[10px] font-bold">
+                    {t.count}×
+                  </span>
+                )}
+              </span>
+            ))}
           </div>
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => router.push(`/student/courses/${subjectId}?tab=adaptive`)}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Go to Adaptive Resources
+          </Button>
         </div>
       )}
 
+      {/* Navigation buttons */}
       <div className="flex gap-3">
-        <Button variant="outline" className="flex-1" onClick={() => router.push(`/student/assessment/quizzes/${subjectId}`)}>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={() => router.push(`/student/assessment/quizzes/${subjectId}`)}
+        >
           <ChevronLeft className="mr-2 h-4 w-4" /> Back to Quizzes
         </Button>
-        <Button className="flex-1" onClick={() => router.push('/student/assessment/results')}>
-          View Full Results <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
+
       </div>
     </div>
   );
@@ -345,30 +383,37 @@ export default function QuizAttemptPage() {
     setPhase('submitting');
 
     try {
-      const results: AnswerResult[] = [];
-
-      // Submit all answers
       const answersToSubmit = Array.from(localAnswers.values());
-      for (const ans of answersToSubmit) {
-        if (isMockAttempt) {
-          // Evaluate locally — no API available
+      let results: AnswerResult[];
+
+      if (isMockAttempt) {
+        // Evaluate locally — no API needed
+        results = answersToSubmit.map(ans => {
           const q = questions.find(q => q.id === ans.questionId);
-          results.push({
+          return {
             questionId: ans.questionId,
             selectedOption: ans.selectedOption,
             isCorrect: q ? ans.selectedOption === q.correctOption : false,
             correctOption: q?.correctOption,
             explanation: (q as any)?.explanation,
-          });
-        } else {
-          try {
-            const res = await assessmentService.submitAnswer(attemptId, {
+          };
+        });
+      } else {
+        // Submit all answers in parallel — much faster than sequential
+        const settled = await Promise.allSettled(
+          answersToSubmit.map(ans =>
+            assessmentService.submitAnswer(attemptId, {
               questionId: ans.questionId,
               selectedOption: ans.selectedOption,
               timeTaken: ans.timeTaken,
-            }) as any;
-            const result = res?.data ?? res;
-            results.push({
+            }) as Promise<any>
+          )
+        );
+        results = settled.map((outcome, i) => {
+          const ans = answersToSubmit[i];
+          if (outcome.status === 'fulfilled') {
+            const result = (outcome.value as any)?.data ?? outcome.value;
+            return {
               questionId: ans.questionId,
               selectedOption: ans.selectedOption,
               isCorrect: result?.isCorrect ?? result?.correct ?? false,
@@ -376,20 +421,20 @@ export default function QuizAttemptPage() {
               explanation: result?.explanation,
               topicId: result?.topicId,
               topicName: result?.topicName,
-            });
-          } catch {
-            const q = questions.find(q => q.id === ans.questionId);
-            results.push({
-              questionId: ans.questionId,
-              selectedOption: ans.selectedOption,
-              isCorrect: q ? ans.selectedOption === q.correctOption : false,
-              correctOption: q?.correctOption,
-            });
+            };
           }
-        }
+          // Fallback: evaluate locally from questions data
+          const q = questions.find(q => q.id === ans.questionId);
+          return {
+            questionId: ans.questionId,
+            selectedOption: ans.selectedOption,
+            isCorrect: q ? ans.selectedOption === q.correctOption : false,
+            correctOption: q?.correctOption,
+          };
+        });
       }
 
-      // Submit the attempt (skip for mock/offline)
+      // Finalise the attempt
       if (!isMockAttempt) {
         try {
           const attemptRes = await assessmentService.submitAttempt(attemptId) as any;
@@ -403,8 +448,8 @@ export default function QuizAttemptPage() {
 
       setAnswerResults(results);
 
-      // CRITICAL: Trigger mastery update pipeline for wrong answers
-      await triggerMasteryUpdate(results);
+      // Fire-and-forget — never blocks result display
+      triggerMasteryUpdate(results);
 
       setPhase('results');
     } catch (e) {
