@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminOTPService } from '@/services/admin-otp.service'
 import { env } from '@/lib/env'
+import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,19 +15,6 @@ const body = await req.json()
 const email = body.email?.trim().toLowerCase()
 const password = body.password?.trim()
 
-const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase()
-const adminPassword = env.ADMIN_PASSWORD?.trim()
-
-// Debug logs (remove later if you want)
-console.log('================ ADMIN LOGIN DEBUG ================')
-console.log('Received Email:', email)
-console.log('Expected Email:', adminEmail)
-console.log('Received Password:', password)
-console.log('Expected Password:', adminPassword)
-console.log('Email Match:', email === adminEmail)
-console.log('Password Match:', password === adminPassword)
-console.log('===================================================')
-
 if (!email || !password) {
   return NextResponse.json(
     { success: false, error: 'Missing credentials' },
@@ -33,15 +22,83 @@ if (!email || !password) {
   )
 }
 
-if (email !== adminEmail || password !== adminPassword) {
+// First, check if the email matches the env admin credentials
+const adminEmail = env.ADMIN_EMAIL?.trim().toLowerCase()
+const adminPassword = env.ADMIN_PASSWORD?.trim()
+
+console.log('[Admin Login] Attempting login for:', email)
+
+let isValidAdmin = false
+let adminUser = null
+
+// Check env credentials first for backward compatibility
+if (email === adminEmail && password === adminPassword) {
+  console.log('[Admin Login] Matched env admin credentials')
+  isValidAdmin = true
+  
+  // Lookup the user in database
+  try {
+    adminUser = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        institutionId: true,
+      },
+    })
+    
+    if (adminUser && adminUser.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'User is not an admin' },
+        { status: 403 }
+      )
+    }
+  } catch (dbError) {
+    console.warn('[Admin Login] Database lookup failed, proceeding with env credentials only')
+  }
+}
+
+// If env check didn't match, try database admin users
+if (!isValidAdmin) {
+  try {
+    const dbAdmin = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        institutionId: true,
+        passwordHash: true,
+      },
+    })
+    
+    if (dbAdmin && dbAdmin.role === 'admin') {
+      // Verify password with bcrypt
+      const isPasswordValid = await bcrypt.compare(password, dbAdmin.passwordHash)
+      
+      if (isPasswordValid) {
+        console.log('[Admin Login] Matched database admin credentials')
+        isValidAdmin = true
+        adminUser = dbAdmin
+      }
+    }
+  } catch (dbError) {
+    console.error('[Admin Login] Database admin check failed:', dbError)
+  }
+}
+
+if (!isValidAdmin) {
   return NextResponse.json(
     { success: false, error: 'Invalid admin credentials' },
     { status: 401 }
   )
 }
 
-// Generate OTP
-const result = await adminOTPService.generateAndSendOTP(adminEmail)
+// Generate and send OTP
+const result = await adminOTPService.generateAndSendOTP(email)
 
 if (!result.success) {
   return NextResponse.json(

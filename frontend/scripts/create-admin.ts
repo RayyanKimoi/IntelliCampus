@@ -5,12 +5,34 @@
 
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Load environment variables from .env file
+const envPath = path.resolve(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  console.log(`📄 Loading environment from: ${envPath}\n`);
+  dotenv.config({ path: envPath });
+} else {
+  console.warn(`⚠️  Warning: .env file not found at ${envPath}`);
+  console.warn('   Using default values...\n');
+}
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = 'divyajeetsahu24@gmail.com';
-const ADMIN_PASSWORD = '123456890';
+// Use environment variables for admin credentials
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'divyajeetsahu24@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '123456890';
 const ADMIN_NAME = 'Admin User';
+
+// Validate environment variables
+if (!process.env.ADMIN_EMAIL) {
+  console.warn('⚠️  ADMIN_EMAIL not found in .env file, using default');
+}
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn('⚠️  ADMIN_PASSWORD not found in .env file, using default');
+}
 
 async function createAdmin() {
   try {
