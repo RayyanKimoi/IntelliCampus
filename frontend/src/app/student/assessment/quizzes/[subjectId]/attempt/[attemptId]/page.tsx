@@ -21,12 +21,13 @@ import {
   Clock, ChevronRight, ChevronLeft, CheckCircle2, XCircle,
   AlertTriangle, Flag, Loader2, Send, RotateCcw, Sparkles,
 } from 'lucide-react';
+import { IntegrityGuard } from '@/components/assessment/IntegrityGuard';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────
 
-type Phase = 'loading' | 'quiz' | 'confirming' | 'submitting' | 'results';
+type Phase = 'loading' | 'integrity' | 'quiz' | 'confirming' | 'submitting' | 'results';
 
 interface LocalAnswer {
   questionId: string;
@@ -319,7 +320,7 @@ export default function QuizAttemptPage() {
     async function load() {
       // Mock attempts use pre-populated local questions—no API call needed
       if (isMockAttempt) {
-        setPhase('quiz');
+        setPhase('integrity');
         setQuestionStartTime(Date.now());
         return;
       }
@@ -329,14 +330,14 @@ export default function QuizAttemptPage() {
         const qs = quiz?.questions ?? [];
         if (!cancelled) {
           setQuestions(Array.isArray(qs) ? qs : []);
-          setPhase('quiz');
+          setPhase('integrity');
           setQuestionStartTime(Date.now());
         }
       } catch {
         // API unavailable — fall back to mock questions
         if (!cancelled) {
           setQuestions(MOCK_QUIZ_QUESTIONS as unknown as AssignmentQuestion[]);
-          setPhase('quiz');
+          setPhase('integrity');
           setQuestionStartTime(Date.now());
         }
       }
@@ -491,6 +492,28 @@ export default function QuizAttemptPage() {
     );
   }
 
+  // ── Integrity rules gate ──
+  if (phase === 'integrity') {
+    return (
+      <DashboardLayout requiredRole="student">
+        <IntegrityGuard
+          attemptId={isMockAttempt ? null : attemptId}
+          assessmentType="quiz"
+          showRulesFirst={true}
+          enabled={true}
+          onActivate={() => setPhase('quiz')}
+          onTerminate={() => router.push(`/student/assessment/quizzes/${subjectId}`)}
+          redirectPath={`/student/assessment/quizzes/${subjectId}`}
+        >
+          <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Preparing quiz…</p>
+          </div>
+        </IntegrityGuard>
+      </DashboardLayout>
+    );
+  }
+
   // ── Submitting ──
   if (phase === 'submitting') {
     return (
@@ -533,6 +556,14 @@ export default function QuizAttemptPage() {
   // ── Quiz ──
   return (
     <DashboardLayout requiredRole="student">
+      <IntegrityGuard
+        attemptId={isMockAttempt ? null : attemptId}
+        assessmentType="quiz"
+        showRulesFirst={false}
+        enabled={phase === 'quiz' || phase === 'confirming'}
+        onTerminate={() => router.push(`/student/assessment/quizzes/${subjectId}`)}
+        redirectPath={`/student/assessment/quizzes/${subjectId}`}
+      >
       <div className="mx-auto max-w-5xl">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
@@ -660,6 +691,7 @@ export default function QuizAttemptPage() {
           </div>
         </div>
       </div>
+      </IntegrityGuard>
     </DashboardLayout>
   );
 }

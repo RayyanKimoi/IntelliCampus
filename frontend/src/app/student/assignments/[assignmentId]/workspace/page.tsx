@@ -16,6 +16,7 @@ import { FaBook } from 'react-icons/fa';
 import { assessmentService } from '@/services/assessmentService';
 import { api } from '@/services/apiClient';
 import { isPast, parseISO, formatDistanceToNow } from '@/lib/dateUtils';
+import { IntegrityGuard } from '@/components/assessment/IntegrityGuard';
 
 // Dynamically import Monaco to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
@@ -466,6 +467,7 @@ export default function AssignmentWorkspacePage({
     Array<{ name: string; url: string; size: number }>
   >([]);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [integrityReady, setIntegrityReady] = useState(false);
 
   useEffect(() => {
     loadAssignment();
@@ -671,6 +673,14 @@ export default function AssignmentWorkspacePage({
   if (!started) {
     return (
       <DashboardLayout requiredRole="student">
+        <IntegrityGuard
+          attemptId={attempt?.id ?? null}
+          assessmentType="assignment"
+          showRulesFirst={true}
+          enabled={integrityReady}
+          onActivate={() => beginAttempt()}
+          onTerminate={() => router.push('/student/assignments')}
+        >
         <div className="min-h-[80vh] flex items-center justify-center p-6">
           <div className="max-w-2xl w-full space-y-5">
             <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-2">
@@ -745,13 +755,14 @@ export default function AssignmentWorkspacePage({
               </div>
 
               <div className="border-t px-6 py-4 bg-muted/20 flex justify-end">
-                <Button size="lg" onClick={() => beginAttempt()} className="gap-2">
+                <Button size="lg" onClick={() => setIntegrityReady(true)} className="gap-2">
                   Start Assignment <Play className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </div>
         </div>
+        </IntegrityGuard>
       </DashboardLayout>
     );
   }
@@ -759,6 +770,13 @@ export default function AssignmentWorkspacePage({
   // ── Two-Column Workspace ─────────────────────────────────────────
   return (
     <DashboardLayout requiredRole="student">
+      <IntegrityGuard
+        attemptId={attempt?.id ?? null}
+        assessmentType="assignment"
+        showRulesFirst={false}
+        enabled={!isSubmitted}
+        onTerminate={() => router.push('/student/assignments')}
+      >
       {/* Sticky header bar */}
       <div className="border-b bg-card/95 backdrop-blur-sm sticky top-0 z-20 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
@@ -902,6 +920,7 @@ export default function AssignmentWorkspacePage({
           </div>
         </div>
       </div>
+      </IntegrityGuard>
     </DashboardLayout>
   );
 }

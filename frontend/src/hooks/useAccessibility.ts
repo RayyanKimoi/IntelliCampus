@@ -60,8 +60,6 @@ export function useAccessibility() {
     // Apply dyslexia-mode on <html> so CSS selectors like html.dyslexia-mode work globally
     html.classList.toggle('dyslexia-mode', settings.dyslexiaFont);
 
-    body.classList.toggle('focus-mode', settings.focusMode);
-    body.classList.toggle('adhd-mode', settings.adhdMode);
     body.classList.toggle('high-contrast', settings.highContrast);
 
     document.documentElement.style.fontSize = `${settings.fontScale * 100}%`;

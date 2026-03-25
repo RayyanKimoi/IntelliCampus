@@ -351,6 +351,8 @@ model StudentAttempt {
   startedAt         DateTime        @default(now()) @map("started_at")
   submittedAt       DateTime?       @map("submitted_at")
   integrityFlag     Boolean         @default(false) @map("integrity_flag")
+  violations        Int             @default(0)
+  status            String          @default("ACTIVE")
   gradedAt          DateTime?       @map("graded_at")
   gradedBy          String?         @map("graded_by")
   teacherComment    String?         @map("teacher_comment")

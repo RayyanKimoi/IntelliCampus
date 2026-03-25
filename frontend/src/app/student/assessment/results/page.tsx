@@ -1,16 +1,10 @@
 'use client';
 
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { assessmentService, Submission } from '@/services/assessmentService';
-import { masteryService } from '@/services/masteryService';
-import { analyticsService } from '@/services/analyticsService';
-import { MOCK_RESULTS_TOPIC_MASTERY, MOCK_RESULTS_SUBMISSIONS, MOCK_RESULTS_TREND } from '@/lib/mockData';
-import { Button } from '@/components/ui/button';
+import { api } from '@/services/apiClient';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 
@@ -145,7 +139,14 @@ function WeakTopicHeatmap({ topics }: { topics: TopicMastery[] }) {
   );
 }
 
-function RecentScoreRow({ sub }: { sub: Submission }) {
+interface RecentScore {
+  id: string;
+  assignmentTitle: string;
+  submittedAt: string;
+  score: number;
+}
+
+function RecentScoreRow({ sub }: { sub: RecentScore }) {
   const pct = sub.score ?? 0;
   const { letter, color } = getGrade(pct);
   return (
@@ -165,82 +166,27 @@ function RecentScoreRow({ sub }: { sub: Submission }) {
 // ─────────────────────────────────────────────────────────────────
 
 export default function ResultsPage() {
-  const router = useRouter();
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Data
   const [overallPct, setOverallPct] = useState(0);
   const [topicMastery, setTopicMastery] = useState<TopicMastery[]>([]);
-  const [weakTopics, setWeakTopics] = useState<TopicMastery[]>([]);
   const [trendData, setTrendData] = useState<PerformancePoint[]>([]);
-  const [recentScores, setRecentScores] = useState<Submission[]>([]);
+  const [recentScores, setRecentScores] = useState<RecentScore[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [masteryRes, trendRes, submissionsRes] = await Promise.allSettled([
-          masteryService.getMyMastery(),
-          analyticsService.getPerformanceTrend(30),
-          assessmentService.getSubmissions(),
-        ]);
-
+        const response = await api.get('/student/results') as any;
         if (cancelled) return;
 
-        // Mastery
-        if (masteryRes.status === 'fulfilled') {
-          const mastery = (masteryRes.value as any)?.data ?? masteryRes.value;
-          const rawTopics: any[] = mastery?.byTopic ?? mastery?.topics ?? [];
-          const mapped: TopicMastery[] = rawTopics.map((t: any) => ({
-            topicId: t.topicId ?? t.id ?? String(Math.random()),
-            topicName: t.topicName ?? t.name ?? 'Unknown Topic',
-            masteryPct: typeof t.masteryPercentage === 'number' ? t.masteryPercentage :
-                        typeof t.mastery === 'number' ? t.mastery * 100 : 0,
-            trend: t.trend,
-          }));
-          setTopicMastery(mapped.sort((a, b) => a.masteryPct - b.masteryPct));
-          setWeakTopics(mapped.filter(t => t.masteryPct < 60).slice(0, 8));
-
-          // Overall = average of all topics or from mastery.overall
-          const overall =
-            typeof mastery?.overallMastery === 'number' ? mastery.overallMastery :
-            typeof mastery?.overall === 'number' ? mastery.overall :
-            mapped.length > 0 ? mapped.reduce((s, t) => s + t.masteryPct, 0) / mapped.length : 0;
-          setOverallPct(Math.round(overall));
-        }
-
-        // Trend
-        if (trendRes.status === 'fulfilled') {
-          const trend = (trendRes.value as any)?.data ?? trendRes.value;
-          const points: PerformancePoint[] = (Array.isArray(trend?.dataPoints) ? trend.dataPoints :
-                                              Array.isArray(trend) ? trend : [])
-            .map((p: any) => ({
-              date: p.date ?? p.timestamp ?? '',
-              score: typeof p.score === 'number' ? p.score :
-                     typeof p.averageScore === 'number' ? p.averageScore : 0,
-              label: p.label,
-            }));
-          setTrendData(points);
-        }
-
-        // Submissions
-        if (submissionsRes.status === 'fulfilled') {
-          const subs = (submissionsRes.value as any)?.data ?? submissionsRes.value;
-          const arr: Submission[] = Array.isArray(subs?.submissions) ? subs.submissions :
-                                    Array.isArray(subs) ? subs : [];
-          setRecentScores(arr.filter(s => s.score != null).slice(0, 10));
-        }
-
-        // Mock fallbacks — ensure data shows when API is unavailable
-        if (!cancelled) {
-          setTopicMastery(prev => prev.length === 0 ? MOCK_RESULTS_TOPIC_MASTERY : prev);
-          setWeakTopics(prev => prev.length === 0 ? MOCK_RESULTS_TOPIC_MASTERY.filter(t => t.masteryPct < 60) : prev);
-          setTrendData(prev => prev.length === 0 ? (MOCK_RESULTS_TREND as any) : prev);
-          setRecentScores(prev => prev.length === 0 ? (MOCK_RESULTS_SUBMISSIONS as any) : prev);
-          setOverallPct(prev => prev === 0 ? 72 : prev);
-        }
+        const data = response?.data ?? response;
+        setOverallPct(data?.overallPct ?? 0);
+        setTopicMastery(data?.topicMastery ?? []);
+        setTrendData(data?.trendData ?? []);
+        setRecentScores(data?.recentScores ?? []);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? 'Failed to load results');
       } finally {
@@ -273,6 +219,12 @@ export default function ResultsPage() {
         {error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
+          </div>
+        )}
+
+        {!error && overallPct === 0 && topicMastery.length === 0 && recentScores.length === 0 && trendData.length === 0 && (
+          <div className="flex items-center justify-center h-48 rounded-xl border border-dashed border-border bg-card">
+            <p className="text-sm text-muted-foreground">No assessment results available yet.</p>
           </div>
         )}
 

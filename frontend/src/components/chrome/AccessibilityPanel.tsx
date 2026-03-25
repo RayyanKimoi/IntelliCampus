@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAccessibility } from '@/hooks/useAccessibility';
-import { Accessibility, Type, Eye, Focus, Layers, ZoomIn } from 'lucide-react';
+import { Accessibility, Type, Eye, ZoomIn } from 'lucide-react';
 
 const FONT_SIZES = [
   { label: 'Normal (100%)', value: 1.0 },
@@ -16,12 +16,6 @@ const FONT_SIZES = [
 ];
 
 const TOGGLES = [
-  {
-    key: 'adhdMode'     as const,
-    icon: <Layers className="h-3.5 w-3.5" />,
-    label: 'Simple UI',
-    desc: 'Flat, decluttered layout',
-  },
   {
     key: 'dyslexiaFont' as const,
     icon: <Type className="h-3.5 w-3.5" />,
@@ -33,12 +27,6 @@ const TOGGLES = [
     icon: <Eye className="h-3.5 w-3.5" />,
     label: 'High Contrast',
     desc: 'Enhanced for colour blindness',
-  },
-  {
-    key: 'focusMode'    as const,
-    icon: <Focus className="h-3.5 w-3.5" />,
-    label: 'Focus Mode',
-    desc: 'Collapse sidebar, hide distractions',
   },
 ];
 
@@ -68,8 +56,8 @@ export function AccessibilityPanel() {
   }, []);
 
   const anyActive =
-    (settings?.adhdMode || settings?.dyslexiaFont || settings?.highContrast ||
-     settings?.focusMode || (settings?.fontScale ?? 1) !== 1);
+    (settings?.dyslexiaFont || settings?.highContrast ||
+     (settings?.fontScale ?? 1) !== 1);
 
   return (
     <div className="relative">
