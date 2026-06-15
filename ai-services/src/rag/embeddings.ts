@@ -22,21 +22,23 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   try {
+    const _embedStart = performance.now();
     const result = await hf.featureExtraction({
       model: EMBEDDING_MODEL,
       inputs: text,
     });
+    const _embedMs = performance.now() - _embedStart;
 
     // featureExtraction returns number[] | number[][] depending on input shape
     if (Array.isArray(result) && typeof result[0] === 'number') {
       const vec = result as number[];
-      console.log(`[Embeddings] Generated embedding — model: ${EMBEDDING_MODEL}, dims: ${vec.length}`);
+      console.log(JSON.stringify({ stage: 'embedding_hf_api', latency_ms: Math.round(_embedMs), model: EMBEDDING_MODEL, dims: vec.length }));
       return vec;
     }
     // Some models return [[...]] for a single input
     if (Array.isArray(result) && Array.isArray(result[0])) {
       const vec = (result as number[][])[0];
-      console.log(`[Embeddings] Generated embedding — model: ${EMBEDDING_MODEL}, dims: ${vec.length}`);
+      console.log(JSON.stringify({ stage: 'embedding_hf_api', latency_ms: Math.round(_embedMs), model: EMBEDDING_MODEL, dims: vec.length }));
       return vec;
     }
 

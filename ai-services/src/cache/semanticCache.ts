@@ -6,7 +6,12 @@ if (!redisUrl) {
   throw new Error('Missing required environment variable: REDIS_URL');
 }
 
-const redis = new Redis(redisUrl, { lazyConnect: true });
+const redis = new Redis(redisUrl, {
+  lazyConnect: true,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 1,
+  connectTimeout: 5000,
+});
 
 /** TTL for cached responses: 24 hours */
 const CACHE_TTL_SECONDS = 86_400;
@@ -73,39 +78,53 @@ function cosineSimilarity(a: number[], b: number[]): number {
  * Cached fallback responses are silently skipped — they are stale by definition.
  */
 export async function checkCache(queryEmbedding: number[]): Promise<string | null> {
-  const keys = await redis.keys(`${KEY_PREFIX}*`);
-  if (keys.length === 0) return null;
+  try {
+    const _cacheStart = performance.now();
+    const _keysStart = performance.now();
+    const keys = await redis.keys(`${KEY_PREFIX}*`);
+    const _keysMs = performance.now() - _keysStart;
+    console.log(JSON.stringify({ stage: 'cache_keys_scan', latency_ms: Math.round(_keysMs), key_count: keys.length }));
 
-  let bestScore = -1;
-  let bestResponse: string | null = null;
+    if (keys.length === 0) return null;
 
-  for (const key of keys) {
-    const raw = await redis.get(key);
-    if (!raw) continue;
+    let bestScore = -1;
+    let bestResponse: string | null = null;
+    let _getTotal = 0;
 
-    let entry: CacheEntry;
-    try {
-      entry = JSON.parse(raw) as CacheEntry;
-    } catch {
-      continue;
+    for (const key of keys) {
+      const _getStart = performance.now();
+      const raw = await redis.get(key);
+      _getTotal += performance.now() - _getStart;
+      if (!raw) continue;
+
+      let entry: CacheEntry;
+      try {
+        entry = JSON.parse(raw) as CacheEntry;
+      } catch {
+        continue;
+      }
+
+      if (isFallbackResponse(entry.response)) {
+        console.log(`[Cache] Skipping stale fallback cache entry: ${key}`);
+        await redis.del(key).catch(() => {});
+        continue;
+      }
+
+      const score = cosineSimilarity(queryEmbedding, entry.embedding);
+      if (score > bestScore) {
+        bestScore = score;
+        bestResponse = entry.response;
+      }
     }
 
-    // Never serve a cached fallback — skip it so the live pipeline runs
-    if (isFallbackResponse(entry.response)) {
-      console.log(`[Cache] Skipping stale fallback cache entry: ${key}`);
-      // Proactively delete it so it doesn’t accumulate
-      await redis.del(key).catch(() => {});
-      continue;
-    }
+    const _cacheMs = performance.now() - _cacheStart;
+    console.log(JSON.stringify({ stage: 'cache_check', latency_ms: Math.round(_cacheMs), get_total_ms: Math.round(_getTotal), entries_checked: keys.length, hit: bestScore >= SIMILARITY_THRESHOLD, best_score: Math.round(bestScore * 1000) / 1000 }));
 
-    const score = cosineSimilarity(queryEmbedding, entry.embedding);
-    if (score > bestScore) {
-      bestScore = score;
-      bestResponse = entry.response;
-    }
+    return bestScore >= SIMILARITY_THRESHOLD ? bestResponse : null;
+  } catch (error: any) {
+    console.warn('[Cache] Redis unavailable, skipping semantic cache read:', error?.message ?? error);
+    return null;
   }
-
-  return bestScore >= SIMILARITY_THRESHOLD ? bestResponse : null;
 }
 
 /**
@@ -135,7 +154,11 @@ export async function storeCache(
   const key = `${KEY_PREFIX}${fingerprint}_${Date.now()}`;
   const entry: CacheEntry = { embedding: queryEmbedding, response };
 
-  await redis.set(key, JSON.stringify(entry), 'EX', CACHE_TTL_SECONDS);
+  try {
+    await redis.set(key, JSON.stringify(entry), 'EX', CACHE_TTL_SECONDS);
+  } catch (error: any) {
+    console.warn('[Cache] Redis unavailable, skipping semantic cache write:', error?.message ?? error);
+  }
 }
 
 export default redis;

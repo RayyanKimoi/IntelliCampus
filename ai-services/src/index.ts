@@ -324,6 +324,7 @@ Rules:
 
 // AI Tutor (RAG + Groq + semantic cache)
 app.post('/tutor', async (req, res) => {
+  const _routeStart = performance.now();
   try {
     const { askTutor } = await import('./pipelines/aiTutor');
 
@@ -337,8 +338,26 @@ app.post('/tutor', async (req, res) => {
     }
 
     const result = await askTutor({ question: question.trim(), courseId });
-    res.json({ success: true, data: result });
+    const route_total_ms = Math.round(performance.now() - _routeStart);
+    const api_overhead_ms = result.latency ? route_total_ms - result.latency.total_ms : 0;
+    console.log(JSON.stringify({ stage: 'tutor_route_total', latency_ms: route_total_ms, pipeline_ms: result.latency?.total_ms ?? 0, api_overhead_ms }));
+
+    res.json({
+      success: true,
+      data: result,
+      latency: {
+        total: route_total_ms,
+        embedding: result.latency?.embedding_ms ?? 0,
+        retrieval: result.latency?.retrieval_ms ?? 0,
+        cache_check: result.latency?.cache_check_ms ?? 0,
+        context_build: result.latency?.context_build_ms ?? 0,
+        llm: result.latency?.llm_ms ?? 0,
+        cache_store: result.latency?.cache_store_ms ?? 0,
+        api_overhead: api_overhead_ms,
+      },
+    });
   } catch (error: any) {
+    console.error(JSON.stringify({ stage: 'tutor_route_error', latency_ms: Math.round(performance.now() - _routeStart), error: error.message }));
     res.status(500).json({ success: false, error: error.message });
   }
 });
