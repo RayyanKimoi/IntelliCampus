@@ -18,7 +18,7 @@ export class AssessmentService {
     submissionTypes?: string[];
     rubric?: Array<{ name: string; maxScore: number }>;
     assignmentDocumentUrl?: string;
-    evaluationPoints?: number;
+    evaluationPoints?: number | string;
   }) {
     const assignment = await prisma.assignment.create({
       data: {
@@ -34,7 +34,10 @@ export class AssessmentService {
         submissionTypes: data.submissionTypes ?? [],
         rubric: data.rubric ?? undefined,
         assignmentDocumentUrl: data.assignmentDocumentUrl ?? null,
-        evaluationPoints: data.evaluationPoints ?? null,
+        evaluationPoints:
+          data.evaluationPoints !== undefined && data.evaluationPoints !== null
+            ? String(data.evaluationPoints)
+            : null,
       },
       include: {
         course: { select: { id: true, name: true } },

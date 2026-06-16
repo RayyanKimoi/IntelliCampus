@@ -26,7 +26,9 @@ class Retriever {
     console.log(`[Retriever] Using namespace: '${pineconeConfig.namespace}', topK: ${topK}, minScore: ${minScore}`, filters ? `filters: ${JSON.stringify(filters)}` : '');
 
     // Generate query embedding
+    const _embedStart = performance.now();
     const queryEmbedding = await generateEmbedding(query);
+    const _embedMs = performance.now() - _embedStart;
 
     // Build filter
     const filter: Record<string, unknown> = {};
@@ -35,15 +37,18 @@ class Retriever {
 
     // Query Pinecone
     const index = getPineconeIndex();
+    const _pineconeStart = performance.now();
     const results = await index.namespace(pineconeConfig.namespace).query({
       vector: queryEmbedding,
       topK,
       includeMetadata: true,
       filter: Object.keys(filter).length > 0 ? filter : undefined,
     });
+    const _pineconeMs = performance.now() - _pineconeStart;
 
     const allMatches = results.matches || [];
-    console.log(`[Retriever] Pinecone returned ${allMatches.length} raw matches (before score filter)`);
+    console.log(JSON.stringify({ stage: 'vector_search', latency_ms: Math.round(_pineconeMs), raw_matches: allMatches.length, filters: filters ?? null }));
+    console.log(JSON.stringify({ stage: 'retriever_embedding', latency_ms: Math.round(_embedMs) }));
 
     // Filter by minimum relevance score and map to chunks
     const filtered = allMatches

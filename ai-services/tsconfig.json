@@ -13,7 +13,8 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true,
-    "baseUrl": "./src"
+    "baseUrl": "./src",
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
