@@ -6,7 +6,16 @@ if (!redisUrl) {
   throw new Error('Missing required environment variable: REDIS_URL');
 }
 
-const redis = new Redis(redisUrl, {
+// Accept either a full redis URL (redis://user:pass@host:port) or a plain host:port
+// If a plain host:port is supplied, prefix it with the redis:// scheme so ioredis
+// can parse it correctly. This makes it easier to accept values like
+// "redis-16122.c84.us-east-1-2.ec2.cloud.redislabs.com:16122".
+let normalizedRedisUrl = redisUrl;
+if (!/^rediss?:\/\//i.test(redisUrl)) {
+  normalizedRedisUrl = `redis://${redisUrl}`;
+}
+
+const redis = new Redis(normalizedRedisUrl, {
   lazyConnect: true,
   enableOfflineQueue: false,
   maxRetriesPerRequest: 1,
