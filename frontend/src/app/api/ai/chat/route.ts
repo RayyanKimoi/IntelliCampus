@@ -39,13 +39,23 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data = await aiRes.json();
+    // Parse AI service response safely — some deployments return HTML error pages
+    // (e.g. Vercel 404/500 HTML) which would throw when calling `res.json()`.
+    let data: any = null;
+    const contentType = aiRes.headers.get('content-type') || '';
+    const bodyText = await aiRes.text();
+    if (contentType.includes('application/json')) {
+      try {
+        data = JSON.parse(bodyText);
+      } catch (err) {
+        // Fall through — we'll return the raw body in the error below
+        data = null;
+      }
+    }
 
     if (!aiRes.ok) {
-      return NextResponse.json(
-        { success: false, error: data?.error ?? 'AI service error' },
-        { status: aiRes.status }
-      );
+      const errorMessage = data?.error ?? (bodyText ? `AI service error: ${bodyText.slice(0, 200)}` : 'AI service error');
+      return NextResponse.json({ success: false, error: errorMessage }, { status: aiRes.status });
     }
 
     // AI service wraps result in { success, data: { answer, sources, fromCache } }
